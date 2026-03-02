@@ -4,32 +4,33 @@ public class GrapplingHook : MonoBehaviour
 {
     [Header("Grappin")]
     [SerializeField] float maxDistance = 15f;
-    [SerializeField] float deploySpeed = 25f;       // vitesse de déploiement visuel
-    [SerializeField] float pullForce = 12f;         // force d'attraction vers le point
-    [SerializeField] float swingForce = 8f;         // force latérale pendant le swing
-    [SerializeField] LayerMask hookableLayers;      // layers sur lesquels on peut s'accrocher
+    [SerializeField] float deploySpeed = 25f;
+    [SerializeField] float swingForce = 8f;
+    [SerializeField] LayerMask hookableLayers;
 
     [Header("Swing Settings")]
     [SerializeField] float ropeMaxLength = 12f;
-    [SerializeField] float ropeShortenSpeed = 3f;   // raccourcir la corde avec scroll
+    [SerializeField] float ropeShortenSpeed = 3f;
     [SerializeField] float minRopeLength = 2f;
 
     [Header("Refs")]
-    [SerializeField] Transform firePoint;           // point de départ du grappin (main du perso)
+    [SerializeField] Transform firePoint;
     [SerializeField] LineRenderer lineRenderer;
 
     Rigidbody2D rb;
     Camera cam;
 
-    // State
+    public bool canUseGrapple = true;
+    public bool isUsingGrapple = false;
+
     enum GrappleState { Idle, Deploying, Hooked }
     GrappleState state = GrappleState.Idle;
 
-    Vector2 hookTarget;         // destination visée
-    Vector2 hookPoint;          // point d'accroche réel
-    Vector2 hookTipPosition;    // position animée de la tête du grappin
+    Vector2 hookPoint;
+    Vector2 hookTipPosition;
 
     SpringJoint2D springJoint;
+    DroneEnemy pendingDrone = null; // drone détecté, en attente d'accroche
 
     void Awake()
     {
@@ -47,15 +48,17 @@ public class GrapplingHook : MonoBehaviour
 
     void HandleInput()
     {
-        // Tir grappin
+        if (!canUseGrapple) return;
+
         if (Input.GetMouseButtonDown(0) && state == GrappleState.Idle)
         {
+            isUsingGrapple = true;
             TryShoot();
         }
 
-        // Relâcher
         if (Input.GetMouseButtonUp(0) && state != GrappleState.Idle)
         {
+            isUsingGrapple = false;
             ReleaseGrapple();
         }
     }
@@ -65,17 +68,18 @@ public class GrapplingHook : MonoBehaviour
         Vector2 mouseWorld = cam.ScreenToWorldPoint(Input.mousePosition);
         Vector2 direction = (mouseWorld - (Vector2)firePoint.position).normalized;
 
-        // Raycast pour vérifier si on touche quelque chose d'accrochable
         RaycastHit2D hit = Physics2D.Raycast(firePoint.position, direction, maxDistance, hookableLayers);
 
         if (hit.collider != null)
         {
             hookPoint = hit.point;
-            hookTarget = hit.point;
             hookTipPosition = firePoint.position;
             state = GrappleState.Deploying;
-
             lineRenderer.enabled = true;
+
+            // On stocke le drone mais on NE l'active PAS encore
+            // Il sera activé seulement quand le grappin arrive à destination
+            pendingDrone = hit.collider.GetComponent<DroneEnemy>();
         }
     }
 
@@ -83,10 +87,8 @@ public class GrapplingHook : MonoBehaviour
     {
         if (state != GrappleState.Deploying) return;
 
-        // Anime la tête du grappin vers le point d'accroche
         hookTipPosition = Vector2.MoveTowards(hookTipPosition, hookPoint, deploySpeed * Time.deltaTime);
 
-        // Est-ce qu'on est arrivé ?
         if (Vector2.Distance(hookTipPosition, hookPoint) < 0.1f)
         {
             hookTipPosition = hookPoint;
@@ -98,7 +100,17 @@ public class GrapplingHook : MonoBehaviour
     {
         state = GrappleState.Hooked;
 
-        // Crée un SpringJoint pour simuler la corde
+        // Si c'est un drone, on le fait tomber et on ne crée pas de SpringJoint
+        if (pendingDrone != null)
+        {
+            pendingDrone.GetHooked();
+            pendingDrone = null;
+            // La corde reste visible 0.3s puis se détache automatiquement
+            Invoke(nameof(ReleaseGrapple), 0.3f);
+            return;
+        }
+
+        // Sinon accroche normale sur le décor
         springJoint = gameObject.AddComponent<SpringJoint2D>();
         springJoint.autoConfigureConnectedAnchor = false;
         springJoint.connectedAnchor = hookPoint;
@@ -112,9 +124,8 @@ public class GrapplingHook : MonoBehaviour
 
     void UpdateRopeLength()
     {
-        if (state != GrappleState.Hooked) return;
+        if (state != GrappleState.Hooked || springJoint == null) return;
 
-        // Scroll pour raccourcir/allonger la corde
         float scroll = Input.GetAxis("Mouse ScrollWheel");
         if (scroll != 0f)
         {
@@ -125,7 +136,6 @@ public class GrapplingHook : MonoBehaviour
             );
         }
 
-        // Swing latéral avec A/D pendant l'accroche
         float inputX = Input.GetAxisRaw("Horizontal");
         if (inputX != 0)
         {
@@ -133,10 +143,12 @@ public class GrapplingHook : MonoBehaviour
         }
     }
 
-    void ReleaseGrapple()
+    public void ReleaseGrapple()
     {
+        CancelInvoke(nameof(ReleaseGrapple));
         state = GrappleState.Idle;
         lineRenderer.enabled = false;
+        pendingDrone = null;
 
         if (springJoint != null)
         {
@@ -158,7 +170,6 @@ public class GrapplingHook : MonoBehaviour
         lineRenderer.SetPosition(1, hookTipPosition);
     }
 
-    // Dessine la portée max dans l'éditeur
     void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.cyan;
