@@ -95,30 +95,24 @@ public class CharaController : MonoBehaviour
 
     void FixedUpdate()
     {
-        // Si on dashe, on gère uniquement le timer du dash
         if (isDashing)
         {
             dashTimeCounter -= Time.fixedDeltaTime;
-            if (dashTimeCounter <= 0f)
-                EndDash();
+            if (dashTimeCounter <= 0f) EndDash();
             return;
         }
 
-        // Mouvement horizontal avec accélération
+        // Mouvement horizontal — on multiplie par 50 pour compenser Time.fixedDeltaTime
         float targetSpeedX = inputX * MoveSpeed;
         float accel = (Mathf.Abs(inputX) > 0.01f) ? Acceleration : Deceleration;
-        float newX = Mathf.MoveTowards(rb.linearVelocity.x, targetSpeedX, accel * Time.fixedDeltaTime);
+        float newX = Mathf.MoveTowards(rb.linearVelocity.x, targetSpeedX, accel * Time.fixedDeltaTime * 50f);
         rb.linearVelocity = new Vector2(newX, rb.linearVelocity.y);
 
-        // Meilleure gravité (saut plus dynamique)
+        // Gravité dynamique
         if (rb.linearVelocity.y < 0)
-        {
             rb.linearVelocity += Vector2.up * Physics2D.gravity.y * (FallMultiplier - 1) * Time.fixedDeltaTime;
-        }
         else if (rb.linearVelocity.y > 0 && !Input.GetButton("Jump"))
-        {
             rb.linearVelocity += Vector2.up * Physics2D.gravity.y * (LowJumpMultiplier - 1) * Time.fixedDeltaTime;
-        }
     }
 
     void StartDash()

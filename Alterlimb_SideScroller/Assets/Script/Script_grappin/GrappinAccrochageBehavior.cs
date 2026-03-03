@@ -30,7 +30,8 @@ public class GrapplingHook : MonoBehaviour
     Vector2 hookTipPosition;
 
     SpringJoint2D springJoint;
-    DroneEnemy pendingDrone = null; // drone détecté, en attente d'accroche
+    DroneEnemy hookedDrone = null;
+    Rigidbody2D droneRb = null;
 
     void Awake()
     {
@@ -77,9 +78,9 @@ public class GrapplingHook : MonoBehaviour
             state = GrappleState.Deploying;
             lineRenderer.enabled = true;
 
-            // On stocke le drone mais on NE l'active PAS encore
-            // Il sera activé seulement quand le grappin arrive à destination
-            pendingDrone = hit.collider.GetComponent<DroneEnemy>();
+            hookedDrone = hit.collider.GetComponent<DroneEnemy>();
+            if (hookedDrone != null)
+                droneRb = hit.collider.GetComponent<Rigidbody2D>();
         }
     }
 
@@ -100,17 +101,23 @@ public class GrapplingHook : MonoBehaviour
     {
         state = GrappleState.Hooked;
 
-        // Si c'est un drone, on le fait tomber et on ne crée pas de SpringJoint
-        if (pendingDrone != null)
+        if (hookedDrone != null)
         {
-            pendingDrone.GetHooked();
-            pendingDrone = null;
-            // La corde reste visible 0.3s puis se détache automatiquement
-            Invoke(nameof(ReleaseGrapple), 0.3f);
+            // On prévient le drone qu'il est accroché (désactive son IA, active gravité)
+            hookedDrone.GetHooked();
+
+            // SpringJoint sur le DRONE, ancré à la position du joueur
+            springJoint = droneRb.gameObject.AddComponent<SpringJoint2D>();
+            springJoint.autoConfigureConnectedAnchor = false;
+            springJoint.connectedAnchor = transform.position; // ancré au joueur
+            springJoint.distance = Vector2.Distance(transform.position, hookedDrone.transform.position);
+            springJoint.dampingRatio = 0.5f;
+            springJoint.frequency = 2f;
+            springJoint.enableCollision = true;
             return;
         }
 
-        // Sinon accroche normale sur le décor
+        // Accroche normale sur le décor
         springJoint = gameObject.AddComponent<SpringJoint2D>();
         springJoint.autoConfigureConnectedAnchor = false;
         springJoint.connectedAnchor = hookPoint;
@@ -136,11 +143,17 @@ public class GrapplingHook : MonoBehaviour
             );
         }
 
-        float inputX = Input.GetAxisRaw("Horizontal");
-        if (inputX != 0)
+        // Swing latéral uniquement sur décor (pas sur drone)
+        if (hookedDrone == null)
         {
-            rb.AddForce(new Vector2(inputX * swingForce, 0f), ForceMode2D.Force);
+            float inputX = Input.GetAxisRaw("Horizontal");
+            if (inputX != 0)
+                rb.AddForce(new Vector2(inputX * swingForce, 0f), ForceMode2D.Force);
         }
+
+        // Mise à jour de l'ancre du joint sur le drone (suit le joueur)
+        if (hookedDrone != null)
+            springJoint.connectedAnchor = transform.position;
     }
 
     public void ReleaseGrapple()
@@ -148,13 +161,15 @@ public class GrapplingHook : MonoBehaviour
         CancelInvoke(nameof(ReleaseGrapple));
         state = GrappleState.Idle;
         lineRenderer.enabled = false;
-        pendingDrone = null;
 
         if (springJoint != null)
         {
             Destroy(springJoint);
             springJoint = null;
         }
+
+        hookedDrone = null;
+        droneRb = null;
     }
 
     void DrawRope()
@@ -167,7 +182,12 @@ public class GrapplingHook : MonoBehaviour
 
         lineRenderer.positionCount = 2;
         lineRenderer.SetPosition(0, firePoint.position);
-        lineRenderer.SetPosition(1, hookTipPosition);
+
+        // Si drone accroché, la corde pointe vers le drone
+        if (hookedDrone != null && state == GrappleState.Hooked)
+            lineRenderer.SetPosition(1, hookedDrone.transform.position);
+        else
+            lineRenderer.SetPosition(1, hookTipPosition);
     }
 
     void OnDrawGizmosSelected()

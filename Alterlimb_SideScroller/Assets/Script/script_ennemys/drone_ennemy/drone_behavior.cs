@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 public class DroneEnemy : MonoBehaviour
 {
@@ -21,15 +21,11 @@ public class DroneEnemy : MonoBehaviour
     [SerializeField] float fireRate = 1.5f;
     [SerializeField] float bulletSpeed = 10f;
 
-    [Header("Hook")]
-    [SerializeField] float fallForce = 15f;
-    [SerializeField] float destroyDelay = 3f;
-
     [Header("Refs")]
     [SerializeField] Transform player;
 
     Rigidbody2D rb;
-    bool isHooked = false;
+    public bool isHooked = false;
     bool isPatrollingToB = true;
     float fireCooldown = 0f;
 
@@ -39,13 +35,13 @@ public class DroneEnemy : MonoBehaviour
     void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
-        rb.gravityScale = 0f;       // l�vitation
+        rb.gravityScale = 0f;
         rb.freezeRotation = true;
     }
 
     void Update()
     {
-        if (isHooked) return;
+        if (isHooked) return; // IA désactivée dès qu'accroché
 
         UpdateState();
 
@@ -64,12 +60,9 @@ public class DroneEnemy : MonoBehaviour
         if (player == null) return;
         float dist = Vector2.Distance(transform.position, player.position);
 
-        if (dist > detectionRange)
-            state = DroneState.Patrolling;
-        else if (dist > stopDistance)
-            state = DroneState.Chasing;
-        else
-            state = DroneState.Shooting;
+        if (dist > detectionRange) state = DroneState.Patrolling;
+        else if (dist > stopDistance) state = DroneState.Chasing;
+        else state = DroneState.Shooting;
     }
 
     void Patrol()
@@ -89,15 +82,12 @@ public class DroneEnemy : MonoBehaviour
 
     void Shoot()
     {
-        // S'arr�te sur place
         rb.linearVelocity = Vector2.Lerp(rb.linearVelocity, Vector2.zero, moveSmoothness * Time.deltaTime);
 
-        // Oriente le firePoint vers le joueur
         if (firePoint != null && player != null)
         {
             Vector2 dir = (player.position - firePoint.position).normalized;
-            float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
-            firePoint.rotation = Quaternion.Euler(0f, 0f, angle);
+            firePoint.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg);
         }
 
         if (fireCooldown <= 0f)
@@ -113,13 +103,11 @@ public class DroneEnemy : MonoBehaviour
 
         GameObject bullet = Instantiate(bulletPrefab, firePoint.position, firePoint.rotation);
         Rigidbody2D bulletRb = bullet.GetComponent<Rigidbody2D>();
-
         if (bulletRb != null)
         {
             Vector2 dir = (player.position - firePoint.position).normalized;
             bulletRb.linearVelocity = dir * bulletSpeed;
         }
-
         Destroy(bullet, 5f);
     }
 
@@ -129,32 +117,30 @@ public class DroneEnemy : MonoBehaviour
         rb.linearVelocity = Vector2.Lerp(rb.linearVelocity, direction * speed, moveSmoothness * Time.deltaTime);
     }
 
-    // ??? HOOK ????????????????????????????????????????????????????
+    // ─── HOOK ────────────────────────────────────────────────────
 
     public void GetHooked()
     {
         if (isHooked) return;
         isHooked = true;
 
-        rb.gravityScale = 1f;
-        rb.linearVelocity = Vector2.zero;
-        rb.AddForce(Vector2.down * fallForce, ForceMode2D.Impulse);
-
-        Destroy(gameObject, destroyDelay);
+        rb.gravityScale = 1f;           // gravité active → il tombe
+        rb.linearVelocity = Vector2.zero; // reset la vélocité de vol
     }
 
     void OnCollisionEnter2D(Collision2D col)
     {
         if (!isHooked) return;
+
         if (col.gameObject.CompareTag("Ground"))
-            Destroy(gameObject);
+            Destroy(gameObject); // le sol le détruit
     }
 
     void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.yellow;
-        Gizmos.DrawWireSphere(transform.position, detectionRange); // zone de d�tection
+        Gizmos.DrawWireSphere(transform.position, detectionRange);
         Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(transform.position, stopDistance);   // zone de tir
+        Gizmos.DrawWireSphere(transform.position, stopDistance);
     }
 }

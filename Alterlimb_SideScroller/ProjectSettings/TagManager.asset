@@ -5,6 +5,9 @@ TagManager:
   serializedVersion: 3
   tags:
   - Ground
+  - DeadZone
+  - Bullet
+  - DroneEnemy
   layers:
   - Default
   - TransparentFX
@@ -13,7 +16,7 @@ TagManager:
   - Water
   - UI
   - Ennemy
-  - 
+  - Player
   - 
   - 
   - 
