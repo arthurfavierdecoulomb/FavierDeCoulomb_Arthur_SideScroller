@@ -1,4 +1,4 @@
-using UnityEngine;
+Ôªøusing UnityEngine;
 
 public class GrapplingHook : MonoBehaviour
 {
@@ -12,6 +12,7 @@ public class GrapplingHook : MonoBehaviour
     [SerializeField] float ropeMaxLength = 12f;
     [SerializeField] float ropeShortenSpeed = 3f;
     [SerializeField] float minRopeLength = 2f;
+    [SerializeField] float maxSwingSpeed = 12f; // ‚Üê NOUVEAU
 
     [Header("Refs")]
     [SerializeField] Transform firePoint;
@@ -103,13 +104,11 @@ public class GrapplingHook : MonoBehaviour
 
         if (hookedDrone != null)
         {
-            // On prÈvient le drone qu'il est accrochÈ (dÈsactive son IA, active gravitÈ)
             hookedDrone.GetHooked();
 
-            // SpringJoint sur le DRONE, ancrÈ ‡ la position du joueur
             springJoint = droneRb.gameObject.AddComponent<SpringJoint2D>();
             springJoint.autoConfigureConnectedAnchor = false;
-            springJoint.connectedAnchor = transform.position; // ancrÈ au joueur
+            springJoint.connectedAnchor = transform.position;
             springJoint.distance = Vector2.Distance(transform.position, hookedDrone.transform.position);
             springJoint.dampingRatio = 0.5f;
             springJoint.frequency = 2f;
@@ -117,7 +116,6 @@ public class GrapplingHook : MonoBehaviour
             return;
         }
 
-        // Accroche normale sur le dÈcor
         springJoint = gameObject.AddComponent<SpringJoint2D>();
         springJoint.autoConfigureConnectedAnchor = false;
         springJoint.connectedAnchor = hookPoint;
@@ -143,15 +141,21 @@ public class GrapplingHook : MonoBehaviour
             );
         }
 
-        // Swing latÈral uniquement sur dÈcor (pas sur drone)
+        // Swing lat√©ral uniquement sur d√©cor (pas sur drone)
         if (hookedDrone == null)
         {
             float inputX = Input.GetAxisRaw("Horizontal");
             if (inputX != 0)
-                rb.AddForce(new Vector2(inputX * swingForce, 0f), ForceMode2D.Force);
+            {
+                if (Mathf.Abs(rb.linearVelocity.x) < maxSwingSpeed)
+                    rb.AddForce(new Vector2(inputX * swingForce, 0f), ForceMode2D.Force);
+            }
+
+            // Clamp vitesse globale pendant le grappin
+            if (rb.linearVelocity.magnitude > maxSwingSpeed)
+                rb.linearVelocity = rb.linearVelocity.normalized * maxSwingSpeed;
         }
 
-        // Mise ‡ jour de l'ancre du joint sur le drone (suit le joueur)
         if (hookedDrone != null)
             springJoint.connectedAnchor = transform.position;
     }
@@ -183,7 +187,6 @@ public class GrapplingHook : MonoBehaviour
         lineRenderer.positionCount = 2;
         lineRenderer.SetPosition(0, firePoint.position);
 
-        // Si drone accrochÈ, la corde pointe vers le drone
         if (hookedDrone != null && state == GrappleState.Hooked)
             lineRenderer.SetPosition(1, hookedDrone.transform.position);
         else

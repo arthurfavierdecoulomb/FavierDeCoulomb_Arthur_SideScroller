@@ -1,18 +1,15 @@
-﻿using System.Net;
-using Unity.VisualScripting;
-using UnityEngine;
-using UnityEngine.Rendering;
+﻿using UnityEngine;
 
 public class Turret : MonoBehaviour
 {
     [Header("Rotation Patrouille")]
-    [SerializeField] float patrolMinAngle = -60f;   // angle bas
-    [SerializeField] float patrolMaxAngle = 60f;    // angle haut
-    [SerializeField] float patrolSpeed = 45f;       // degrés par seconde
+    [SerializeField] float patrolMinAngle = -60f;
+    [SerializeField] float patrolMaxAngle = 60f;
+    [SerializeField] float patrolSpeed = 45f;
 
     [Header("Détection")]
     [SerializeField] float detectionRange = 12f;
-    [SerializeField] LayerMask detectionMask;       // coche Player + Ground
+    [SerializeField] LayerMask detectionMask;
 
     [Header("Tir")]
     [SerializeField] GameObject bulletPrefab;
@@ -21,13 +18,39 @@ public class Turret : MonoBehaviour
     [SerializeField] float bulletSpeed = 12f;
 
     [Header("Refs")]
-    [SerializeField] Transform turretHead;          // le rond qui tourne
-    [SerializeField] Transform player;
+    [SerializeField] Transform turretHead;
+    [SerializeField] Transform player;          // assignable manuellement OU auto-trouvé
 
     float currentAngle;
     float patrolDirection = 1f;
     float fireCooldown = 0f;
     bool playerDetected = false;
+
+    void Awake()
+    {
+        // Auto-find si non assigné dans l'inspecteur
+        if (player == null)
+        {
+            GameObject p = GameObject.FindGameObjectWithTag("Player");
+            if (p != null)
+                player = p.transform;
+            else
+                Debug.LogError("[Turret] Aucun GameObject avec le tag 'Player' trouvé !");
+        }
+
+        if (turretHead == null)
+            Debug.LogError("[Turret] turretHead non assigné !");
+
+        if (firePoint == null)
+            Debug.LogError("[Turret] firePoint non assigné !");
+
+        if (bulletPrefab == null)
+            Debug.LogError("[Turret] bulletPrefab non assigné !");
+
+        // Avertit si le detectionMask est vide (piège classique)
+        if (detectionMask == 0)
+            Debug.LogWarning("[Turret] detectionMask est vide ! Coche Player + Ground dans l'inspecteur.");
+    }
 
     void Update()
     {
@@ -39,49 +62,51 @@ public class Turret : MonoBehaviour
             Patrol();
 
         fireCooldown -= Time.deltaTime;
-
         if (playerDetected && fireCooldown <= 0f)
         {
             FireBullet();
             fireCooldown = fireRate;
         }
 
-        // Dessine le raycast dans la Scene View
-        Debug.DrawRay(firePoint.position, turretHead.right * detectionRange, playerDetected ? Color.red : Color.green);
+        Debug.DrawRay(firePoint.position, turretHead.right * detectionRange,
+                      playerDetected ? Color.red : Color.green);
     }
 
     bool CheckLineOfSight()
     {
         if (player == null) return false;
 
-        Vector2 dirToPlayer = (player.position - firePoint.position).normalized;
         float distToPlayer = Vector2.Distance(firePoint.position, player.position);
+        Debug.Log($"[Turret] Distance joueur : {distToPlayer:F1} / Range : {detectionRange}");
 
         if (distToPlayer > detectionRange) return false;
 
-        // Raycast vers le joueur — si ça touche le joueur en premier c'est bon
-        RaycastHit2D hit = Physics2D.Raycast(firePoint.position, dirToPlayer, detectionRange, detectionMask);
+        Vector2 dirToPlayer = (player.position - firePoint.position).normalized;
 
-        if (hit.collider != null && hit.collider.CompareTag("Player"))
-            return true;
+        RaycastHit2D hit = Physics2D.Raycast(
+            firePoint.position,
+            dirToPlayer,
+            detectionRange,
+            detectionMask
+        );
 
-        return false;
+        if (hit.collider == null)
+        {
+            Debug.LogWarning($"[Turret] Raycast ne touche RIEN — detectionMask probablement mal configuré");
+            return false;
+        }
+
+        Debug.Log($"[Turret] Raycast touche : {hit.collider.name} | Tag : {hit.collider.tag}");
+
+        return hit.collider.CompareTag("Player");
     }
 
     void Patrol()
     {
         currentAngle += patrolSpeed * patrolDirection * Time.deltaTime;
 
-        if (currentAngle >= patrolMaxAngle)
-        {
-            currentAngle = patrolMaxAngle;
-            patrolDirection = -1f;
-        }
-        else if (currentAngle <= patrolMinAngle)
-        {
-            currentAngle = patrolMinAngle;
-            patrolDirection = 1f;
-        }
+        if (currentAngle >= patrolMaxAngle) { currentAngle = patrolMaxAngle; patrolDirection = -1f; }
+        else if (currentAngle <= patrolMinAngle) { currentAngle = patrolMinAngle; patrolDirection = 1f; }
 
         turretHead.localRotation = Quaternion.Euler(0f, 0f, currentAngle);
     }
@@ -90,31 +115,39 @@ public class Turret : MonoBehaviour
     {
         Vector2 dir = (player.position - turretHead.position).normalized;
         float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
-
-        // Rotation fluide vers le joueur
         float smoothAngle = Mathf.LerpAngle(turretHead.eulerAngles.z, angle, 10f * Time.deltaTime);
         turretHead.rotation = Quaternion.Euler(0f, 0f, smoothAngle);
     }
 
     void FireBullet()
     {
-        if (bulletPrefab == null || firePoint == null) return;
+        // ── Logs de diagnostic ──────────────────────────
+        Debug.Log($"[Turret] FireBullet() appelé !");
+
+        if (bulletPrefab == null) { Debug.LogError("[Turret] bulletPrefab EST NULL !"); return; }
+        if (firePoint == null) { Debug.LogError("[Turret] firePoint EST NULL !"); return; }
+        if (player == null) { Debug.LogError("[Turret] player EST NULL !"); return; }
+        // ────────────────────────────────────────────────
 
         GameObject bullet = Instantiate(bulletPrefab, firePoint.position, firePoint.rotation);
         Rigidbody2D bulletRb = bullet.GetComponent<Rigidbody2D>();
 
-        if (bulletRb != null)
+        if (bulletRb == null)
         {
-            Vector2 dir = (player.position - firePoint.position).normalized;
-            bulletRb.linearVelocity = dir * bulletSpeed;
+            Debug.LogError("[Turret] Le prefab balle n'a pas de Rigidbody2D !");
+            return;
         }
 
+        Vector2 dir = (player.position - firePoint.position).normalized;
+        bulletRb.linearVelocity = dir * bulletSpeed;
+
+        Debug.Log($"[Turret] Balle tirée vers {dir}, vitesse {bulletSpeed}");
         Destroy(bullet, 5f);
     }
 
     void OnDrawGizmosSelected()
     {
-        Gizmos.color = Color.red;
+        Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(transform.position, detectionRange);
     }
 }

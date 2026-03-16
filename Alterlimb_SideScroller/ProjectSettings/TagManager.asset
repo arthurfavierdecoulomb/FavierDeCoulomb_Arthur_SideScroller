@@ -8,6 +8,7 @@ TagManager:
   - DeadZone
   - Bullet
   - DroneEnemy
+  - dead_zone
   layers:
   - Default
   - TransparentFX
@@ -17,8 +18,8 @@ TagManager:
   - UI
   - Ennemy
   - Player
-  - 
-  - 
+  - dead_zone
+  - Bullets
   - 
   - 
   - 

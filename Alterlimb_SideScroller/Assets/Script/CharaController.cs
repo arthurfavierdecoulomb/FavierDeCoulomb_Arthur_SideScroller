@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 public class CharaController : MonoBehaviour
 {
@@ -9,16 +9,16 @@ public class CharaController : MonoBehaviour
 
     [Header("Jump")]
     [SerializeField] float JumpForce = 18f;
-    [SerializeField] float FallMultiplier = 3f;       // chute plus rapide
-    [SerializeField] float LowJumpMultiplier = 5f;    // saut court si on rel�che t�t
-    [SerializeField] float CoyoteTime = 0.15f;        // peut sauter un peu apr�s le bord
-    [SerializeField] float JumpBufferTime = 0.1f;     // m�morise l'input saut
+    [SerializeField] float FallMultiplier = 3f;
+    [SerializeField] float LowJumpMultiplier = 5f;
+    [SerializeField] float CoyoteTime = 0.15f;
+    [SerializeField] float JumpBufferTime = 0.1f;
 
     [Header("Dash")]
     [SerializeField] float DashForce = 25f;
     [SerializeField] float DashDuration = 0.15f;
     [SerializeField] float DashCooldown = 0.8f;
-    [SerializeField] int MaxAirDashes = 1;            // dashes autoris�s en l'air
+    [SerializeField] int MaxAirDashes = 1;
 
     [Header("Ground Check")]
     [SerializeField] float GroundCheckDistance = 1.1f;
@@ -27,11 +27,9 @@ public class CharaController : MonoBehaviour
     Rigidbody2D rb;
     float inputX;
 
-    // Coyote time & jump buffer
     float coyoteTimeCounter;
     float jumpBufferCounter;
 
-    // Dash
     bool isDashing;
     float dashTimeCounter;
     float dashCooldownCounter;
@@ -39,6 +37,7 @@ public class CharaController : MonoBehaviour
     float dashDirection;
 
     bool isGrounded;
+    bool isDead; // ← NOUVEAU
 
     void Awake()
     {
@@ -47,12 +46,12 @@ public class CharaController : MonoBehaviour
 
     void Update()
     {
+        if (isDead) return; // ← bloque tout input si mort
+
         inputX = Input.GetAxisRaw("Horizontal");
 
-        // Ground check
         isGrounded = Physics2D.Raycast(transform.position, Vector2.down, GroundCheckDistance, groundLayer);
 
-        // Reset air dashes au sol
         if (isGrounded)
         {
             airDashesLeft = MaxAirDashes;
@@ -63,13 +62,11 @@ public class CharaController : MonoBehaviour
             coyoteTimeCounter -= Time.deltaTime;
         }
 
-        // Jump buffer
         if (Input.GetButtonDown("Jump"))
             jumpBufferCounter = JumpBufferTime;
         else
             jumpBufferCounter -= Time.deltaTime;
 
-        // Saut
         if (jumpBufferCounter > 0f && coyoteTimeCounter > 0f)
         {
             rb.linearVelocity = new Vector2(rb.linearVelocity.x, JumpForce);
@@ -77,7 +74,6 @@ public class CharaController : MonoBehaviour
             coyoteTimeCounter = 0f;
         }
 
-        // Dash input
         if (Input.GetKeyDown(KeyCode.LeftShift) && dashCooldownCounter <= 0f && !isDashing)
         {
             bool canDash = isGrounded || airDashesLeft > 0;
@@ -88,13 +84,14 @@ public class CharaController : MonoBehaviour
             }
         }
 
-        // Cooldown
         if (dashCooldownCounter > 0f)
             dashCooldownCounter -= Time.deltaTime;
     }
 
     void FixedUpdate()
     {
+        if (isDead) return;
+
         if (isDashing)
         {
             dashTimeCounter -= Time.fixedDeltaTime;
@@ -102,13 +99,24 @@ public class CharaController : MonoBehaviour
             return;
         }
 
-        // Mouvement horizontal � on multiplie par 50 pour compenser Time.fixedDeltaTime
+        // ── NOUVEAU : vérifie si le grappin est actif ──
+        GrapplingHook grapple = GetComponent<GrapplingHook>();
+        bool isSwinging = grapple != null && grapple.isUsingGrapple;
+
+        if (isSwinging)
+        {
+            // Clamp brutal pendant le grappin, CharaController ne touche plus à la vélocité
+            if (rb.linearVelocity.magnitude > 12f)
+                rb.linearVelocity = rb.linearVelocity.normalized * 12f;
+            return; // ← laisse GrapplingHook gérer tout seul
+        }
+        // ───────────────────────────────────────────────
+
         float targetSpeedX = inputX * MoveSpeed;
         float accel = (Mathf.Abs(inputX) > 0.01f) ? Acceleration : Deceleration;
         float newX = Mathf.MoveTowards(rb.linearVelocity.x, targetSpeedX, accel * Time.fixedDeltaTime * 50f);
         rb.linearVelocity = new Vector2(newX, rb.linearVelocity.y);
 
-        // Gravit� dynamique
         if (rb.linearVelocity.y < 0)
             rb.linearVelocity += Vector2.up * Physics2D.gravity.y * (FallMultiplier - 1) * Time.fixedDeltaTime;
         else if (rb.linearVelocity.y > 0 && !Input.GetButton("Jump"))
@@ -120,18 +128,54 @@ public class CharaController : MonoBehaviour
         isDashing = true;
         dashTimeCounter = DashDuration;
         dashCooldownCounter = DashCooldown;
-
-        // Direction du dash : input ou direction du perso
         dashDirection = inputX != 0 ? Mathf.Sign(inputX) : Mathf.Sign(transform.localScale.x);
-
-        rb.linearVelocity = new Vector2(dashDirection * DashForce, 0f); // annule la v�locit� verticale
-        rb.gravityScale = 0f; // neutralise la gravit� pendant le dash
+        rb.linearVelocity = new Vector2(dashDirection * DashForce, 0f);
+        rb.gravityScale = 0f;
     }
 
     void EndDash()
     {
         isDashing = false;
         rb.gravityScale = 1f;
-        rb.linearVelocity = new Vector2(rb.linearVelocity.x * 0.4f, 0f); // freine en sortie de dash
+        rb.linearVelocity = new Vector2(rb.linearVelocity.x * 0.4f, 0f);
+    }
+
+    // ──────────────────────────────────────────
+    // MORT & RESPAWN
+    // ──────────────────────────────────────────
+
+    void OnTriggerEnter2D(Collider2D other)
+    {
+        if (other.CompareTag("dead_zone") || other.gameObject.layer == LayerMask.NameToLayer("dead_zone"))
+            Die();
+    }
+
+    void OnCollisionEnter2D(Collision2D other)
+    {
+        if (other.collider.CompareTag("dead_zone") || other.gameObject.layer == LayerMask.NameToLayer("dead_zone"))
+            Die();
+    }
+
+    public void Die()
+    {
+        if (isDead) return;
+        isDead = true;
+        rb.linearVelocity = Vector2.zero;
+        rb.gravityScale = 0f;
+
+        // Demande au SpawnManager de nous respawn
+        SpawnManager.Instance.Respawn(this);
+    }
+
+    // Appelé par SpawnManager une fois le respawn prêt
+    public void Revive(Vector3 spawnPosition)
+    {
+        transform.position = spawnPosition;
+        rb.gravityScale = 1f;
+        rb.linearVelocity = Vector2.zero;
+        isDead = false;
+
+        // Reset la vie au respawn
+        GetComponent<PlayerHealth>()?.ResetHealth();
     }
 }

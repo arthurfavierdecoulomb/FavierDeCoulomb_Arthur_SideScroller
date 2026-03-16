@@ -1,6 +1,5 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.SceneManagement;
 
 public class PlayerHealth : MonoBehaviour
 {
@@ -8,7 +7,7 @@ public class PlayerHealth : MonoBehaviour
     [SerializeField] float maxHealth = 100f;
     [SerializeField] float droneDamage = 20f;
     [SerializeField] float bulletDamage = 10f;
-    [SerializeField] float invincibilityDuration = 0.5f; // invincible bri�vement apr�s un hit
+    [SerializeField] float invincibilityDuration = 0.5f;
 
     [Header("UI")]
     [SerializeField] Image healthBar;
@@ -26,9 +25,9 @@ public class PlayerHealth : MonoBehaviour
 
     void Update()
     {
-        // Barre fluide
         displayedHealth = Mathf.Lerp(displayedHealth, currentHealth, barSmoothSpeed * Time.deltaTime);
-        healthBar.fillAmount = displayedHealth / maxHealth;
+        if (healthBar != null)
+            healthBar.fillAmount = displayedHealth / maxHealth;
 
         if (invincibilityTimer > 0f)
             invincibilityTimer -= Time.deltaTime;
@@ -36,34 +35,34 @@ public class PlayerHealth : MonoBehaviour
 
     public void TakeDamage(float amount)
     {
-        if (invincibilityTimer > 0f) return; // invincible, on ignore
-
+        if (invincibilityTimer > 0f) return;
         currentHealth -= amount;
         currentHealth = Mathf.Max(currentHealth, 0f);
         invincibilityTimer = invincibilityDuration;
 
         if (currentHealth <= 0f)
-            Die();
+            GetComponent<CharaController>()?.Die(); // ← utilise le respawn, pas LoadScene
     }
 
-    void Die()
+    // Appelé par CharaController.Revive() pour reset la vie au respawn
+    public void ResetHealth()
     {
-        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        currentHealth = maxHealth;
+        displayedHealth = maxHealth;
+        invincibilityTimer = 0f;
     }
 
     void OnCollisionEnter2D(Collision2D col)
     {
         if (col.gameObject.CompareTag("DroneEnemy"))
             TakeDamage(droneDamage);
-
         if (col.gameObject.CompareTag("Bullet"))
             TakeDamage(bulletDamage);
     }
 
-    // Contact avec un projectile
     void OnTriggerEnter2D(Collider2D col)
     {
         if (col.CompareTag("DeadZone"))
-            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+            GetComponent<CharaController>()?.Die(); // ← même chose ici
     }
 }
