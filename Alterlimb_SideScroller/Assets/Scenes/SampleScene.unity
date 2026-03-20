@@ -3778,7 +3778,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 9003058991609469300, guid: 014f13322b670eb4c87519b78434077b, type: 3}
       propertyPath: deploySpeed
-      value: 5
+      value: 20
       objectReference: {fileID: 0}
     - target: {fileID: 9003058991609469300, guid: 014f13322b670eb4c87519b78434077b, type: 3}
       propertyPath: maxDistance

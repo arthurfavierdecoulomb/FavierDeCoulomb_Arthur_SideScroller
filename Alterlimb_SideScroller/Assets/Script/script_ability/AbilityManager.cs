@@ -35,7 +35,7 @@ public class AbilityManager : MonoBehaviour
     void Update()
     {
         // Cycle bras avec A
-        if (Input.GetKeyDown(KeyCode.A))
+        if (Input.GetKeyDown(KeyCode.Q))
         {
             armIndex = (armIndex + 1) % unlockedArms.Count;
             ApplyArmAbility();
