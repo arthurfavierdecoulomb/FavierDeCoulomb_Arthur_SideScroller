@@ -15,11 +15,16 @@ public class DroneEnemy : MonoBehaviour
     [Header("Vol")]
     [SerializeField] float moveSmoothness = 5f;
 
-    [Header("Tir")]
-    [SerializeField] GameObject bulletPrefab;
+    [Header("Laser")]
+    [SerializeField] LineRenderer laserRenderer;
     [SerializeField] Transform firePoint;
     [SerializeField] float fireRate = 1.5f;
-    [SerializeField] float bulletSpeed = 10f;
+    [SerializeField] float laserDamage = 10f;
+    [SerializeField] float laserDuration = 0.2f;
+
+    [Header("PV")]
+    [SerializeField] float maxHealth = 100f;
+    float currentHealth;
 
     [Header("Refs")]
     [SerializeField] Transform player;
@@ -28,6 +33,7 @@ public class DroneEnemy : MonoBehaviour
     public bool isHooked = false;
     bool isPatrollingToB = true;
     float fireCooldown = 0f;
+    float laserTimer = 0f;
 
     enum DroneState { Patrolling, Chasing, Shooting }
     DroneState state = DroneState.Patrolling;
@@ -37,11 +43,21 @@ public class DroneEnemy : MonoBehaviour
         rb = GetComponent<Rigidbody2D>();
         rb.gravityScale = 0f;
         rb.freezeRotation = true;
+        currentHealth = maxHealth;
+
+        if (laserRenderer != null)
+            laserRenderer.enabled = false;
     }
 
     void Update()
     {
-        if (isHooked) return; // IA désactivée dès qu'accroché
+        // Quand accroché : IA désactivée, gravité off, le SpringJoint tire le joueur vers lui
+        if (isHooked)
+        {
+            rb.gravityScale = 0f;
+            rb.linearVelocity = Vector2.zero; // le drone reste en place
+            return;
+        }
 
         UpdateState();
 
@@ -53,6 +69,14 @@ public class DroneEnemy : MonoBehaviour
         }
 
         fireCooldown -= Time.deltaTime;
+
+        // Timer laser visuel
+        if (laserTimer > 0f)
+        {
+            laserTimer -= Time.deltaTime;
+            if (laserTimer <= 0f && laserRenderer != null)
+                laserRenderer.enabled = false;
+        }
     }
 
     void UpdateState()
@@ -82,8 +106,10 @@ public class DroneEnemy : MonoBehaviour
 
     void Shoot()
     {
+        // Reste à distance, ne bouge plus
         rb.linearVelocity = Vector2.Lerp(rb.linearVelocity, Vector2.zero, moveSmoothness * Time.deltaTime);
 
+        // Oriente le firepoint vers le joueur
         if (firePoint != null && player != null)
         {
             Vector2 dir = (player.position - firePoint.position).normalized;
@@ -92,23 +118,27 @@ public class DroneEnemy : MonoBehaviour
 
         if (fireCooldown <= 0f)
         {
-            FireBullet();
+            FireLaser();
             fireCooldown = fireRate;
         }
     }
 
-    void FireBullet()
+    void FireLaser()
     {
-        if (bulletPrefab == null || firePoint == null || player == null) return;
+        if (firePoint == null || player == null) return;
 
-        GameObject bullet = Instantiate(bulletPrefab, firePoint.position, firePoint.rotation);
-        Rigidbody2D bulletRb = bullet.GetComponent<Rigidbody2D>();
-        if (bulletRb != null)
+        // Dégâts au joueur
+        PlayerHealth ph = player.GetComponent<PlayerHealth>();
+        if (ph != null) ph.TakeDamage(laserDamage);
+
+        // Visuel laser
+        if (laserRenderer != null)
         {
-            Vector2 dir = (player.position - firePoint.position).normalized;
-            bulletRb.linearVelocity = dir * bulletSpeed;
+            laserRenderer.enabled = true;
+            laserRenderer.SetPosition(0, firePoint.position);
+            laserRenderer.SetPosition(1, player.position);
+            laserTimer = laserDuration;
         }
-        Destroy(bullet, 5f);
     }
 
     void MoveTo(Vector2 target, float speed)
@@ -123,18 +153,35 @@ public class DroneEnemy : MonoBehaviour
     {
         if (isHooked) return;
         isHooked = true;
-
-        rb.gravityScale = 1f;           // gravité active → il tombe
-        rb.linearVelocity = Vector2.zero; // reset la vélocité de vol
+        rb.gravityScale = 0f;
+        rb.linearVelocity = Vector2.zero; // stoppe net, reste en place
     }
 
-    void OnCollisionEnter2D(Collision2D col)
+    public void ReleaseHook()
     {
-        if (!isHooked) return;
-
-        if (col.gameObject.CompareTag("Ground"))
-            Destroy(gameObject); // le sol le détruit
+        isHooked = false;
+        // reprend son IA normalement au prochain Update()
     }
+
+    // ─── DÉGÂTS (appelé par SawAbility) ─────────────────────────
+
+    public void TakeDamage(float amount)
+    {
+        if (!isHooked) return; // la scie ne fait des dégâts que si accroché
+
+        currentHealth -= amount;
+
+        if (currentHealth <= 0f)
+            Die();
+    }
+
+    void Die()
+    {
+        // Tu peux ajouter une explosion/particules ici
+        Destroy(gameObject);
+    }
+
+    // ─── GIZMOS ──────────────────────────────────────────────────
 
     void OnDrawGizmosSelected()
     {

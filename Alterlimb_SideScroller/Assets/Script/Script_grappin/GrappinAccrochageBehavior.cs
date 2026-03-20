@@ -5,14 +5,14 @@ public class GrapplingHook : MonoBehaviour
     [Header("Grappin")]
     [SerializeField] float maxDistance = 15f;
     [SerializeField] float deploySpeed = 25f;
-    [SerializeField] float swingForce = 8f;
+    [SerializeField] float swingForce = 3f;
     [SerializeField] LayerMask hookableLayers;
 
     [Header("Swing Settings")]
     [SerializeField] float ropeMaxLength = 12f;
     [SerializeField] float ropeShortenSpeed = 3f;
     [SerializeField] float minRopeLength = 2f;
-    [SerializeField] float maxSwingSpeed = 12f;
+    [SerializeField] float maxSwingSpeed = 8f;
 
     [Header("Refs")]
     [SerializeField] Transform firePoint;
@@ -106,9 +106,11 @@ public class GrapplingHook : MonoBehaviour
         {
             hookedDrone.GetHooked();
 
-            springJoint = droneRb.gameObject.AddComponent<SpringJoint2D>();
+            // SpringJoint sur le JOUEUR → tire le joueur vers le drone
+            springJoint = gameObject.AddComponent<SpringJoint2D>();
             springJoint.autoConfigureConnectedAnchor = false;
-            springJoint.connectedAnchor = transform.position;
+            springJoint.connectedBody = droneRb;
+            springJoint.connectedAnchor = Vector2.zero;
             springJoint.distance = Vector2.Distance(transform.position, hookedDrone.transform.position);
             springJoint.dampingRatio = 0.5f;
             springJoint.frequency = 2f;
@@ -116,6 +118,7 @@ public class GrapplingHook : MonoBehaviour
             return;
         }
 
+        // Accroche sur décor
         springJoint = gameObject.AddComponent<SpringJoint2D>();
         springJoint.autoConfigureConnectedAnchor = false;
         springJoint.connectedAnchor = hookPoint;
@@ -129,25 +132,28 @@ public class GrapplingHook : MonoBehaviour
 
     void UpdateRopeLength()
     {
-        if (state != GrappleState.Hooked) return;
+        if (state != GrappleState.Hooked || springJoint == null) return;
 
         float scroll = Input.GetAxis("Mouse ScrollWheel");
         if (scroll != 0f)
         {
             springJoint.distance = Mathf.Clamp(
                 springJoint.distance - scroll * ropeShortenSpeed,
-                minRopeLength, ropeMaxLength
+                minRopeLength,
+                ropeMaxLength
             );
         }
 
-
+        // Swing latéral uniquement sur décor
         if (hookedDrone == null)
         {
             float inputX = Input.GetAxisRaw("Horizontal");
-
-            float targetX = inputX * maxSwingSpeed;
-            float newX = Mathf.Lerp(rb.linearVelocity.x, targetX, swingForce * Time.deltaTime);
-            rb.linearVelocity = new Vector2(newX, rb.linearVelocity.y);
+            if (inputX != 0 && Mathf.Abs(rb.linearVelocity.x) < maxSwingSpeed)
+            {
+                float targetX = inputX * maxSwingSpeed;
+                float newX = Mathf.Lerp(rb.linearVelocity.x, targetX, swingForce * Time.deltaTime);
+                rb.linearVelocity = new Vector2(newX, rb.linearVelocity.y);
+            }
         }
     }
 
@@ -163,7 +169,13 @@ public class GrapplingHook : MonoBehaviour
             springJoint = null;
         }
 
-        hookedDrone = null;
+        // Le drone reprend son IA
+        if (hookedDrone != null)
+        {
+            hookedDrone.ReleaseHook();
+            hookedDrone = null;
+        }
+
         droneRb = null;
     }
 

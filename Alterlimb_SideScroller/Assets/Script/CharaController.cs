@@ -1,5 +1,7 @@
 ﻿using UnityEngine;
 
+public enum JumpMode { Normal, High }
+
 public class CharaController : MonoBehaviour
 {
     [Header("Movement")]
@@ -9,6 +11,7 @@ public class CharaController : MonoBehaviour
 
     [Header("Jump")]
     [SerializeField] float JumpForce = 18f;
+    [SerializeField] float HighJumpForce = 28f;
     [SerializeField] float FallMultiplier = 3f;
     [SerializeField] float LowJumpMultiplier = 5f;
     [SerializeField] float CoyoteTime = 0.15f;
@@ -36,9 +39,15 @@ public class CharaController : MonoBehaviour
     bool isGrounded;
     bool isDead;
 
+    JumpMode jumpMode = JumpMode.Normal;
+    bool dashEnabled = false;
+
+    AbilityEnergySystem energySystem;
+
     void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
+        energySystem = GetComponent<AbilityEnergySystem>();
     }
 
     void Update()
@@ -65,12 +74,23 @@ public class CharaController : MonoBehaviour
 
         if (jumpBufferCounter > 0f && coyoteTimeCounter > 0f)
         {
-            rb.linearVelocity = new Vector2(rb.linearVelocity.x, JumpForce);
+            float multiplier = 1f;
+            if (jumpMode == JumpMode.High)
+            {
+                multiplier = energySystem != null ? energySystem.GetJumpMultiplier() : 1f;
+                energySystem?.OnJumpBoostUsed();
+            }
+
+            float force = (jumpMode == JumpMode.High)
+                ? HighJumpForce * multiplier
+                : JumpForce;
+
+            rb.linearVelocity = new Vector2(rb.linearVelocity.x, force);
             jumpBufferCounter = 0f;
             coyoteTimeCounter = 0f;
         }
 
-        if (Input.GetKeyDown(KeyCode.LeftShift) && dashCooldownCounter <= 0f && !isDashing)
+        if (dashEnabled && Input.GetKeyDown(KeyCode.LeftShift) && dashCooldownCounter <= 0f && !isDashing)
         {
             bool canDash = isGrounded || airDashesLeft > 0;
             if (canDash)
@@ -98,13 +118,12 @@ public class CharaController : MonoBehaviour
         GrapplingHook grapple = GetComponent<GrapplingHook>();
         bool isSwinging = grapple != null && grapple.isUsingGrapple;
 
-
         if (isSwinging)
         {
-            return; 
+            if (rb.linearVelocity.y < 0)
+                rb.linearVelocity += Vector2.up * Physics2D.gravity.y * (FallMultiplier - 1) * Time.fixedDeltaTime;
+            return;
         }
-
-
 
         float targetSpeedX = inputX * MoveSpeed;
         float accel = (Mathf.Abs(inputX) > 0.01f) ? Acceleration : Deceleration;
@@ -115,16 +134,19 @@ public class CharaController : MonoBehaviour
             rb.linearVelocity += Vector2.up * Physics2D.gravity.y * (FallMultiplier - 1) * Time.fixedDeltaTime;
         else if (rb.linearVelocity.y > 0 && !Input.GetButton("Jump"))
             rb.linearVelocity += Vector2.up * Physics2D.gravity.y * (LowJumpMultiplier - 1) * Time.fixedDeltaTime;
-    
     }
 
     void StartDash()
     {
+        // Multiplicateur d'énergie
+        float multiplier = energySystem != null ? energySystem.GetDashMultiplier() : 1f;
+        energySystem?.OnDashUsed();
+
         isDashing = true;
         dashTimeCounter = DashDuration;
         dashCooldownCounter = DashCooldown;
         dashDirection = inputX != 0 ? Mathf.Sign(inputX) : Mathf.Sign(transform.localScale.x);
-        rb.linearVelocity = new Vector2(dashDirection * DashForce, 0f);
+        rb.linearVelocity = new Vector2(dashDirection * DashForce * multiplier, 0f);
         rb.gravityScale = 0f;
     }
 
@@ -135,7 +157,11 @@ public class CharaController : MonoBehaviour
         rb.linearVelocity = new Vector2(rb.linearVelocity.x * 0.4f, 0f);
     }
 
-    
+    // ── Appelé par AbilityManager ──────────────────────────────
+    public void SetJumpMode(JumpMode mode) => jumpMode = mode;
+    public void SetDashEnabled(bool enabled) => dashEnabled = enabled;
+
+    // ── Mort & Respawn ─────────────────────────────────────────
     void OnTriggerEnter2D(Collider2D other)
     {
         if (other.CompareTag("dead_zone") || other.gameObject.layer == LayerMask.NameToLayer("dead_zone"))
@@ -147,7 +173,7 @@ public class CharaController : MonoBehaviour
         if (other.collider.CompareTag("dead_zone") || other.gameObject.layer == LayerMask.NameToLayer("dead_zone"))
             Die();
     }
-    
+
     public void Die()
     {
         if (isDead) return;
