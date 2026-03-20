@@ -12,7 +12,7 @@ public class GrapplingHook : MonoBehaviour
     [SerializeField] float ropeMaxLength = 12f;
     [SerializeField] float ropeShortenSpeed = 3f;
     [SerializeField] float minRopeLength = 2f;
-    [SerializeField] float maxSwingSpeed = 12f; // ← NOUVEAU
+    [SerializeField] float maxSwingSpeed = 12f;
 
     [Header("Refs")]
     [SerializeField] Transform firePoint;
@@ -129,35 +129,26 @@ public class GrapplingHook : MonoBehaviour
 
     void UpdateRopeLength()
     {
-        if (state != GrappleState.Hooked || springJoint == null) return;
+        if (state != GrappleState.Hooked) return;
 
         float scroll = Input.GetAxis("Mouse ScrollWheel");
         if (scroll != 0f)
         {
             springJoint.distance = Mathf.Clamp(
                 springJoint.distance - scroll * ropeShortenSpeed,
-                minRopeLength,
-                ropeMaxLength
+                minRopeLength, ropeMaxLength
             );
         }
 
-        // Swing latéral uniquement sur décor (pas sur drone)
+
         if (hookedDrone == null)
         {
             float inputX = Input.GetAxisRaw("Horizontal");
-            if (inputX != 0)
-            {
-                if (Mathf.Abs(rb.linearVelocity.x) < maxSwingSpeed)
-                    rb.AddForce(new Vector2(inputX * swingForce, 0f), ForceMode2D.Force);
-            }
 
-            // Clamp vitesse globale pendant le grappin
-            if (rb.linearVelocity.magnitude > maxSwingSpeed)
-                rb.linearVelocity = rb.linearVelocity.normalized * maxSwingSpeed;
+            float targetX = inputX * maxSwingSpeed;
+            float newX = Mathf.Lerp(rb.linearVelocity.x, targetX, swingForce * Time.deltaTime);
+            rb.linearVelocity = new Vector2(newX, rb.linearVelocity.y);
         }
-
-        if (hookedDrone != null)
-            springJoint.connectedAnchor = transform.position;
     }
 
     public void ReleaseGrapple()

@@ -19,7 +19,7 @@ public class Turret : MonoBehaviour
 
     [Header("Refs")]
     [SerializeField] Transform turretHead;
-    [SerializeField] Transform player;          // assignable manuellement OU auto-trouvé
+    [SerializeField] Transform player;          
 
     float currentAngle;
     float patrolDirection = 1f;
@@ -47,7 +47,7 @@ public class Turret : MonoBehaviour
         if (bulletPrefab == null)
             Debug.LogError("[Turret] bulletPrefab non assigné !");
 
-        // Avertit si le detectionMask est vide (piège classique)
+        // Avertit si le detectionMask est vide
         if (detectionMask == 0)
             Debug.LogWarning("[Turret] detectionMask est vide ! Coche Player + Ground dans l'inspecteur.");
     }
@@ -141,7 +141,6 @@ public class Turret : MonoBehaviour
         Vector2 dir = (player.position - firePoint.position).normalized;
         bulletRb.linearVelocity = dir * bulletSpeed;
 
-        Debug.Log($"[Turret] Balle tirée vers {dir}, vitesse {bulletSpeed}");
         Destroy(bullet, 5f);
     }
 

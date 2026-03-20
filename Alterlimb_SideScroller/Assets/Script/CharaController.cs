@@ -26,18 +26,15 @@ public class CharaController : MonoBehaviour
 
     Rigidbody2D rb;
     float inputX;
-
     float coyoteTimeCounter;
     float jumpBufferCounter;
-
     bool isDashing;
     float dashTimeCounter;
     float dashCooldownCounter;
     int airDashesLeft;
     float dashDirection;
-
     bool isGrounded;
-    bool isDead; // ← NOUVEAU
+    bool isDead;
 
     void Awake()
     {
@@ -46,10 +43,9 @@ public class CharaController : MonoBehaviour
 
     void Update()
     {
-        if (isDead) return; // ← bloque tout input si mort
+        if (isDead) return;
 
         inputX = Input.GetAxisRaw("Horizontal");
-
         isGrounded = Physics2D.Raycast(transform.position, Vector2.down, GroundCheckDistance, groundLayer);
 
         if (isGrounded)
@@ -99,18 +95,16 @@ public class CharaController : MonoBehaviour
             return;
         }
 
-        // ── NOUVEAU : vérifie si le grappin est actif ──
         GrapplingHook grapple = GetComponent<GrapplingHook>();
         bool isSwinging = grapple != null && grapple.isUsingGrapple;
 
+
         if (isSwinging)
         {
-            // Clamp brutal pendant le grappin, CharaController ne touche plus à la vélocité
-            if (rb.linearVelocity.magnitude > 12f)
-                rb.linearVelocity = rb.linearVelocity.normalized * 12f;
-            return; // ← laisse GrapplingHook gérer tout seul
+            return; 
         }
-        // ───────────────────────────────────────────────
+
+
 
         float targetSpeedX = inputX * MoveSpeed;
         float accel = (Mathf.Abs(inputX) > 0.01f) ? Acceleration : Deceleration;
@@ -121,6 +115,7 @@ public class CharaController : MonoBehaviour
             rb.linearVelocity += Vector2.up * Physics2D.gravity.y * (FallMultiplier - 1) * Time.fixedDeltaTime;
         else if (rb.linearVelocity.y > 0 && !Input.GetButton("Jump"))
             rb.linearVelocity += Vector2.up * Physics2D.gravity.y * (LowJumpMultiplier - 1) * Time.fixedDeltaTime;
+    
     }
 
     void StartDash()
@@ -140,10 +135,7 @@ public class CharaController : MonoBehaviour
         rb.linearVelocity = new Vector2(rb.linearVelocity.x * 0.4f, 0f);
     }
 
-    // ──────────────────────────────────────────
-    // MORT & RESPAWN
-    // ──────────────────────────────────────────
-
+    
     void OnTriggerEnter2D(Collider2D other)
     {
         if (other.CompareTag("dead_zone") || other.gameObject.layer == LayerMask.NameToLayer("dead_zone"))
@@ -155,27 +147,22 @@ public class CharaController : MonoBehaviour
         if (other.collider.CompareTag("dead_zone") || other.gameObject.layer == LayerMask.NameToLayer("dead_zone"))
             Die();
     }
-
+    
     public void Die()
     {
         if (isDead) return;
         isDead = true;
         rb.linearVelocity = Vector2.zero;
         rb.gravityScale = 0f;
-
-        // Demande au SpawnManager de nous respawn
         SpawnManager.Instance.Respawn(this);
     }
 
-    // Appelé par SpawnManager une fois le respawn prêt
     public void Revive(Vector3 spawnPosition)
     {
         transform.position = spawnPosition;
         rb.gravityScale = 1f;
         rb.linearVelocity = Vector2.zero;
         isDead = false;
-
-        // Reset la vie au respawn
         GetComponent<PlayerHealth>()?.ResetHealth();
     }
 }
