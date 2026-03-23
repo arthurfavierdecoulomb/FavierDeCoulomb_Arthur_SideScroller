@@ -200,7 +200,7 @@ MonoBehaviour:
   detectionRange: 19.3
   detectionMask:
     serializedVersion: 2
-    m_Bits: 8
+    m_Bits: 136
   bulletPrefab: {fileID: 1976138813490607971, guid: bc38a642bb2770a46aa7e7f8e33342b0, type: 3}
   firePoint: {fileID: 2763740069326323065}
   fireRate: 0.2
