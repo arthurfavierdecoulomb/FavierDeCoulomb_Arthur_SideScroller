@@ -1,5 +1,6 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
+using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 
@@ -8,20 +9,20 @@ public class TutorialManager : MonoBehaviour
     [System.Serializable]
     public class TutorialZone
     {
-        [Header("Zone de d�clenchement")]
-        public GameObject triggerObject;        // l'objet avec le collider trigger
-        public float triggerRadius = 3f;        // OU rayon si pas de collider
+        [Header("Zone de déclenchement")]
+        public GameObject triggerObject;
+        public float triggerRadius = 3f;
 
         [Header("Bulle de texte")]
-        public string title = "";               // titre optionnel
+        public string title = "";
         [TextArea(2, 6)]
-        public string message = "";             // message principal
-        public Sprite icon;                     // ic�ne optionnelle
+        public string message = "";
+        public Sprite icon;
 
         [Header("Comportement")]
-        public float displayDuration = 0f;      // 0 = reste jusqu'� ce qu'on parte
-        public bool showOnce = true;            // ne s'affiche qu'une seule fois
-        public bool requireKeyPress = false;    // attendre appui touche pour fermer
+        public float displayDuration = 0f;      // 0 = reste jusqu'à ce qu'on parte
+        public bool showOnce = true;
+        public bool requireKeyPress = false;
         public KeyCode dismissKey = KeyCode.E;
 
         [HideInInspector] public bool hasBeenShown = false;
@@ -33,7 +34,7 @@ public class TutorialManager : MonoBehaviour
     [SerializeField] TextMeshProUGUI titleText;
     [SerializeField] TextMeshProUGUI messageText;
     [SerializeField] Image iconImage;
-    [SerializeField] TextMeshProUGUI dismissHint;   // ex: "Appuie sur E pour continuer"
+    [SerializeField] TextMeshProUGUI dismissHint;
 
     [Header("Joueur")]
     [SerializeField] Transform player;
@@ -41,28 +42,35 @@ public class TutorialManager : MonoBehaviour
     [Header("Zones tutoriel")]
     [SerializeField] List<TutorialZone> zones = new List<TutorialZone>();
 
-    [Header("Animation")]
-    [SerializeField] float fadeSpeed = 5f;
+    [Header("Machine à écrire")]
+    [Tooltip("Délai en secondes entre chaque caractère affiché")]
+    [SerializeField] float typewriterDelay = 0.04f;
 
+    // CanvasGroup sur le bubblePanel — contrôle la visibilité sans SetActive
     CanvasGroup canvasGroup;
+
     TutorialZone currentZone = null;
     float displayTimer = 0f;
+    Coroutine typewriterCoroutine = null;
 
     void Awake()
     {
-        // Auto-find joueur si non assign�
         if (player == null)
         {
             GameObject p = GameObject.FindGameObjectWithTag("Player");
             if (p != null) player = p.transform;
-            else Debug.LogWarning("[TutorialManager] Joueur non trouv� !");
+            else Debug.LogWarning("[TutorialManager] Joueur non trouvé !");
         }
 
+        // Récupère ou crée le CanvasGroup sur le panel racine
         canvasGroup = bubblePanel.GetComponent<CanvasGroup>();
         if (canvasGroup == null)
             canvasGroup = bubblePanel.AddComponent<CanvasGroup>();
 
-        HideBubble(instant: true);
+        // Le panel reste TOUJOURS actif dans la hiérarchie —
+        // c'est le CanvasGroup qui le rend invisible et non interactif
+        bubblePanel.SetActive(true);
+        SetVisible(false);
     }
 
     void Update()
@@ -71,7 +79,14 @@ public class TutorialManager : MonoBehaviour
 
         CheckZones();
         HandleDismiss();
-        UpdateFade();
+    }
+
+    // ── Visibilité instantanée via CanvasGroup ────────────────────────────
+    void SetVisible(bool visible)
+    {
+        canvasGroup.alpha = visible ? 1f : 0f;
+        canvasGroup.interactable = visible;
+        canvasGroup.blocksRaycasts = visible;
     }
 
     void CheckZones()
@@ -85,16 +100,11 @@ public class TutorialManager : MonoBehaviour
             bool inRange = dist <= zone.triggerRadius;
 
             if (inRange && !zone.isActive)
-            {
                 ShowZone(zone);
-            }
             else if (!inRange && zone.isActive && !zone.requireKeyPress)
-            {
                 HideZone(zone);
-            }
         }
 
-        // Timer d'affichage automatique
         if (currentZone != null && currentZone.displayDuration > 0f)
         {
             displayTimer -= Time.deltaTime;
@@ -109,12 +119,22 @@ public class TutorialManager : MonoBehaviour
         if (!currentZone.requireKeyPress) return;
 
         if (Input.GetKeyDown(currentZone.dismissKey))
+        {
+            // Premier appui pendant l'animation = complète le texte immédiatement
+            if (typewriterCoroutine != null)
+            {
+                StopCoroutine(typewriterCoroutine);
+                typewriterCoroutine = null;
+                messageText.text = currentZone.message;
+                return; // deuxième appui fermera
+            }
+
             HideZone(currentZone);
+        }
     }
 
     void ShowZone(TutorialZone zone)
     {
-        // Cache la zone pr�c�dente proprement
         if (currentZone != null && currentZone != zone)
             currentZone.isActive = false;
 
@@ -123,15 +143,14 @@ public class TutorialManager : MonoBehaviour
         currentZone = zone;
         displayTimer = zone.displayDuration;
 
-        // Remplit la bulle
+        // ── Remplit tous les éléments AVANT de rendre visible ────────────
+        // Ainsi le layout est calculé avec le bon contenu avant l'apparition
+
         if (titleText != null)
         {
             titleText.text = zone.title;
             titleText.gameObject.SetActive(!string.IsNullOrEmpty(zone.title));
         }
-
-        if (messageText != null)
-            messageText.text = zone.message;
 
         if (iconImage != null)
         {
@@ -146,41 +165,56 @@ public class TutorialManager : MonoBehaviour
                 dismissHint.text = $"[ {zone.dismissKey} ] pour continuer";
         }
 
-        bubblePanel.SetActive(true);
+        // Vide le message — sera rempli lettre par lettre
+        if (messageText != null)
+            messageText.text = "";
+
+        // ── Rend le panel visible instantanément ─────────────────────────
+        SetVisible(true);
+
+        // ── Lance la machine à écrire ────────────────────────────────────
+        if (typewriterCoroutine != null)
+            StopCoroutine(typewriterCoroutine);
+
+        if (messageText != null)
+            typewriterCoroutine = StartCoroutine(TypewriterRoutine(zone.message));
     }
 
     void HideZone(TutorialZone zone)
     {
         zone.isActive = false;
+
+        if (typewriterCoroutine != null)
+        {
+            StopCoroutine(typewriterCoroutine);
+            typewriterCoroutine = null;
+        }
+
         if (currentZone == zone)
         {
             currentZone = null;
-            HideBubble();
+
+            // ── Cache tous les enfants puis rend le panel invisible ───────
+            // On remet les enfants à leur état neutre pour le prochain affichage
+            if (titleText != null) { titleText.text = ""; titleText.gameObject.SetActive(false); }
+            if (messageText != null) { messageText.text = ""; }
+            if (iconImage != null) { iconImage.sprite = null; iconImage.gameObject.SetActive(false); }
+            if (dismissHint != null) { dismissHint.text = ""; dismissHint.gameObject.SetActive(false); }
+
+            SetVisible(false);
         }
     }
 
-    void HideBubble(bool instant = false)
+    // ── Machine à écrire ─────────────────────────────────────────────────
+    IEnumerator TypewriterRoutine(string fullText)
     {
-        if (instant)
+        messageText.text = "";
+        foreach (char c in fullText)
         {
-            canvasGroup.alpha = 0f;
-            bubblePanel.SetActive(false);
+            messageText.text += c;
+            yield return new WaitForSeconds(typewriterDelay);
         }
-        else
-        {
-            // Le fade out est g�r� dans UpdateFade()
-        }
-    }
-
-    void UpdateFade()
-    {
-        float targetAlpha = currentZone != null ? 1f : 0f;
-        canvasGroup.alpha = Mathf.Lerp(canvasGroup.alpha, targetAlpha, fadeSpeed * Time.deltaTime);
-
-        if (canvasGroup.alpha < 0.01f && currentZone == null)
-            bubblePanel.SetActive(false);
-        else if (currentZone != null)
-            bubblePanel.SetActive(true);
+        typewriterCoroutine = null;
     }
 
     void OnDrawGizmosSelected()
