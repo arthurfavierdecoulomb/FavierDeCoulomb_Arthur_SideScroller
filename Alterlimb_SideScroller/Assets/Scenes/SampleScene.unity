@@ -4802,9 +4802,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SpawnManager
   spawnPoints:
-  - {fileID: 0}
-  - {fileID: 0}
-  activeSpawnIndex: 0
+  - {fileID: 1030680384}
+  - {fileID: 1637348991}
   respawnDelay: 0.1
 --- !u!4 &984390652
 Transform:
@@ -4922,6 +4921,7 @@ GameObject:
   - component: {fileID: 1030680384}
   - component: {fileID: 1030680386}
   - component: {fileID: 1030680385}
+  - component: {fileID: 1030680387}
   m_Layer: 0
   m_Name: TotemRegenaration
   m_TagString: Untagged
@@ -4938,8 +4938,8 @@ Transform:
   m_GameObject: {fileID: 1030680383}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -11.63, y: 4.13, z: 0}
-  m_LocalScale: {x: 1.496186, y: 3.1570375, z: 3.634}
+  m_LocalPosition: {x: -12.1091, y: 2.7339, z: 0}
+  m_LocalScale: {x: 2.454493, y: 0.36495352, z: 3.634}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 183222896}
@@ -5036,7 +5036,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 0
+  m_SortingOrder: -1
   m_Sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
   m_Color: {r: 0.14275493, g: 0.6320754, b: 0.12224099, a: 1}
   m_FlipX: 0
@@ -5048,6 +5048,27 @@ SpriteRenderer:
   m_WasSpriteAssigned: 1
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
+--- !u!114 &1030680387
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1030680383}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0924b64aa60f7fd4b8507dc5f09bd9d8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Checkpoint
+  spawnIndex: 0
+  rechargeDoubleJump: 0
+  feedbackText: {fileID: 2043635959}
+  message: "Spawnpoint enregistr\xE9"
+  floatAmplitude: 8
+  floatSpeed: 1.2
+  fadeInDuration: 0.6
+  displayDuration: 2.5
+  fadeOutDuration: 1
 --- !u!1 &1033002917
 GameObject:
   m_ObjectHideFlags: 0
@@ -6950,6 +6971,7 @@ GameObject:
   - component: {fileID: 1637348991}
   - component: {fileID: 1637348993}
   - component: {fileID: 1637348992}
+  - component: {fileID: 1637348994}
   m_Layer: 0
   m_Name: TotemRegenaration (1)
   m_TagString: Untagged
@@ -6966,8 +6988,8 @@ Transform:
   m_GameObject: {fileID: 1637348990}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 102.9, y: -227.57, z: 0}
-  m_LocalScale: {x: 1.496186, y: 3.1570375, z: 3.634}
+  m_LocalPosition: {x: 103.9485, y: -228.8838, z: 0}
+  m_LocalScale: {x: 3.5930908, y: 0.52943516, z: 3.634}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 183222896}
@@ -7064,7 +7086,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 0
+  m_SortingOrder: -1
   m_Sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
   m_Color: {r: 0.14275493, g: 0.6320754, b: 0.12224099, a: 1}
   m_FlipX: 0
@@ -7076,6 +7098,27 @@ SpriteRenderer:
   m_WasSpriteAssigned: 1
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
+--- !u!114 &1637348994
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1637348990}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0924b64aa60f7fd4b8507dc5f09bd9d8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Checkpoint
+  spawnIndex: 1
+  rechargeDoubleJump: 0
+  feedbackText: {fileID: 2043635959}
+  message: "Spawnpoint enregistr\xE9"
+  floatAmplitude: 8
+  floatSpeed: 1.2
+  fadeInDuration: 0.6
+  displayDuration: 2.5
+  fadeOutDuration: 1
 --- !u!1001 &1644871450
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -8904,7 +8947,7 @@ GameObject:
   - component: {fileID: 2043635960}
   - component: {fileID: 2043635959}
   m_Layer: 5
-  m_Name: Text (TMP)
+  m_Name: TotemSpawnpoint
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -8924,9 +8967,9 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 616333429}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 198}
+  m_AnchorMin: {x: 0.5, y: 1}
+  m_AnchorMax: {x: 0.5, y: 1}
+  m_AnchoredPosition: {x: 0, y: -65}
   m_SizeDelta: {x: 200, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &2043635959
@@ -8949,7 +8992,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: New Text
+  m_text: Sp text
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: eed8d094b7feb0e4483a00b23725d345, type: 2}
   m_sharedMaterial: {fileID: 3787757239056082160, guid: eed8d094b7feb0e4483a00b23725d345, type: 2}
@@ -9746,8 +9789,8 @@ PrefabInstance:
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
-  - {fileID: 616333429}
   - {fileID: 51906602}
+  - {fileID: 616333429}
   - {fileID: 312758183}
   - {fileID: 519420032}
   - {fileID: 619394802}

@@ -6,20 +6,19 @@ public class SpawnManager : MonoBehaviour
     public static SpawnManager Instance { get; private set; }
 
     [Header("Points de spawn")]
-    [SerializeField] Transform[] spawnPoints;   // glisse tes GameObjects spawn ici
-    [SerializeField] int activeSpawnIndex = 0;  // index du spawn actif
+    [SerializeField] Transform[] spawnPoints;
 
     [Header("Respawn")]
-    [SerializeField] float respawnDelay = 1.5f; // délai avant réapparition
+    [SerializeField] float respawnDelay = 1.5f;
+
+    int activeSpawnIndex = 0;
 
     void Awake()
     {
-        // Singleton simple
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
     }
 
-    
     public void Respawn(CharaController player)
     {
         StartCoroutine(RespawnRoutine(player));
@@ -28,9 +27,8 @@ public class SpawnManager : MonoBehaviour
     IEnumerator RespawnRoutine(CharaController player)
     {
         yield return new WaitForSeconds(respawnDelay);
-
-        Vector3 target = GetActiveSpawnPoint();
-        player.Revive(target);
+        player.Revive(GetActiveSpawnPoint());
+        player.ResetJumps();
     }
 
     Vector3 GetActiveSpawnPoint()
@@ -40,15 +38,15 @@ public class SpawnManager : MonoBehaviour
             Debug.LogWarning("SpawnManager : aucun spawn point assigné !");
             return Vector3.zero;
         }
-
-        activeSpawnIndex = Mathf.Clamp(activeSpawnIndex, 0, spawnPoints.Length - 1);
         return spawnPoints[activeSpawnIndex].position;
     }
 
-    
     public void SetSpawnPoint(int index)
     {
-        activeSpawnIndex = Mathf.Clamp(index, 0, spawnPoints.Length - 1);
+        if (spawnPoints == null || spawnPoints.Length == 0) return;
+        int clamped = Mathf.Clamp(index, 0, spawnPoints.Length - 1);
+        if (clamped <= activeSpawnIndex) return; // on ne régresse pas
+        activeSpawnIndex = clamped;
         Debug.Log($"Checkpoint activé : spawn {activeSpawnIndex}");
     }
 }

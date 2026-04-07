@@ -138,7 +138,6 @@ public class CharaController : MonoBehaviour
 
     void StartDash()
     {
-        // Multiplicateur d'énergie
         float multiplier = energySystem != null ? energySystem.GetDashMultiplier() : 1f;
         energySystem?.OnDashUsed();
 
@@ -160,6 +159,13 @@ public class CharaController : MonoBehaviour
     // ── Appelé par AbilityManager ──────────────────────────────
     public void SetJumpMode(JumpMode mode) => jumpMode = mode;
     public void SetDashEnabled(bool enabled) => dashEnabled = enabled;
+
+    // ── Reset des sauts / dashs (checkpoint, respawn) ──────────
+    public void ResetJumps()
+    {
+        airDashesLeft = MaxAirDashes;
+        coyoteTimeCounter = CoyoteTime;
+    }
 
     // ── Mort & Respawn ─────────────────────────────────────────
     void OnTriggerEnter2D(Collider2D other)
