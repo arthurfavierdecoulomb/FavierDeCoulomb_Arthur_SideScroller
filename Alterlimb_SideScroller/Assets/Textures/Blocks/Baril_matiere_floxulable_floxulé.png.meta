@@ -1,15 +1,15 @@
 fileFormatVersion: 2
-guid: e2f4b6ea70ca8fa40bb51172d9743101
+guid: d00e6207d5923b746a5db5688a6a22b5
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -8730233391136816098
-    second: piques_fixe_0
+      213: 6935627736147105157
+    second: "Baril_matiere_floxulable_floxul\xE9_0"
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
     mipMapMode: 0
-    enableMipMap: 1
+    enableMipMap: 0
     sRGBTexture: 1
     linearTexture: 0
     fadeOut: 0
@@ -100,23 +100,23 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: piques_fixe_0
+      name: "Baril_matiere_floxulable_floxul\xE9_0"
       rect:
         serializedVersion: 2
-        x: 20
+        x: 4
         y: 0
-        width: 984
-        height: 1024
+        width: 1020
+        height: 1000
       alignment: 0
-      pivot: {x: 0.5, y: 0.5}
+      pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: e14490b4cfaf7d680800000000000000
-      internalID: -8730233391136816098
+      spriteID: 5851563fdac404060800000000000000
+      internalID: 6935627736147105157
       vertices: []
       indices: 
       edges: []
@@ -125,7 +125,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 1dd98d4e65668f340ae88eb02d5863e2
+    spriteID: 
     internalID: 0
     vertices: []
     indices: 
@@ -135,7 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      piques_fixe_0: -8730233391136816098
+      "Baril_matiere_floxulable_floxul\xE9_0": 6935627736147105157
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
