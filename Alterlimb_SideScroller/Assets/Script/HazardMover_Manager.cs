@@ -237,7 +237,7 @@ public class HazardManager : MonoBehaviour
         }
     }
 
-    void OnDrawGizmosSelected()
+    void OnDrawGizmos()
     {
         foreach (Hazard h in hazards)
         {

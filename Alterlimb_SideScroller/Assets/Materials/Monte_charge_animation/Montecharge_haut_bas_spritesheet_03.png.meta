@@ -1,0 +1,273 @@
+fileFormatVersion: 2
+guid: a9bd825783464ac4fae02802f81a6b07
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -7491495977164657489
+    second: Montecharge_haut_bas_spritesheet_03_0
+  - first:
+      213: 7263961884971644413
+    second: Montecharge_haut_bas_spritesheet_03_1
+  - first:
+      213: -5157078458102137367
+    second: Montecharge_haut_bas_spritesheet_03_2
+  - first:
+      213: 6732571817578722943
+    second: Montecharge_haut_bas_spritesheet_03_3
+  - first:
+      213: 7749898286473089021
+    second: Montecharge_haut_bas_spritesheet_03_4
+  - first:
+      213: 1511638168292816906
+    second: Montecharge_haut_bas_spritesheet_03_5
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 0
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 220
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 8192
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: Montecharge_haut_bas_spritesheet_03_0
+      rect:
+        serializedVersion: 2
+        x: 449
+        y: 3152
+        width: 1006
+        height: 648
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fac25d4b91cd80890800000000000000
+      internalID: -7491495977164657489
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Montecharge_haut_bas_spritesheet_03_1
+      rect:
+        serializedVersion: 2
+        x: 2369
+        y: 3152
+        width: 1005
+        height: 648
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: df536b729d6cec460800000000000000
+      internalID: 7263961884971644413
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Montecharge_haut_bas_spritesheet_03_2
+      rect:
+        serializedVersion: 2
+        x: 450
+        y: 2071
+        width: 1004
+        height: 648
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9edb00a37706e68b0800000000000000
+      internalID: -5157078458102137367
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Montecharge_haut_bas_spritesheet_03_3
+      rect:
+        serializedVersion: 2
+        x: 2368
+        y: 2071
+        width: 1006
+        height: 648
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f76f59bb566ee6d50800000000000000
+      internalID: 6732571817578722943
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Montecharge_haut_bas_spritesheet_03_4
+      rect:
+        serializedVersion: 2
+        x: 447
+        y: 991
+        width: 1006
+        height: 647
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: dff03aa4e6b2d8b60800000000000000
+      internalID: 7749898286473089021
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Montecharge_haut_bas_spritesheet_03_5
+      rect:
+        serializedVersion: 2
+        x: 2367
+        y: 991
+        width: 1006
+        height: 647
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a08f302b7ea6af410800000000000000
+      internalID: 1511638168292816906
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      Montecharge_haut_bas_spritesheet_03_0: -7491495977164657489
+      Montecharge_haut_bas_spritesheet_03_1: 7263961884971644413
+      Montecharge_haut_bas_spritesheet_03_2: -5157078458102137367
+      Montecharge_haut_bas_spritesheet_03_3: 6732571817578722943
+      Montecharge_haut_bas_spritesheet_03_4: 7749898286473089021
+      Montecharge_haut_bas_spritesheet_03_5: 1511638168292816906
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

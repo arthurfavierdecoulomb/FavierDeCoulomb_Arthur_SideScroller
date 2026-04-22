@@ -103,12 +103,12 @@ TextureImporter:
       name: "Baril_floxulable_vide_deterior\xE9_0"
       rect:
         serializedVersion: 2
-        x: 93
+        x: 0
         y: 3
-        width: 326
-        height: 468
-      alignment: 0
-      pivot: {x: 0, y: 0}
+        width: 512
+        height: 509
+      alignment: 9
+      pivot: {x: 0.49999994, y: 0.48347756}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -125,7 +125,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 
+    spriteID: 13ae20fbac36dd3479961e6e09fc70bf
     internalID: 0
     vertices: []
     indices: 

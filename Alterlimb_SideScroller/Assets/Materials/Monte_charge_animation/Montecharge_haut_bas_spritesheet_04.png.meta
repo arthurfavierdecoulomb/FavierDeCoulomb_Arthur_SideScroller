@@ -1,10 +1,16 @@
 fileFormatVersion: 2
-guid: 621e8630648f3d747aeb399574569fcd
+guid: 6d66b35d9a04fdc4c83f927ba52bd920
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 2829466455059819401
-    second: Baril_matiere_fluxulable_sans_degats_0
+      213: -4761211906962117636
+    second: Montecharge_haut_bas_spritesheet_04_0
+  - first:
+      213: -8014334333154547109
+    second: Montecharge_haut_bas_spritesheet_04_1
+  - first:
+      213: -5025966980076651345
+    second: Montecharge_haut_bas_spritesheet_04_2
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -51,7 +57,7 @@ TextureImporter:
   spriteMeshType: 0
   alignment: 0
   spritePivot: {x: 0.5, y: 0.5}
-  spritePixelsToUnits: 512
+  spritePixelsToUnits: 220
   spriteBorder: {x: 0, y: 0, z: 0, w: 0}
   spriteGenerateFallbackPhysicsShape: 1
   alphaUsage: 1
@@ -72,7 +78,7 @@ TextureImporter:
   platformSettings:
   - serializedVersion: 4
     buildTarget: DefaultTexturePlatform
-    maxTextureSize: 512
+    maxTextureSize: 8192
     resizeAlgorithm: 0
     textureFormat: -1
     textureCompression: 1
@@ -100,23 +106,67 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Baril_matiere_fluxulable_sans_degats_0
+      name: Montecharge_haut_bas_spritesheet_04_0
       rect:
         serializedVersion: 2
-        x: 1
-        y: 3
-        width: 511
-        height: 503
+        x: 447
+        y: 3153
+        width: 1005
+        height: 647
       alignment: 0
-      pivot: {x: 0.5, y: 0.5}
-      border: {x: 0, y: 16, z: 0, w: 0}
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 98b69bdefb8444720800000000000000
-      internalID: 2829466455059819401
+      spriteID: cfba9212ff6ccedb0800000000000000
+      internalID: -4761211906962117636
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Montecharge_haut_bas_spritesheet_04_1
+      rect:
+        serializedVersion: 2
+        x: 2367
+        y: 3154
+        width: 1006
+        height: 646
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b5a2b11c26d57c090800000000000000
+      internalID: -8014334333154547109
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Montecharge_haut_bas_spritesheet_04_2
+      rect:
+        serializedVersion: 2
+        x: 446
+        y: 2071
+        width: 1005
+        height: 648
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fac30bb09ad204ab0800000000000000
+      internalID: -5025966980076651345
       vertices: []
       indices: 
       edges: []
@@ -125,7 +175,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: b011d9076f606544890a109dc01e3dbf
+    spriteID: 
     internalID: 0
     vertices: []
     indices: 
@@ -135,7 +185,9 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Baril_matiere_fluxulable_sans_degats_0: 2829466455059819401
+      Montecharge_haut_bas_spritesheet_04_0: -4761211906962117636
+      Montecharge_haut_bas_spritesheet_04_1: -8014334333154547109
+      Montecharge_haut_bas_spritesheet_04_2: -5025966980076651345
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
