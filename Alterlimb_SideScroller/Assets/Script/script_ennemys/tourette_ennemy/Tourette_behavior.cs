@@ -2,10 +2,22 @@
 
 public class Turret : MonoBehaviour
 {
-    [Header("Rotation Patrouille")]
+    // ════════════════════════════════════════════════════════════
+    //  États
+    // ════════════════════════════════════════════════════════════
+
+    enum TurretState { Patrolling, Shooting }
+
+    // ════════════════════════════════════════════════════════════
+    //  Champs sérialisés
+    // ════════════════════════════════════════════════════════════
+
+    [Header("Rotation Patrouille (erratique)")]
     [SerializeField] float patrolMinAngle = -60f;
     [SerializeField] float patrolMaxAngle = 60f;
-    [SerializeField] float patrolSpeed = 45f;
+    [SerializeField] float patrolSnapSpeed = 600f;
+    [SerializeField] float pauseMinTime = 0.05f;
+    [SerializeField] float pauseMaxTime = 0.3f;
 
     [Header("Détection")]
     [SerializeField] float detectionRange = 12f;
@@ -16,133 +28,195 @@ public class Turret : MonoBehaviour
     [SerializeField] Transform firePoint;
     [SerializeField] float fireRate = 1.5f;
     [SerializeField] float bulletSpeed = 12f;
+    [SerializeField] float aimSpeed = 10f;
+
+    [Header("Moteur")]
+    [SerializeField] Transform motorTransform;
+    [SerializeField] float normalSpinSpeed = 180f;
+    [SerializeField] float shootingSpinSpeed = 720f;
 
     [Header("Refs")]
     [SerializeField] Transform turretHead;
-    [SerializeField] Transform player;          
+    [SerializeField] Transform player;
 
+    [Header("Orientation du sprite")]
+    [SerializeField] float spriteAngleOffset = 0f;
+
+    // ════════════════════════════════════════════════════════════
+    //  Données runtime
+    // ════════════════════════════════════════════════════════════
+
+    TurretState state = TurretState.Patrolling;
+    TurretState previousState = TurretState.Patrolling;
     float currentAngle;
-    float patrolDirection = 1f;
-    float fireCooldown = 0f;
-    bool playerDetected = false;
+    float targetAngle;
+    float pauseTimer;
+    float fireCooldown;
+
+    // ════════════════════════════════════════════════════════════
+    //  Initialisation
+    // ════════════════════════════════════════════════════════════
 
     void Awake()
     {
-        // Auto-find si non assigné dans l'inspecteur
         if (player == null)
         {
             GameObject p = GameObject.FindGameObjectWithTag("Player");
-            if (p != null)
-                player = p.transform;
-            else
-                Debug.LogError("[Turret] Aucun GameObject avec le tag 'Player' trouvé !");
+            if (p != null) player = p.transform;
         }
 
-        if (turretHead == null)
-            Debug.LogError("[Turret] turretHead non assigné !");
-
-        if (firePoint == null)
-            Debug.LogError("[Turret] firePoint non assigné !");
-
-        if (bulletPrefab == null)
-            Debug.LogError("[Turret] bulletPrefab non assigné !");
-
-        // Avertit si le detectionMask est vide
-        if (detectionMask == 0)
-            Debug.LogWarning("[Turret] detectionMask est vide ! Coche Player + Ground dans l'inspecteur.");
+        PickNewTargetAngle();
     }
+
+    // ════════════════════════════════════════════════════════════
+    //  Update principal
+    // ════════════════════════════════════════════════════════════
 
     void Update()
     {
-        playerDetected = CheckLineOfSight();
+        UpdateState();
+        SpinMotor();
 
-        if (playerDetected)
-            AimAtPlayer();
-        else
-            Patrol();
+        switch (state)
+        {
+            case TurretState.Patrolling: Patrol(); break;
+            case TurretState.Shooting: Shoot(); break;
+        }
+
+        // Applique la rotation — un seul endroit, pas de conflit
+        if (turretHead != null)
+            turretHead.localRotation = Quaternion.Euler(0f, 0f, currentAngle);
 
         fireCooldown -= Time.deltaTime;
-        if (playerDetected && fireCooldown <= 0f)
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  Machine à états
+    // ════════════════════════════════════════════════════════════
+
+    void UpdateState()
+    {
+        previousState = state;
+        state = CheckLineOfSight() ? TurretState.Shooting : TurretState.Patrolling;
+
+        // Transition Shooting → Patrolling : reprend la patrouille depuis l'angle actuel
+        if (state == TurretState.Patrolling && previousState == TurretState.Shooting)
+            PickNewTargetAngle();
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  Détection
+    // ════════════════════════════════════════════════════════════
+
+    bool CheckLineOfSight()
+    {
+        if (player == null || firePoint == null) return false;
+
+        float dist = Vector2.Distance(firePoint.position, player.position);
+        if (dist > detectionRange) return false;
+
+        Vector2 dir = (player.position - firePoint.position).normalized;
+        RaycastHit2D hit = Physics2D.Raycast(firePoint.position, dir, detectionRange, detectionMask);
+
+        return hit.collider != null && hit.collider.CompareTag("Player");
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  Patrouille erratique
+    // ════════════════════════════════════════════════════════════
+
+    void Patrol()
+    {
+        if (turretHead == null) return;
+
+        // En pause : attend avant de bouger vers un nouvel angle
+        if (pauseTimer > 0f)
+        {
+            pauseTimer -= Time.deltaTime;
+            return;
+        }
+
+        // Snap rapide vers l'angle cible
+        currentAngle = Mathf.MoveTowards(currentAngle, targetAngle, patrolSnapSpeed * Time.deltaTime);
+
+        // Arrivé à l'angle cible : pause courte puis nouvel angle
+        if (Mathf.Abs(currentAngle - targetAngle) < 0.5f)
+        {
+            pauseTimer = Random.Range(pauseMinTime, pauseMaxTime);
+            PickNewTargetAngle();
+        }
+    }
+
+    void PickNewTargetAngle()
+    {
+        // Choisit un angle aléatoire suffisamment différent de l'actuel
+        float newAngle;
+        do
+        {
+            newAngle = Random.Range(patrolMinAngle, patrolMaxAngle);
+        }
+        while (Mathf.Abs(newAngle - currentAngle) < 20f);
+
+        targetAngle = newAngle;
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  Tir
+    // ════════════════════════════════════════════════════════════
+
+    void Shoot()
+    {
+        AimAtPlayer();
+
+        if (fireCooldown <= 0f)
         {
             FireBullet();
             fireCooldown = fireRate;
         }
-
-        Debug.DrawRay(firePoint.position, turretHead.right * detectionRange,
-                      playerDetected ? Color.red : Color.green);
-    }
-
-    bool CheckLineOfSight()
-    {
-        if (player == null) return false;
-
-        float distToPlayer = Vector2.Distance(firePoint.position, player.position);
-        Debug.Log($"[Turret] Distance joueur : {distToPlayer:F1} / Range : {detectionRange}");
-
-        if (distToPlayer > detectionRange) return false;
-
-        Vector2 dirToPlayer = (player.position - firePoint.position).normalized;
-
-        RaycastHit2D hit = Physics2D.Raycast(
-            firePoint.position,
-            dirToPlayer,
-            detectionRange,
-            detectionMask
-        );
-
-        if (hit.collider == null)
-        {
-            Debug.LogWarning($"[Turret] Raycast ne touche RIEN — detectionMask probablement mal configuré");
-            return false;
-        }
-
-        Debug.Log($"[Turret] Raycast touche : {hit.collider.name} | Tag : {hit.collider.tag}");
-
-        return hit.collider.CompareTag("Player");
-    }
-
-    void Patrol()
-    {
-        currentAngle += patrolSpeed * patrolDirection * Time.deltaTime;
-
-        if (currentAngle >= patrolMaxAngle) { currentAngle = patrolMaxAngle; patrolDirection = -1f; }
-        else if (currentAngle <= patrolMinAngle) { currentAngle = patrolMinAngle; patrolDirection = 1f; }
-
-        turretHead.localRotation = Quaternion.Euler(0f, 0f, currentAngle);
     }
 
     void AimAtPlayer()
     {
+        if (turretHead == null || player == null) return;
+
         Vector2 dir = (player.position - turretHead.position).normalized;
-        float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
-        float smoothAngle = Mathf.LerpAngle(turretHead.eulerAngles.z, angle, 10f * Time.deltaTime);
-        turretHead.rotation = Quaternion.Euler(0f, 0f, smoothAngle);
+        float worldAngle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
+
+        float parentAngle = turretHead.parent != null ? turretHead.parent.eulerAngles.z : 0f;
+        float localAngle = worldAngle - parentAngle - spriteAngleOffset;
+
+        currentAngle = Mathf.LerpAngle(currentAngle, localAngle, aimSpeed * Time.deltaTime);
     }
 
     void FireBullet()
     {
-        // ── Logs de diagnostic ──────────────────────────
-        Debug.Log($"[Turret] FireBullet() appelé !");
-
-        if (bulletPrefab == null) { Debug.LogError("[Turret] bulletPrefab EST NULL !"); return; }
-        if (firePoint == null) { Debug.LogError("[Turret] firePoint EST NULL !"); return; }
-        if (player == null) { Debug.LogError("[Turret] player EST NULL !"); return; }
-        // ────────────────────────────────────────────────
+        if (bulletPrefab == null || firePoint == null || player == null) return;
 
         GameObject bullet = Instantiate(bulletPrefab, firePoint.position, firePoint.rotation);
         Rigidbody2D bulletRb = bullet.GetComponent<Rigidbody2D>();
-
-        if (bulletRb == null)
-        {
-            Debug.LogError("[Turret] Le prefab balle n'a pas de Rigidbody2D !");
-            return;
-        }
+        if (bulletRb == null) return;
 
         Vector2 dir = (player.position - firePoint.position).normalized;
         bulletRb.linearVelocity = dir * bulletSpeed;
 
         Destroy(bullet, 5f);
     }
+
+    // ════════════════════════════════════════════════════════════
+    //  Moteur
+    // ════════════════════════════════════════════════════════════
+
+    void SpinMotor()
+    {
+        if (motorTransform == null) return;
+
+        float speed = (state == TurretState.Shooting) ? shootingSpinSpeed : normalSpinSpeed;
+        motorTransform.Rotate(0f, 0f, speed * Time.deltaTime);
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  Gizmos
+    // ════════════════════════════════════════════════════════════
 
     void OnDrawGizmosSelected()
     {

@@ -2,6 +2,16 @@
 
 public class DroneEnemy : MonoBehaviour
 {
+    // ════════════════════════════════════════════════════════════
+    //  États
+    // ════════════════════════════════════════════════════════════
+
+    enum DroneState { Patrolling, Chasing, Shooting }
+
+    // ════════════════════════════════════════════════════════════
+    //  Champs sérialisés
+    // ════════════════════════════════════════════════════════════
+
     [Header("Patrouille")]
     [SerializeField] Transform pointA;
     [SerializeField] Transform pointB;
@@ -22,21 +32,32 @@ public class DroneEnemy : MonoBehaviour
     [SerializeField] float laserDamage = 10f;
     [SerializeField] float laserDuration = 0.2f;
 
+    [Header("Moteur")]
+    [SerializeField] Transform motorTransform;
+    [SerializeField] float normalSpinSpeed = 180f;
+    [SerializeField] float shootingSpinSpeed = 720f;
+
     [Header("PV")]
     [SerializeField] float maxHealth = 100f;
-    float currentHealth;
 
     [Header("Refs")]
     [SerializeField] Transform player;
 
-    Rigidbody2D rb;
-    public bool isHooked = false;
-    bool isPatrollingToB = true;
-    float fireCooldown = 0f;
-    float laserTimer = 0f;
+    // ════════════════════════════════════════════════════════════
+    //  Données runtime
+    // ════════════════════════════════════════════════════════════
 
-    enum DroneState { Patrolling, Chasing, Shooting }
+    Rigidbody2D rb;
     DroneState state = DroneState.Patrolling;
+    float currentHealth;
+    float fireCooldown;
+    float laserTimer;
+    bool isPatrollingToB = true;
+    public bool isHooked = false;
+
+    // ════════════════════════════════════════════════════════════
+    //  Initialisation
+    // ════════════════════════════════════════════════════════════
 
     void Awake()
     {
@@ -49,17 +70,21 @@ public class DroneEnemy : MonoBehaviour
             laserRenderer.enabled = false;
     }
 
+    // ════════════════════════════════════════════════════════════
+    //  Update principal
+    // ════════════════════════════════════════════════════════════
+
     void Update()
     {
-        // Quand accroché : IA désactivée, gravité off, le SpringJoint tire le joueur vers lui
         if (isHooked)
         {
             rb.gravityScale = 0f;
-            rb.linearVelocity = Vector2.zero; // le drone reste en place
+            rb.linearVelocity = Vector2.zero;
             return;
         }
 
         UpdateState();
+        SpinMotor();
 
         switch (state)
         {
@@ -69,19 +94,17 @@ public class DroneEnemy : MonoBehaviour
         }
 
         fireCooldown -= Time.deltaTime;
-
-        // Timer laser visuel
-        if (laserTimer > 0f)
-        {
-            laserTimer -= Time.deltaTime;
-            if (laserTimer <= 0f && laserRenderer != null)
-                laserRenderer.enabled = false;
-        }
+        UpdateLaserTimer();
     }
+
+    // ════════════════════════════════════════════════════════════
+    //  Machine à états
+    // ════════════════════════════════════════════════════════════
 
     void UpdateState()
     {
         if (player == null) return;
+
         float dist = Vector2.Distance(transform.position, player.position);
 
         if (dist > detectionRange) state = DroneState.Patrolling;
@@ -89,9 +112,14 @@ public class DroneEnemy : MonoBehaviour
         else state = DroneState.Shooting;
     }
 
+    // ════════════════════════════════════════════════════════════
+    //  Comportements
+    // ════════════════════════════════════════════════════════════
+
     void Patrol()
     {
         if (pointA == null || pointB == null) return;
+
         Transform target = isPatrollingToB ? pointB : pointA;
         MoveTo(target.position, patrolSpeed);
 
@@ -106,7 +134,7 @@ public class DroneEnemy : MonoBehaviour
 
     void Shoot()
     {
-        // Reste à distance, ne bouge plus
+        // Reste à distance, décélère
         rb.linearVelocity = Vector2.Lerp(rb.linearVelocity, Vector2.zero, moveSmoothness * Time.deltaTime);
 
         // Oriente le firepoint vers le joueur
@@ -122,6 +150,10 @@ public class DroneEnemy : MonoBehaviour
             fireCooldown = fireRate;
         }
     }
+
+    // ════════════════════════════════════════════════════════════
+    //  Laser
+    // ════════════════════════════════════════════════════════════
 
     void FireLaser()
     {
@@ -141,52 +173,81 @@ public class DroneEnemy : MonoBehaviour
         }
     }
 
+    void UpdateLaserTimer()
+    {
+        if (laserTimer <= 0f) return;
+
+        laserTimer -= Time.deltaTime;
+        if (laserTimer <= 0f && laserRenderer != null)
+            laserRenderer.enabled = false;
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  Moteur
+    // ════════════════════════════════════════════════════════════
+
+    void SpinMotor()
+    {
+        if (motorTransform == null) return;
+
+        float speed = (state == DroneState.Shooting) ? shootingSpinSpeed : normalSpinSpeed;
+        motorTransform.Rotate(0f, 0f, speed * Time.deltaTime);
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  Déplacement
+    // ════════════════════════════════════════════════════════════
+
     void MoveTo(Vector2 target, float speed)
     {
         Vector2 direction = (target - (Vector2)transform.position).normalized;
         rb.linearVelocity = Vector2.Lerp(rb.linearVelocity, direction * speed, moveSmoothness * Time.deltaTime);
     }
 
-    // ─── HOOK ────────────────────────────────────────────────────
+    // ════════════════════════════════════════════════════════════
+    //  Hook (Grappin)
+    // ════════════════════════════════════════════════════════════
 
     public void GetHooked()
     {
         if (isHooked) return;
         isHooked = true;
         rb.gravityScale = 0f;
-        rb.linearVelocity = Vector2.zero; // stoppe net, reste en place
+        rb.linearVelocity = Vector2.zero;
     }
 
     public void ReleaseHook()
     {
         isHooked = false;
-        // reprend son IA normalement au prochain Update()
     }
 
-    // ─── DÉGÂTS (appelé par SawAbility) ─────────────────────────
+    // ════════════════════════════════════════════════════════════
+    //  Dégâts (appelé par SawAbility)
+    // ════════════════════════════════════════════════════════════
 
     public void TakeDamage(float amount)
     {
-        if (!isHooked) return; // la scie ne fait des dégâts que si accroché
+        if (!isHooked) return;
 
         currentHealth -= amount;
-
         if (currentHealth <= 0f)
             Die();
     }
 
     void Die()
     {
-        // Tu peux ajouter une explosion/particules ici
         Destroy(gameObject);
     }
 
-    // ─── GIZMOS ──────────────────────────────────────────────────
+    // ════════════════════════════════════════════════════════════
+    //  Gizmos
+    // ════════════════════════════════════════════════════════════
 
     void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(transform.position, detectionRange);
+
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(transform.position, stopDistance);
     }

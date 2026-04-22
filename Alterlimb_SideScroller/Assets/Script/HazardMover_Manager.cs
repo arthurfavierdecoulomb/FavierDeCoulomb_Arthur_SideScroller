@@ -3,6 +3,21 @@ using System.Collections.Generic;
 
 public class HazardManager : MonoBehaviour
 {
+    // ════════════════════════════════════════════════════════════
+    //  Types
+    // ════════════════════════════════════════════════════════════
+
+    public enum MovementType
+    {
+        UpDown,
+        LeftRight,
+        Rotation,
+        CircularOrbit,
+        PingPongDiag,
+        Pendulum,
+        Breakable
+    }
+
     [System.Serializable]
     public class Hazard
     {
@@ -12,10 +27,14 @@ public class HazardManager : MonoBehaviour
         [Header("Type de mouvement")]
         public MovementType movementType = MovementType.UpDown;
 
-        [Header("Paramètres")]
+        [Header("Paramètres généraux")]
         public float speed = 3f;
         public float amplitude = 2f;
+        [Range(0f, 1f)]
         public float phase = 0f;
+
+        [Header("Pause aux extrémités (UpDown / LeftRight)")]
+        public float pauseDuration = 0f;
 
         [Header("Rotation")]
         public float rotationSpeed = 90f;
@@ -33,13 +52,18 @@ public class HazardManager : MonoBehaviour
         public float destroyDelay = 2f;
         public float respawnDelay = 5f;
 
-        // ── Données runtime ──
+        // ── Données runtime (cachées dans l'Inspector) ─────────
         [HideInInspector] public Vector3 startPosition;
         [HideInInspector] public Quaternion startRotation;
         [HideInInspector] public float timer;
         [HideInInspector] public float orbitAngle;
         [HideInInspector] public Vector3 previousPosition;
         [HideInInspector] public Animator animator;
+        [HideInInspector] public bool justResumed;
+
+        // Pause runtime
+        [HideInInspector] public bool isPaused;
+        [HideInInspector] public float pauseTimer;
 
         // Breakable runtime
         [HideInInspector] public bool playerOnPlatform;
@@ -51,28 +75,26 @@ public class HazardManager : MonoBehaviour
         [HideInInspector] public SpriteRenderer spriteRenderer;
     }
 
-    public enum MovementType
-    {
-        UpDown,
-        LeftRight,
-        Rotation,
-        CircularOrbit,
-        PingPongDiag,
-        Pendulum,
-        Breakable
-    }
+    // ════════════════════════════════════════════════════════════
+    //  Champs
+    // ════════════════════════════════════════════════════════════
 
     [Header("Liste des pièges")]
     [SerializeField] List<Hazard> hazards = new List<Hazard>();
 
-    // Hash des paramètres Animator pour le monte-charge
+    // Hash Animator pour le monte-charge
     static readonly int MoveDir = Animator.StringToHash("moveDir");
+
+    // ════════════════════════════════════════════════════════════
+    //  Initialisation
+    // ════════════════════════════════════════════════════════════
 
     void Awake()
     {
         foreach (Hazard h in hazards)
         {
             if (h.target == null) continue;
+
             h.startPosition = h.target.transform.position;
             h.startRotation = h.target.transform.rotation;
             h.timer = h.phase * Mathf.PI * 2f;
@@ -81,18 +103,24 @@ public class HazardManager : MonoBehaviour
             h.animator = h.target.GetComponent<Animator>();
 
             if (h.movementType == MovementType.Breakable)
-            {
-                h.platformCollider = h.target.GetComponent<Collider2D>();
-                h.spriteRenderer = h.target.GetComponent<SpriteRenderer>();
-
-                // Ajoute le détecteur de collision si y'en a pas
-                BreakablePlatformTrigger trigger = h.target.GetComponent<BreakablePlatformTrigger>();
-                if (trigger == null)
-                    trigger = h.target.AddComponent<BreakablePlatformTrigger>();
-                trigger.hazard = h;
-            }
+                InitBreakable(h);
         }
     }
+
+    void InitBreakable(Hazard h)
+    {
+        h.platformCollider = h.target.GetComponent<Collider2D>();
+        h.spriteRenderer = h.target.GetComponent<SpriteRenderer>();
+
+        BreakablePlatformTrigger trigger = h.target.GetComponent<BreakablePlatformTrigger>();
+        if (trigger == null)
+            trigger = h.target.AddComponent<BreakablePlatformTrigger>();
+        trigger.hazard = h;
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  Update principal
+    // ════════════════════════════════════════════════════════════
 
     void Update()
     {
@@ -106,11 +134,30 @@ public class HazardManager : MonoBehaviour
                 continue;
             }
 
+            if (h.isPaused)
+            {
+                h.pauseTimer -= Time.deltaTime;
+                if (h.pauseTimer <= 0f)
+                {
+                    h.isPaused = false;
+                    h.justResumed = true;  // empêche le re-trigger immédiat
+                }
+
+                UpdateHazardAnimation(h);
+                continue;
+            }
+
             h.timer += Time.deltaTime * h.speed;
             ProcessHazard(h);
             UpdateHazardAnimation(h);
+
+
         }
     }
+
+    // ════════════════════════════════════════════════════════════
+    //  Mouvements
+    // ════════════════════════════════════════════════════════════
 
     void ProcessHazard(Hazard h)
     {
@@ -119,40 +166,75 @@ public class HazardManager : MonoBehaviour
         switch (h.movementType)
         {
             case MovementType.UpDown:
-                t.position = h.startPosition + new Vector3(0f, Mathf.Sin(h.timer) * h.amplitude, 0f);
-                break;
+                {
+                    float sin = Mathf.Sin(h.timer);
+                    t.position = h.startPosition + new Vector3(0f, sin * h.amplitude, 0f);
+                    CheckPause(h, sin);
+                    break;
+                }
 
             case MovementType.LeftRight:
-                t.position = h.startPosition + new Vector3(Mathf.Sin(h.timer) * h.amplitude, 0f, 0f);
-                break;
+                {
+                    float sin = Mathf.Sin(h.timer);
+                    t.position = h.startPosition + new Vector3(sin * h.amplitude, 0f, 0f);
+                    CheckPause(h, sin);
+                    break;
+                }
 
             case MovementType.Rotation:
                 t.Rotate(0f, 0f, h.rotationSpeed * Time.deltaTime);
                 break;
 
             case MovementType.CircularOrbit:
-                h.orbitAngle += h.speed * Time.deltaTime;
-                Vector3 center = h.orbitCenter != null ? h.orbitCenter.position : h.startPosition;
-                t.position = center + new Vector3(
-                    Mathf.Cos(h.orbitAngle) * h.orbitRadius,
-                    Mathf.Sin(h.orbitAngle) * h.orbitRadius,
-                    0f
-                );
-                break;
+                {
+                    h.orbitAngle += h.speed * Time.deltaTime;
+                    Vector3 center = h.orbitCenter != null ? h.orbitCenter.position : h.startPosition;
+                    t.position = center + new Vector3(
+                        Mathf.Cos(h.orbitAngle) * h.orbitRadius,
+                        Mathf.Sin(h.orbitAngle) * h.orbitRadius,
+                        0f
+                    );
+                    break;
+                }
 
             case MovementType.PingPongDiag:
-                float diag = Mathf.Sin(h.timer) * h.amplitude;
-                t.position = h.startPosition + new Vector3(diag, diag, 0f);
-                break;
+                {
+                    float diag = Mathf.Sin(h.timer) * h.amplitude;
+                    t.position = h.startPosition + new Vector3(diag, diag, 0f);
+                    break;
+                }
 
             case MovementType.Pendulum:
-                float angle = Mathf.Sin(h.timer) * h.pendulumMaxAngle;
-                t.rotation = Quaternion.Euler(0f, 0f, angle);
-                break;
+                {
+                    float angle = Mathf.Sin(h.timer) * h.pendulumMaxAngle;
+                    t.rotation = Quaternion.Euler(0f, 0f, angle);
+                    break;
+                }
         }
     }
 
-    // ── Animation du monte-charge ──────────────────────────────
+    void CheckPause(Hazard h, float sinValue)
+    {
+        if (h.pauseDuration <= 0f) return;
+        if (h.justResumed)
+        {
+            // On attend d'être loin de l'extrémité avant de pouvoir re-pauser
+            if (Mathf.Abs(Mathf.Abs(sinValue) - 1f) > 0.1f)
+                h.justResumed = false;
+            return;
+        }
+
+        if (Mathf.Abs(Mathf.Abs(sinValue) - 1f) < 0.02f)
+        {
+            h.isPaused = true;
+            h.pauseTimer = h.pauseDuration;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  Animation du monte-charge
+    // ════════════════════════════════════════════════════════════
+
     void UpdateHazardAnimation(Hazard h)
     {
         if (h.animator == null) return;
@@ -168,7 +250,10 @@ public class HazardManager : MonoBehaviour
         h.animator.SetInteger(MoveDir, dir);
     }
 
-    // ── Plateforme cassable ────────────────────────────────────
+    // ════════════════════════════════════════════════════════════
+    //  Plateforme cassable
+    // ════════════════════════════════════════════════════════════
+
     void ProcessBreakable(Hazard h)
     {
         if (h.isBroken)
@@ -192,7 +277,7 @@ public class HazardManager : MonoBehaviour
         {
             h.breakTimer += Time.deltaTime;
 
-            // Optionnel : tremblement avant la casse
+            // Tremblement avant la casse
             float shake = Mathf.Sin(h.breakTimer * 40f) * 0.03f;
             h.target.transform.position = h.startPosition + new Vector3(shake, 0f, 0f);
 
@@ -216,7 +301,6 @@ public class HazardManager : MonoBehaviour
             h.platformCollider.enabled = false;
     }
 
-    // ── Appelé via Invoke pour respawn ──
     void RespawnBreakable()
     {
         foreach (Hazard h in hazards)
@@ -237,35 +321,51 @@ public class HazardManager : MonoBehaviour
         }
     }
 
+    // ════════════════════════════════════════════════════════════
+    //  Gizmos (toujours visibles)
+    // ════════════════════════════════════════════════════════════
+
     void OnDrawGizmos()
     {
         foreach (Hazard h in hazards)
         {
             if (h.target == null) continue;
 
-            Gizmos.color = Color.red;
             Vector3 origin = Application.isPlaying ? h.startPosition : h.target.transform.position;
 
             switch (h.movementType)
             {
                 case MovementType.UpDown:
+                    Gizmos.color = Color.red;
                     Gizmos.DrawLine(origin + Vector3.up * h.amplitude, origin + Vector3.down * h.amplitude);
+                    Gizmos.DrawWireSphere(origin + Vector3.up * h.amplitude, 0.15f);
+                    Gizmos.DrawWireSphere(origin + Vector3.down * h.amplitude, 0.15f);
                     break;
+
                 case MovementType.LeftRight:
+                    Gizmos.color = Color.red;
                     Gizmos.DrawLine(origin + Vector3.left * h.amplitude, origin + Vector3.right * h.amplitude);
+                    Gizmos.DrawWireSphere(origin + Vector3.left * h.amplitude, 0.15f);
+                    Gizmos.DrawWireSphere(origin + Vector3.right * h.amplitude, 0.15f);
                     break;
+
                 case MovementType.CircularOrbit:
+                    Gizmos.color = Color.red;
                     Vector3 c = h.orbitCenter != null ? h.orbitCenter.position : origin;
                     Gizmos.DrawWireSphere(c, h.orbitRadius);
                     break;
+
                 case MovementType.PingPongDiag:
+                    Gizmos.color = Color.red;
                     Gizmos.DrawLine(origin - new Vector3(h.amplitude, h.amplitude, 0f),
                                     origin + new Vector3(h.amplitude, h.amplitude, 0f));
                     break;
+
                 case MovementType.Pendulum:
                     Gizmos.color = Color.yellow;
                     Gizmos.DrawWireSphere(origin, 0.2f);
                     break;
+
                 case MovementType.Breakable:
                     Gizmos.color = Color.cyan;
                     Gizmos.DrawWireCube(origin, Vector3.one);
