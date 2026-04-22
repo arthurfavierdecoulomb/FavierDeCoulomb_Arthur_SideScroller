@@ -44722,18 +44722,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: df7367627873191419f222e936dde349, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Turret
-  patrolMinAngle: -60
+  patrolMinAngle: 0
   patrolMaxAngle: 60
   patrolSnapSpeed: 600
-  pauseMinTime: 1
-  pauseMaxTime: 2
+  pauseMinTime: 0.2
+  pauseMaxTime: 0.5
   detectionRange: 3.5
   detectionMask:
     serializedVersion: 2
     m_Bits: 128
   bulletPrefab: {fileID: 1976138813490607971, guid: bc38a642bb2770a46aa7e7f8e33342b0, type: 3}
   firePoint: {fileID: 1560649232}
-  fireRate: 0.5
+  fireRate: 0.1
   bulletSpeed: 12
   aimSpeed: 10
   motorTransform: {fileID: 2002826609}
