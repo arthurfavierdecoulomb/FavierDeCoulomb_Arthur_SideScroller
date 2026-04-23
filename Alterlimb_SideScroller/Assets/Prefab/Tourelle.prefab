@@ -26,7 +26,7 @@ Transform:
   m_GameObject: {fileID: 3916000578248140256}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.4, y: -0.04, z: 0}
+  m_LocalPosition: {x: -0.4, y: -0.007, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -133,7 +133,7 @@ GameObject:
   m_Component:
   - component: {fileID: 3805927038415315718}
   m_Layer: 0
-  m_Name: tourette
+  m_Name: Tourelle
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -181,7 +181,7 @@ Transform:
   m_GameObject: {fileID: 8853703792906607199}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: 0.011039744, w: 0.99993914}
-  m_LocalPosition: {x: -0.4, y: -0.04, z: 0}
+  m_LocalPosition: {x: -0.401, y: -0.008, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
