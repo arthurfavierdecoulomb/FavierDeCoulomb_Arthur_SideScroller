@@ -11,20 +11,21 @@ public class LaserBeam : MonoBehaviour
     [SerializeField] private Transform origin;
     [SerializeField] private Transform destination;
 
-    // ─── États ────────────────────────────────────────────────
-    public enum LaserState { On, Off, Blinking }
+    // ─── Timing ───────────────────────────────────────────────
+    [Header("Timing")]
+    [SerializeField] private float onDurationMin = 1f;
+    [SerializeField] private float onDurationMax = 2f;
+    [SerializeField] private float offDurationMin = 1f;
+    [SerializeField] private float offDurationMax = 2f;
 
-    [Header("Comportement")]
-    [SerializeField] private LaserState state = LaserState.On;
-    [SerializeField] private float onDuration = 2f;
-    [SerializeField] private float offDuration = 1f;
-    [SerializeField] private float blinkInterval = 0.15f;
+    [Header("Blink")]
+    [SerializeField] private float blinkInterval = 0.1f;
+    [SerializeField] private int blinkCount = 5;
 
     // ─── Privés ───────────────────────────────────────────────
     private LineRenderer _line;
     private EdgeCollider2D _collider;
-    private float _timer;
-    private bool _beamVisible = true;
+    private bool _beamActive = true;
 
     // ──────────────────────────────────────────────────────────
     void Awake()
@@ -34,23 +35,50 @@ public class LaserBeam : MonoBehaviour
 
         _line.positionCount = 2;
         _collider.isTrigger = true;
+        _collider.edgeRadius = 0.2f;
     }
 
     void Start()
     {
-        // Lance le cycle automatique si Blinking
-        if (state == LaserState.Blinking)
-            StartCoroutine(BlinkLoop());
-        else if (state == LaserState.On)
-            SetBeamActive(true);
-        else
-            SetBeamActive(false);
+        StartCoroutine(LaserCycle());
     }
 
     void Update()
     {
-        if (_beamVisible)
+        if (_beamActive)
             UpdatePositions();
+    }
+
+    // ─── Cycle principal ──────────────────────────────────────
+    IEnumerator LaserCycle()
+    {
+        while (true)
+        {
+            // 1. Allumé pendant X secondes (aléatoire)
+            SetBeamActive(true);
+            float onDuration = Random.Range(onDurationMin, onDurationMax);
+            yield return new WaitForSeconds(onDuration);
+
+            // 2. Blink avant extinction
+            yield return StartCoroutine(BlinkRoutine());
+
+            // 3. Éteint pendant X secondes (aléatoire)
+            SetBeamActive(false);
+            float offDuration = Random.Range(offDurationMin, offDurationMax);
+            yield return new WaitForSeconds(offDuration);
+        }
+    }
+
+    // ─── Blink ────────────────────────────────────────────────
+    IEnumerator BlinkRoutine()
+    {
+        for (int i = 0; i < blinkCount; i++)
+        {
+            SetBeamActive(false);
+            yield return new WaitForSeconds(blinkInterval);
+            SetBeamActive(true);
+            yield return new WaitForSeconds(blinkInterval);
+        }
     }
 
     // ─── Mise à jour visuel + collider ────────────────────────
@@ -62,53 +90,18 @@ public class LaserBeam : MonoBehaviour
         _line.SetPosition(0, start);
         _line.SetPosition(1, end);
 
-        _collider.SetPoints(new List<Vector2>
-        {
-            new Vector2(start.x, start.y),
-            new Vector2(end.x,   end.y)
-        });
+        // Convertit en local space pour le collider
+        Vector2 localStart = transform.InverseTransformPoint(start);
+        Vector2 localEnd = transform.InverseTransformPoint(end);
+
+        _collider.SetPoints(new List<Vector2> { localStart, localEnd });
     }
 
     // ─── Active / désactive visuellement + hitbox ─────────────
     void SetBeamActive(bool active)
     {
-        _beamVisible = active;
+        _beamActive = active;
         _line.enabled = active;
         _collider.enabled = active;
-    }
-
-    // ─── Coroutine de clignotement ────────────────────────────
-    IEnumerator BlinkLoop()
-    {
-        while (true)
-        {
-            SetBeamActive(true);
-            yield return new WaitForSeconds(onDuration);
-
-            SetBeamActive(false);
-            yield return new WaitForSeconds(offDuration);
-        }
-    }
-
-    // ─── API publique (appelable depuis d'autres scripts) ─────
-    public void TurnOn()
-    {
-        StopAllCoroutines();
-        state = LaserState.On;
-        SetBeamActive(true);
-    }
-
-    public void TurnOff()
-    {
-        StopAllCoroutines();
-        state = LaserState.Off;
-        SetBeamActive(false);
-    }
-
-    public void StartBlinking()
-    {
-        StopAllCoroutines();
-        state = LaserState.Blinking;
-        StartCoroutine(BlinkLoop());
     }
 }
