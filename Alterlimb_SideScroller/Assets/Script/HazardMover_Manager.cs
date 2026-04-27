@@ -30,7 +30,9 @@ public class HazardManager : MonoBehaviour
         [Header("Paramètres généraux")]
         public float speed = 3f;
         public float amplitude = 2f;
+
         [Range(0f, 1f)]
+        [Tooltip("Décalage de phase : 0 = aucun, 0.5 = opposé, 0.25 = quart de cycle")]
         public float phase = 0f;
 
         [Header("Pause aux extrémités (UpDown / LeftRight)")]
@@ -82,7 +84,6 @@ public class HazardManager : MonoBehaviour
     [Header("Liste des pièges")]
     [SerializeField] List<Hazard> hazards = new List<Hazard>();
 
-    // Hash Animator pour le monte-charge
     static readonly int MoveDir = Animator.StringToHash("moveDir");
 
     // ════════════════════════════════════════════════════════════
@@ -97,8 +98,8 @@ public class HazardManager : MonoBehaviour
 
             h.startPosition = h.target.transform.position;
             h.startRotation = h.target.transform.rotation;
-            h.timer = h.phase * Mathf.PI * 2f;
-            h.orbitAngle = 0f;
+            h.timer = 0f;            // ← plus de phase ici : elle est appliquée dans le sinus
+            h.orbitAngle = h.phase * Mathf.PI * 2f; // phase pour l'orbite
             h.previousPosition = h.target.transform.position;
             h.animator = h.target.GetComponent<Animator>();
 
@@ -140,7 +141,7 @@ public class HazardManager : MonoBehaviour
                 if (h.pauseTimer <= 0f)
                 {
                     h.isPaused = false;
-                    h.justResumed = true;  // empêche le re-trigger immédiat
+                    h.justResumed = true;
                 }
 
                 UpdateHazardAnimation(h);
@@ -150,8 +151,6 @@ public class HazardManager : MonoBehaviour
             h.timer += Time.deltaTime * h.speed;
             ProcessHazard(h);
             UpdateHazardAnimation(h);
-
-
         }
     }
 
@@ -162,12 +161,13 @@ public class HazardManager : MonoBehaviour
     void ProcessHazard(Hazard h)
     {
         Transform t = h.target.transform;
+        float phaseRad = h.phase * Mathf.PI * 2f;   // ← décalage injecté ici
 
         switch (h.movementType)
         {
             case MovementType.UpDown:
                 {
-                    float sin = Mathf.Sin(h.timer);
+                    float sin = Mathf.Sin(h.timer + phaseRad);
                     t.position = h.startPosition + new Vector3(0f, sin * h.amplitude, 0f);
                     CheckPause(h, sin);
                     break;
@@ -175,7 +175,7 @@ public class HazardManager : MonoBehaviour
 
             case MovementType.LeftRight:
                 {
-                    float sin = Mathf.Sin(h.timer);
+                    float sin = Mathf.Sin(h.timer + phaseRad);
                     t.position = h.startPosition + new Vector3(sin * h.amplitude, 0f, 0f);
                     CheckPause(h, sin);
                     break;
@@ -189,6 +189,7 @@ public class HazardManager : MonoBehaviour
                 {
                     h.orbitAngle += h.speed * Time.deltaTime;
                     Vector3 center = h.orbitCenter != null ? h.orbitCenter.position : h.startPosition;
+                    // phaseRad ajouté à orbitAngle (déjà initialisé avec la phase dans Awake)
                     t.position = center + new Vector3(
                         Mathf.Cos(h.orbitAngle) * h.orbitRadius,
                         Mathf.Sin(h.orbitAngle) * h.orbitRadius,
@@ -199,14 +200,14 @@ public class HazardManager : MonoBehaviour
 
             case MovementType.PingPongDiag:
                 {
-                    float diag = Mathf.Sin(h.timer) * h.amplitude;
+                    float diag = Mathf.Sin(h.timer + phaseRad) * h.amplitude;
                     t.position = h.startPosition + new Vector3(diag, diag, 0f);
                     break;
                 }
 
             case MovementType.Pendulum:
                 {
-                    float angle = Mathf.Sin(h.timer) * h.pendulumMaxAngle;
+                    float angle = Mathf.Sin(h.timer + phaseRad) * h.pendulumMaxAngle;
                     t.rotation = Quaternion.Euler(0f, 0f, angle);
                     break;
                 }
@@ -218,7 +219,6 @@ public class HazardManager : MonoBehaviour
         if (h.pauseDuration <= 0f) return;
         if (h.justResumed)
         {
-            // On attend d'être loin de l'extrémité avant de pouvoir re-pauser
             if (Mathf.Abs(Mathf.Abs(sinValue) - 1f) > 0.1f)
                 h.justResumed = false;
             return;
@@ -242,7 +242,6 @@ public class HazardManager : MonoBehaviour
         float velocityY = h.target.transform.position.y - h.previousPosition.y;
         h.previousPosition = h.target.transform.position;
 
-        // moveDir : 1 = monte, -1 = descend, 0 = arrêté
         int dir = 0;
         if (velocityY > 0.01f) dir = 1;
         else if (velocityY < -0.01f) dir = -1;
@@ -277,7 +276,6 @@ public class HazardManager : MonoBehaviour
         {
             h.breakTimer += Time.deltaTime;
 
-            // Tremblement avant la casse
             float shake = Mathf.Sin(h.breakTimer * 40f) * 0.03f;
             h.target.transform.position = h.startPosition + new Vector3(shake, 0f, 0f);
 
@@ -322,7 +320,7 @@ public class HazardManager : MonoBehaviour
     }
 
     // ════════════════════════════════════════════════════════════
-    //  Gizmos (toujours visibles)
+    //  Gizmos
     // ════════════════════════════════════════════════════════════
 
     void OnDrawGizmos()

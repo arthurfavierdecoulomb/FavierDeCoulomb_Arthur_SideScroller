@@ -27,7 +27,19 @@ public class CharaController : MonoBehaviour
     [SerializeField] float GroundCheckDistance = 1.1f;
     [SerializeField] LayerMask groundLayer;
 
+    // ── Glissade ───────────────────────────────────────────────
+    [Header("Ice / Slippery")]
+    [SerializeField] LayerMask iceLayer;
+    [Tooltip("Force de poussée latérale sur glace (faible = difficile à changer de direction)")]
+    [SerializeField] float IceAcceleration = 2f;
+    [Tooltip("Freinage passif sur glace sans input : 0.999 = glisse infinie, 0.95 = s'arrête vite")]
+    [Range(0.9f, 1f)]
+    [SerializeField] float IceFriction = 0.985f;
+    // ──────────────────────────────────────────────────────────
+
     Rigidbody2D rb;
+    AbilityEnergySystem energySystem;
+
     float inputX;
     float coyoteTimeCounter;
     float jumpBufferCounter;
@@ -37,19 +49,21 @@ public class CharaController : MonoBehaviour
     int airDashesLeft;
     float dashDirection;
     bool isGrounded;
+    bool isOnIce;
+    bool wasOnIce;         // conserve la glissade à l'atterrissage
     bool isDead;
 
     JumpMode jumpMode = JumpMode.Normal;
     bool dashEnabled = false;
 
-    AbilityEnergySystem energySystem;
-
+    // ── Awake ──────────────────────────────────────────────────
     void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
         energySystem = GetComponent<AbilityEnergySystem>();
     }
 
+    // ── Update (input + timers) ────────────────────────────────
     void Update()
     {
         if (isDead) return;
@@ -57,7 +71,11 @@ public class CharaController : MonoBehaviour
         inputX = Input.GetAxisRaw("Horizontal");
         isGrounded = Physics2D.Raycast(transform.position, Vector2.down, GroundCheckDistance, groundLayer);
 
-        if (isGrounded)
+        // Détection glace — wasOnIce conserve l'état un frame après le décollage
+        wasOnIce = isOnIce;
+        isOnIce = Physics2D.Raycast(transform.position, Vector2.down, GroundCheckDistance, iceLayer);
+
+        if (isGrounded || isOnIce)
         {
             airDashesLeft = MaxAirDashes;
             coyoteTimeCounter = CoyoteTime;
@@ -67,11 +85,13 @@ public class CharaController : MonoBehaviour
             coyoteTimeCounter -= Time.deltaTime;
         }
 
+        // Jump buffer
         if (Input.GetButtonDown("Jump"))
             jumpBufferCounter = JumpBufferTime;
         else
             jumpBufferCounter -= Time.deltaTime;
 
+        // Saut
         if (jumpBufferCounter > 0f && coyoteTimeCounter > 0f)
         {
             float multiplier = 1f;
@@ -90,13 +110,15 @@ public class CharaController : MonoBehaviour
             coyoteTimeCounter = 0f;
         }
 
-        if (dashEnabled && Input.GetKeyDown(KeyCode.LeftShift) && dashCooldownCounter <= 0f && !isDashing)
+        // Dash
+        if (dashEnabled && Input.GetKeyDown(KeyCode.LeftShift)
+            && dashCooldownCounter <= 0f && !isDashing)
         {
-            bool canDash = isGrounded || airDashesLeft > 0;
+            bool canDash = isGrounded || isOnIce || airDashesLeft > 0;
             if (canDash)
             {
                 StartDash();
-                if (!isGrounded) airDashesLeft--;
+                if (!isGrounded && !isOnIce) airDashesLeft--;
             }
         }
 
@@ -104,6 +126,7 @@ public class CharaController : MonoBehaviour
             dashCooldownCounter -= Time.deltaTime;
     }
 
+    // ── FixedUpdate (physique) ─────────────────────────────────
     void FixedUpdate()
     {
         if (isDead) return;
@@ -115,27 +138,57 @@ public class CharaController : MonoBehaviour
             return;
         }
 
+        // Grappin : conserve uniquement la gravité augmentée
         GrapplingHook grapple = GetComponent<GrapplingHook>();
         bool isSwinging = grapple != null && grapple.isUsingGrapple;
 
         if (isSwinging)
         {
             if (rb.linearVelocity.y < 0)
-                rb.linearVelocity += Vector2.up * Physics2D.gravity.y * (FallMultiplier - 1) * Time.fixedDeltaTime;
+                rb.linearVelocity += Vector2.up * Physics2D.gravity.y
+                                     * (FallMultiplier - 1) * Time.fixedDeltaTime;
             return;
         }
 
+        // ── Mouvement horizontal ───────────────────────────────
         float targetSpeedX = inputX * MoveSpeed;
-        float accel = (Mathf.Abs(inputX) > 0.01f) ? Acceleration : Deceleration;
-        float newX = Mathf.MoveTowards(rb.linearVelocity.x, targetSpeedX, accel * Time.fixedDeltaTime * 50f);
-        rb.linearVelocity = new Vector2(newX, rb.linearVelocity.y);
 
+        // treatAsIce : actif sur glace ET au premier contact après un saut
+        bool treatAsIce = isOnIce || (wasOnIce && isGrounded);
+
+        if (treatAsIce)
+        {
+            if (Mathf.Abs(inputX) > 0.01f)
+            {
+                // Input actif : légère poussée vers la direction voulue
+                float newX = Mathf.MoveTowards(rb.linearVelocity.x, targetSpeedX,
+                                               IceAcceleration * Time.fixedDeltaTime * 50f);
+                rb.linearVelocity = new Vector2(newX, rb.linearVelocity.y);
+            }
+            else
+            {
+                // Aucun input : freinage passif minimal → glisse longtemps
+                rb.linearVelocity = new Vector2(rb.linearVelocity.x * IceFriction, rb.linearVelocity.y);
+            }
+        }
+        else
+        {
+            // Sol / air normaux
+            float accel = (Mathf.Abs(inputX) > 0.01f) ? Acceleration : Deceleration;
+            float newX = Mathf.MoveTowards(rb.linearVelocity.x, targetSpeedX, accel * Time.fixedDeltaTime * 50f);
+            rb.linearVelocity = new Vector2(newX, rb.linearVelocity.y);
+        }
+
+        // ── Gravité augmentée (fall + low jump) ────────────────
         if (rb.linearVelocity.y < 0)
-            rb.linearVelocity += Vector2.up * Physics2D.gravity.y * (FallMultiplier - 1) * Time.fixedDeltaTime;
+            rb.linearVelocity += Vector2.up * Physics2D.gravity.y
+                                 * (FallMultiplier - 1) * Time.fixedDeltaTime;
         else if (rb.linearVelocity.y > 0 && !Input.GetButton("Jump"))
-            rb.linearVelocity += Vector2.up * Physics2D.gravity.y * (LowJumpMultiplier - 1) * Time.fixedDeltaTime;
+            rb.linearVelocity += Vector2.up * Physics2D.gravity.y
+                                 * (LowJumpMultiplier - 1) * Time.fixedDeltaTime;
     }
 
+    // ── Dash ───────────────────────────────────────────────────
     void StartDash()
     {
         float multiplier = energySystem != null ? energySystem.GetDashMultiplier() : 1f;
@@ -156,11 +209,10 @@ public class CharaController : MonoBehaviour
         rb.linearVelocity = new Vector2(rb.linearVelocity.x * 0.4f, 0f);
     }
 
-    // ── Appelé par AbilityManager ──────────────────────────────
+    // ── API publique ───────────────────────────────────────────
     public void SetJumpMode(JumpMode mode) => jumpMode = mode;
     public void SetDashEnabled(bool enabled) => dashEnabled = enabled;
 
-    // ── Reset des sauts / dashs (checkpoint, respawn) ──────────
     public void ResetJumps()
     {
         airDashesLeft = MaxAirDashes;
