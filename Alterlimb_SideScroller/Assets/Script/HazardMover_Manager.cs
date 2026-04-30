@@ -61,6 +61,7 @@ public class HazardManager : MonoBehaviour
         [HideInInspector] public float orbitAngle;
         [HideInInspector] public Vector3 previousPosition;
         [HideInInspector] public Animator animator;
+        [HideInInspector] public Rigidbody2D rb; // ← NOUVEAU : pour MovePosition
         [HideInInspector] public bool justResumed;
 
         // Pause runtime
@@ -98,10 +99,11 @@ public class HazardManager : MonoBehaviour
 
             h.startPosition = h.target.transform.position;
             h.startRotation = h.target.transform.rotation;
-            h.timer = 0f;            // ← plus de phase ici : elle est appliquée dans le sinus
-            h.orbitAngle = h.phase * Mathf.PI * 2f; // phase pour l'orbite
+            h.timer = 0f;
+            h.orbitAngle = h.phase * Mathf.PI * 2f;
             h.previousPosition = h.target.transform.position;
             h.animator = h.target.GetComponent<Animator>();
+            h.rb = h.target.GetComponent<Rigidbody2D>(); // ← NOUVEAU
 
             if (h.movementType == MovementType.Breakable)
                 InitBreakable(h);
@@ -120,10 +122,10 @@ public class HazardManager : MonoBehaviour
     }
 
     // ════════════════════════════════════════════════════════════
-    //  Update principal
+    //  FixedUpdate principal (CHANGÉ : était Update)
     // ════════════════════════════════════════════════════════════
 
-    void Update()
+    void FixedUpdate()
     {
         foreach (Hazard h in hazards)
         {
@@ -137,7 +139,7 @@ public class HazardManager : MonoBehaviour
 
             if (h.isPaused)
             {
-                h.pauseTimer -= Time.deltaTime;
+                h.pauseTimer -= Time.fixedDeltaTime;
                 if (h.pauseTimer <= 0f)
                 {
                     h.isPaused = false;
@@ -148,7 +150,7 @@ public class HazardManager : MonoBehaviour
                 continue;
             }
 
-            h.timer += Time.deltaTime * h.speed;
+            h.timer += Time.fixedDeltaTime * h.speed;
             ProcessHazard(h);
             UpdateHazardAnimation(h);
         }
@@ -161,14 +163,15 @@ public class HazardManager : MonoBehaviour
     void ProcessHazard(Hazard h)
     {
         Transform t = h.target.transform;
-        float phaseRad = h.phase * Mathf.PI * 2f;   // ← décalage injecté ici
+        float phaseRad = h.phase * Mathf.PI * 2f;
 
         switch (h.movementType)
         {
             case MovementType.UpDown:
                 {
                     float sin = Mathf.Sin(h.timer + phaseRad);
-                    t.position = h.startPosition + new Vector3(0f, sin * h.amplitude, 0f);
+                    Vector3 newPos = h.startPosition + new Vector3(0f, sin * h.amplitude, 0f);
+                    MovePlatform(h, newPos);
                     CheckPause(h, sin);
                     break;
                 }
@@ -176,42 +179,58 @@ public class HazardManager : MonoBehaviour
             case MovementType.LeftRight:
                 {
                     float sin = Mathf.Sin(h.timer + phaseRad);
-                    t.position = h.startPosition + new Vector3(sin * h.amplitude, 0f, 0f);
+                    Vector3 newPos = h.startPosition + new Vector3(sin * h.amplitude, 0f, 0f);
+                    MovePlatform(h, newPos);
                     CheckPause(h, sin);
                     break;
                 }
 
             case MovementType.Rotation:
-                t.Rotate(0f, 0f, h.rotationSpeed * Time.deltaTime);
+                t.Rotate(0f, 0f, h.rotationSpeed * Time.fixedDeltaTime);
                 break;
 
             case MovementType.CircularOrbit:
                 {
-                    h.orbitAngle += h.speed * Time.deltaTime;
+                    h.orbitAngle += h.speed * Time.fixedDeltaTime;
                     Vector3 center = h.orbitCenter != null ? h.orbitCenter.position : h.startPosition;
-                    // phaseRad ajouté à orbitAngle (déjà initialisé avec la phase dans Awake)
-                    t.position = center + new Vector3(
+                    Vector3 newPos = center + new Vector3(
                         Mathf.Cos(h.orbitAngle) * h.orbitRadius,
                         Mathf.Sin(h.orbitAngle) * h.orbitRadius,
                         0f
                     );
+                    MovePlatform(h, newPos);
                     break;
                 }
 
             case MovementType.PingPongDiag:
                 {
                     float diag = Mathf.Sin(h.timer + phaseRad) * h.amplitude;
-                    t.position = h.startPosition + new Vector3(diag, diag, 0f);
+                    Vector3 newPos = h.startPosition + new Vector3(diag, diag, 0f);
+                    MovePlatform(h, newPos);
                     break;
                 }
 
             case MovementType.Pendulum:
                 {
                     float angle = Mathf.Sin(h.timer + phaseRad) * h.pendulumMaxAngle;
-                    t.rotation = Quaternion.Euler(0f, 0f, angle);
+                    Quaternion newRot = Quaternion.Euler(0f, 0f, angle);
+                    if (h.rb != null) h.rb.MoveRotation(newRot);
+                    else t.rotation = newRot;
                     break;
                 }
         }
+    }
+
+    /// <summary>
+    /// Déplace la plateforme via Rigidbody2D si dispo, sinon via transform.
+    /// Permet la synchronisation correcte avec la physique du joueur.
+    /// </summary>
+    void MovePlatform(Hazard h, Vector3 targetPos)
+    {
+        if (h.rb != null)
+            h.rb.MovePosition(targetPos);
+        else
+            h.target.transform.position = targetPos;
     }
 
     void CheckPause(Hazard h, float sinValue)
@@ -259,8 +278,9 @@ public class HazardManager : MonoBehaviour
         {
             if (h.isFalling)
             {
-                h.target.transform.position += Vector3.down * h.fallSpeed * Time.deltaTime;
-                h.fallTimer += Time.deltaTime;
+                Vector3 newPos = h.target.transform.position + Vector3.down * h.fallSpeed * Time.fixedDeltaTime;
+                MovePlatform(h, newPos);
+                h.fallTimer += Time.fixedDeltaTime;
 
                 if (h.fallTimer >= h.destroyDelay)
                 {
@@ -274,10 +294,11 @@ public class HazardManager : MonoBehaviour
 
         if (h.playerOnPlatform)
         {
-            h.breakTimer += Time.deltaTime;
+            h.breakTimer += Time.fixedDeltaTime;
 
             float shake = Mathf.Sin(h.breakTimer * 40f) * 0.03f;
-            h.target.transform.position = h.startPosition + new Vector3(shake, 0f, 0f);
+            Vector3 newPos = h.startPosition + new Vector3(shake, 0f, 0f);
+            MovePlatform(h, newPos);
 
             if (h.breakTimer >= h.breakDelay)
                 BreakPlatform(h);
@@ -285,7 +306,7 @@ public class HazardManager : MonoBehaviour
         else
         {
             h.breakTimer = 0f;
-            h.target.transform.position = h.startPosition;
+            MovePlatform(h, h.startPosition);
         }
     }
 
@@ -306,7 +327,7 @@ public class HazardManager : MonoBehaviour
             if (h.movementType != MovementType.Breakable) continue;
             if (h.target.activeSelf) continue;
 
-            h.target.transform.position = h.startPosition;
+            MovePlatform(h, h.startPosition);
             h.target.SetActive(true);
             h.isBroken = false;
             h.isFalling = false;
