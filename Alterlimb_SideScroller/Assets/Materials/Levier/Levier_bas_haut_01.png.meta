@@ -118,12 +118,12 @@ TextureImporter:
       name: Levier_bas_haut_01_0
       rect:
         serializedVersion: 2
-        x: 815
-        y: 3144
-        width: 463
-        height: 744
+        x: 0
+        y: 2990
+        width: 2046
+        height: 1106
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -140,12 +140,12 @@ TextureImporter:
       name: Levier_bas_haut_01_1
       rect:
         serializedVersion: 2
-        x: 2587
-        y: 3206
-        width: 612
-        height: 682
+        x: 2046
+        y: 2990
+        width: 2046
+        height: 1106
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -162,12 +162,12 @@ TextureImporter:
       name: Levier_bas_haut_01_2
       rect:
         serializedVersion: 2
-        x: 849
-        y: 2125
-        width: 429
-        height: 765
+        x: 0
+        y: 1884
+        width: 2046
+        height: 1106
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -184,12 +184,12 @@ TextureImporter:
       name: Levier_bas_haut_01_3
       rect:
         serializedVersion: 2
-        x: 2818
-        y: 2125
-        width: 381
-        height: 805
+        x: 2046
+        y: 1884
+        width: 2046
+        height: 1106
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -206,12 +206,12 @@ TextureImporter:
       name: Levier_bas_haut_01_4
       rect:
         serializedVersion: 2
-        x: 863
-        y: 1044
-        width: 415
-        height: 772
+        x: 0
+        y: 778
+        width: 2046
+        height: 1106
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -228,12 +228,12 @@ TextureImporter:
       name: Levier_bas_haut_01_5
       rect:
         serializedVersion: 2
-        x: 2751
-        y: 1044
-        width: 448
-        height: 775
+        x: 2046
+        y: 778
+        width: 2046
+        height: 1106
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -250,7 +250,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 
+    spriteID: b272fc7fa7d176944bc976e098a8eb06
     internalID: 0
     vertices: []
     indices: 
@@ -258,7 +258,9 @@ TextureImporter:
     weights: []
     secondaryTextures: []
     spriteCustomMetadata:
-      entries: []
+      entries:
+      - key: SpriteEditor.SliceSettings
+        value: '{"sliceOnImport":false,"gridCellCount":{"x":1.0,"y":1.0},"gridSpriteSize":{"x":2046.0,"y":1106.0},"gridSpriteOffset":{"x":0.0,"y":0.0},"gridSpritePadding":{"x":0.0,"y":0.0},"pivot":{"x":0.5,"y":0.5},"pivotPixels":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":0,"pivotUnitMode":0,"slicingType":1,"keepEmptyRects":false,"isAlternate":false}'
     nameFileIdTable:
       Levier_bas_haut_01_0: 5459942250510379810
       Levier_bas_haut_01_1: 5668306670521123039
