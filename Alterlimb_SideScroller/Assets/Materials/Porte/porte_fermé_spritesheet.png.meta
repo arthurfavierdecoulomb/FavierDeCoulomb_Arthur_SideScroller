@@ -164,7 +164,7 @@ TextureImporter:
         serializedVersion: 2
         x: 595
         y: 2030
-        width: 417
+        width: 423
         height: 772
       alignment: 5
       pivot: {x: 1, y: 0.5}
@@ -184,9 +184,9 @@ TextureImporter:
       name: "porte_ferm\xE9_spritesheet_3"
       rect:
         serializedVersion: 2
-        x: 2534
+        x: 2505
         y: 2029
-        width: 401
+        width: 423
         height: 773
       alignment: 5
       pivot: {x: 1, y: 0.5}
@@ -206,9 +206,9 @@ TextureImporter:
       name: "porte_ferm\xE9_spritesheet_4"
       rect:
         serializedVersion: 2
-        x: 650
-        y: 948
-        width: 362
+        x: 585
+        y: 939
+        width: 423
         height: 773
       alignment: 5
       pivot: {x: 1, y: 0.5}
@@ -228,9 +228,9 @@ TextureImporter:
       name: "porte_ferm\xE9_spritesheet_5"
       rect:
         serializedVersion: 2
-        x: 2650
-        y: 946
-        width: 284
+        x: 2512
+        y: 943
+        width: 423
         height: 773
       alignment: 5
       pivot: {x: 1, y: 0.5}

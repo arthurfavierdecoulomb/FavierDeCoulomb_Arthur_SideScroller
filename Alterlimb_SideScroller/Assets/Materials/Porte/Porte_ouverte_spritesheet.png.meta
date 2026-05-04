@@ -118,12 +118,12 @@ TextureImporter:
       name: Porte_ouverte_spritesheet_0
       rect:
         serializedVersion: 2
-        x: 932
-        y: 3116
-        width: 92
+        x: 593
+        y: 3108
+        width: 423
         height: 761
-      alignment: 0
-      pivot: {x: 0, y: 0}
+      alignment: 5
+      pivot: {x: 1, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -140,12 +140,12 @@ TextureImporter:
       name: Porte_ouverte_spritesheet_1
       rect:
         serializedVersion: 2
-        x: 2688
-        y: 3116
-        width: 253
+        x: 2521
+        y: 3112
+        width: 423
         height: 761
-      alignment: 0
-      pivot: {x: 0, y: 0}
+      alignment: 5
+      pivot: {x: 1, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -162,12 +162,12 @@ TextureImporter:
       name: Porte_ouverte_spritesheet_2
       rect:
         serializedVersion: 2
-        x: 692
+        x: 594
         y: 2035
-        width: 326
+        width: 423
         height: 761
-      alignment: 0
-      pivot: {x: 0, y: 0}
+      alignment: 5
+      pivot: {x: 1, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -184,12 +184,12 @@ TextureImporter:
       name: Porte_ouverte_spritesheet_3
       rect:
         serializedVersion: 2
-        x: 2568
+        x: 2515
         y: 2035
-        width: 367
+        width: 423
         height: 761
-      alignment: 0
-      pivot: {x: 0, y: 0}
+      alignment: 5
+      pivot: {x: 1, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -208,10 +208,10 @@ TextureImporter:
         serializedVersion: 2
         x: 601
         y: 954
-        width: 411
+        width: 423
         height: 761
-      alignment: 0
-      pivot: {x: 0, y: 0}
+      alignment: 5
+      pivot: {x: 1, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -232,8 +232,8 @@ TextureImporter:
         y: 954
         width: 423
         height: 761
-      alignment: 0
-      pivot: {x: 0, y: 0}
+      alignment: 5
+      pivot: {x: 1, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -250,7 +250,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 
+    spriteID: 7348530517f7a4541bdccce79a776dec
     internalID: 0
     vertices: []
     indices: 

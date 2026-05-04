@@ -106,12 +106,12 @@ TextureImporter:
       name: "porte_ferm\xE9_spritesheet_2_0"
       rect:
         serializedVersion: 2
-        x: 933
-        y: 1060
-        width: 79
+        x: 588
+        y: 1066
+        width: 423
         height: 773
-      alignment: 0
-      pivot: {x: 0, y: 0}
+      alignment: 5
+      pivot: {x: 1, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -128,12 +128,12 @@ TextureImporter:
       name: "porte_ferm\xE9_spritesheet_2_1"
       rect:
         serializedVersion: 2
-        x: 2854
-        y: 1060
-        width: 79
+        x: 2507
+        y: 1063
+        width: 423
         height: 773
-      alignment: 0
-      pivot: {x: 0, y: 0}
+      alignment: 5
+      pivot: {x: 1, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -150,7 +150,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 
+    spriteID: ca8630f5f34e8ad4883e88d6bb657175
     internalID: 0
     vertices: []
     indices: 
