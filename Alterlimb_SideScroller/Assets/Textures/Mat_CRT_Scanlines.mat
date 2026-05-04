@@ -8,7 +8,7 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: Mat_CRT_Scanlines
-  m_Shader: {fileID: 4800000, guid: e260cfa7296ee7642b167f1eb5be5023, type: 3}
+  m_Shader: {fileID: 4800000, guid: 2dd1b14f72a9db94db67da59661793e5, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
@@ -41,10 +41,19 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
+    - _BaseAlpha: 0.13
     - _EnableExternalAlpha: 0
+    - _FlickerIntensity: 0.05
+    - _FlickerSpeed: 8.8
+    - _ScanlineCount: 326
+    - _ScanlineIntensity: 0.189
+    - _ScanlineSpeed: 0.2
+    - _VignetteSoftness: 0.533
+    - _VignetteStrength: 0.934
     - _ZWrite: 0
     m_Colors:
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _RendererColor: {r: 1, g: 1, b: 1, a: 1}
+    - _TintColor: {r: 0.495283, g: 1, b: 0.6189882, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
