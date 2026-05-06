@@ -50,8 +50,9 @@ public class CharaController : MonoBehaviour
     float dashDirection;
     bool isGrounded;
     bool isOnIce;
-    bool wasOnIce;         // conserve la glissade à l'atterrissage
+    bool wasOnIce;
     bool isDead;
+    bool isInQuicksand; // ← NOUVEAU : état sable mouvant
 
     JumpMode jumpMode = JumpMode.Normal;
     bool dashEnabled = false;
@@ -71,7 +72,6 @@ public class CharaController : MonoBehaviour
         inputX = Input.GetAxisRaw("Horizontal");
         isGrounded = Physics2D.Raycast(transform.position, Vector2.down, GroundCheckDistance, groundLayer);
 
-        // Détection glace — wasOnIce conserve l'état un frame après le décollage
         wasOnIce = isOnIce;
         isOnIce = Physics2D.Raycast(transform.position, Vector2.down, GroundCheckDistance, iceLayer);
 
@@ -91,9 +91,16 @@ public class CharaController : MonoBehaviour
         else
             jumpBufferCounter -= Time.deltaTime;
 
-        // Saut
+        // ── SAUT ───────────────────────────────────────────────
         if (jumpBufferCounter > 0f && coyoteTimeCounter > 0f)
         {
+            // Sable mouvant : sauter = mort
+            if (isInQuicksand)
+            {
+                Die();
+                return;
+            }
+
             float multiplier = 1f;
             if (jumpMode == JumpMode.High)
             {
@@ -110,10 +117,17 @@ public class CharaController : MonoBehaviour
             coyoteTimeCounter = 0f;
         }
 
-        // Dash
+        // ── DASH ──────────────────────────────────────────────
         if (dashEnabled && Input.GetKeyDown(KeyCode.LeftShift)
             && dashCooldownCounter <= 0f && !isDashing)
         {
+            // Sable mouvant : dasher = mort
+            if (isInQuicksand)
+            {
+                Die();
+                return;
+            }
+
             bool canDash = isGrounded || isOnIce || airDashesLeft > 0;
             if (canDash)
             {
@@ -138,7 +152,7 @@ public class CharaController : MonoBehaviour
             return;
         }
 
-        // Grappin : conserve uniquement la gravité augmentée
+        // Grappin
         GrapplingHook grapple = GetComponent<GrapplingHook>();
         bool isSwinging = grapple != null && grapple.isUsingGrapple;
 
@@ -152,40 +166,40 @@ public class CharaController : MonoBehaviour
 
         // ── Mouvement horizontal ───────────────────────────────
         float targetSpeedX = inputX * MoveSpeed;
-
-        // treatAsIce : actif sur glace ET au premier contact après un saut
         bool treatAsIce = isOnIce || (wasOnIce && isGrounded);
 
         if (treatAsIce)
         {
             if (Mathf.Abs(inputX) > 0.01f)
             {
-                // Input actif : légère poussée vers la direction voulue
                 float newX = Mathf.MoveTowards(rb.linearVelocity.x, targetSpeedX,
                                                IceAcceleration * Time.fixedDeltaTime * 50f);
                 rb.linearVelocity = new Vector2(newX, rb.linearVelocity.y);
             }
             else
             {
-                // Aucun input : freinage passif minimal → glisse longtemps
                 rb.linearVelocity = new Vector2(rb.linearVelocity.x * IceFriction, rb.linearVelocity.y);
             }
         }
         else
         {
-            // Sol / air normaux
             float accel = (Mathf.Abs(inputX) > 0.01f) ? Acceleration : Deceleration;
             float newX = Mathf.MoveTowards(rb.linearVelocity.x, targetSpeedX, accel * Time.fixedDeltaTime * 50f);
             rb.linearVelocity = new Vector2(newX, rb.linearVelocity.y);
         }
 
-        // ── Gravité augmentée (fall + low jump) ────────────────
-        if (rb.linearVelocity.y < 0)
-            rb.linearVelocity += Vector2.up * Physics2D.gravity.y
-                                 * (FallMultiplier - 1) * Time.fixedDeltaTime;
-        else if (rb.linearVelocity.y > 0 && !Input.GetButton("Jump"))
-            rb.linearVelocity += Vector2.up * Physics2D.gravity.y
-                                 * (LowJumpMultiplier - 1) * Time.fixedDeltaTime;
+        // ── Gravité augmentée ──────────────────────────────────
+        // On désactive la gravité augmentée si on est dans le sable
+        // (le QuicksandZone gère déjà la chute lente)
+        if (!isInQuicksand)
+        {
+            if (rb.linearVelocity.y < 0)
+                rb.linearVelocity += Vector2.up * Physics2D.gravity.y
+                                     * (FallMultiplier - 1) * Time.fixedDeltaTime;
+            else if (rb.linearVelocity.y > 0 && !Input.GetButton("Jump"))
+                rb.linearVelocity += Vector2.up * Physics2D.gravity.y
+                                     * (LowJumpMultiplier - 1) * Time.fixedDeltaTime;
+        }
     }
 
     // ── Dash ───────────────────────────────────────────────────
@@ -219,6 +233,12 @@ public class CharaController : MonoBehaviour
         coyoteTimeCounter = CoyoteTime;
     }
 
+    /// <summary>Appelé par QuicksandZone quand le joueur entre/sort.</summary>
+    public void SetInQuicksand(bool value)
+    {
+        isInQuicksand = value;
+    }
+
     // ── Mort & Respawn ─────────────────────────────────────────
     void OnTriggerEnter2D(Collider2D other)
     {
@@ -236,6 +256,7 @@ public class CharaController : MonoBehaviour
     {
         if (isDead) return;
         isDead = true;
+        isInQuicksand = false; // sécurité : reset l'état au cas où
         rb.linearVelocity = Vector2.zero;
         rb.gravityScale = 0f;
         SpawnManager.Instance.Respawn(this);
@@ -247,6 +268,7 @@ public class CharaController : MonoBehaviour
         rb.gravityScale = 1f;
         rb.linearVelocity = Vector2.zero;
         isDead = false;
+        isInQuicksand = false; // reset à la résurrection
         GetComponent<PlayerHealth>()?.ResetHealth();
     }
 }
