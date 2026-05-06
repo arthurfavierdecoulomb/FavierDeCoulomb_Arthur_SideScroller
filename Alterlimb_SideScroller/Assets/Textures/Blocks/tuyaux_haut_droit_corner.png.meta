@@ -106,12 +106,12 @@ TextureImporter:
       name: tuyaux_haut_droit_corner_0
       rect:
         serializedVersion: 2
-        x: 284
-        y: 258
-        width: 740
-        height: 766
+        x: 0
+        y: 0
+        width: 1024
+        height: 1024
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -124,33 +124,11 @@ TextureImporter:
       indices: 
       edges: []
       weights: []
-    - serializedVersion: 2
-      name: tuyaux_haut_droit_corner_1
-      rect:
-        serializedVersion: 2
-        x: 396
-        y: 184
-        width: 26
-        height: 24
-      alignment: 0
-      pivot: {x: 0, y: 0}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: -1
-      bones: []
-      spriteID: c7d7b2428867e7f70800000000000000
-      internalID: 9186910616976850300
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
     outline: []
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 
+    spriteID: 6a84b9b2e086f76408678b1a983e6f3c
     internalID: 0
     vertices: []
     indices: 

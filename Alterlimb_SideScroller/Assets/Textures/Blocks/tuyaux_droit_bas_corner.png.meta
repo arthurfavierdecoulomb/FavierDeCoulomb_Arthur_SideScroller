@@ -103,37 +103,15 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: tuyaux_droit_bas_corner_0
-      rect:
-        serializedVersion: 2
-        x: 396
-        y: 816
-        width: 26
-        height: 24
-      alignment: 0
-      pivot: {x: 0, y: 0}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: -1
-      bones: []
-      spriteID: 31a2e7a818017c720800000000000000
-      internalID: 2866277836404959763
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
       name: tuyaux_droit_bas_corner_1
       rect:
         serializedVersion: 2
-        x: 284
+        x: 0
         y: 0
-        width: 740
-        height: 766
+        width: 1024
+        height: 1024
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -150,7 +128,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 
+    spriteID: e2cc59aa6d627064f9b579d60797fbae
     internalID: 0
     vertices: []
     indices: 
