@@ -1,26 +1,33 @@
 ﻿using UnityEngine;
 
 /// <summary>
-/// Drone ennemi volant avec state machine + intégration grappin/scie.
+/// Drone ennemi volant — version "Animator" (utilise un spritesheet animé).
 /// 
-/// États :
-///   - PATROL : va et vient entre pointA et pointB
-///   - CHASE : a détecté le joueur, le poursuit en gardant une distance d'attaque
-///   - ATTACK : tire un laser continu sur le joueur
-///   - RECHARGE : s'éloigne du joueur, attend, puis revient en CHASE
+/// État interne (state machine logique) :
+///   - Patrol : patrouille A↔B
+///   - Chase : poursuit le joueur sans tirer
+///   - Attack : tire le laser (le drone reste relativement immobile)
+///   - Recharge : s'éloigne pour "recharger" puis revient
 /// 
-/// Système de grappin :
-///   - Le joueur peut accrocher le drone avec son grappin → IA désactivée, drone immobilisé
-///   - La scie (SawAbility) inflige des dégâts UNIQUEMENT si le drone est accroché
-///   - Game design : il faut d'abord harponner le drone, puis l'attaquer
+/// État envoyé à l'Animator (via paramètre Int "State") :
+///   - 0 = Idle  → quand Patrol ou stationnaire
+///   - 1 = Chase → quand Chase, Attack ou Recharge (hélice rapide)
+///   - 2 = Death → à la mort
 /// 
-/// Détection : 360° dans un rayon donné.
-/// Tir : si ligne de vue libre (raycast), le laser s'allume automatiquement.
+/// Système Grappin :
+///   - Le joueur peut accrocher le drone → IA désactivée, drone immobilisé
+///   - La scie inflige des dégâts (configurable : avec ou sans grappin requis)
 /// </summary>
 [RequireComponent(typeof(Rigidbody2D))]
+[RequireComponent(typeof(SpriteRenderer))]
 public class DroneEnemy : MonoBehaviour
 {
     public enum DroneState { Patrol, Chase, Attack, Recharge }
+
+    // Constantes pour le paramètre "State" de l'Animator
+    const int ANIM_IDLE = 0;
+    const int ANIM_CHASE = 1;
+    const int ANIM_DEATH = 2;
 
     // ════════════════════════════════════════════════════════════
     //  Configuration
@@ -35,10 +42,10 @@ public class DroneEnemy : MonoBehaviour
     [Header("Détection joueur")]
     [SerializeField] float detectionRadius = 8f;
     [SerializeField] string playerTag = "Player";
-    [Tooltip("Layers qui bloquent la ligne de vue (murs, sol)")]
+    [Tooltip("Layers qui bloquent la ligne de vue (murs, sol). NE PAS inclure le layer du joueur.")]
     [SerializeField] LayerMask lineOfSightObstacles;
 
-    [Header("Chasse (poursuite du joueur)")]
+    [Header("Chasse")]
     [SerializeField] float chaseSpeed = 4f;
     [SerializeField] float attackDistance = 5f;
     [Tooltip("Hauteur supplémentaire du drone par rapport au joueur")]
@@ -55,13 +62,25 @@ public class DroneEnemy : MonoBehaviour
     [Header("Vie")]
     [SerializeField] float maxHealth = 100f;
     [Tooltip("Si activé : la scie ne fait des dégâts QUE si le drone est accroché par le grappin")]
-    [SerializeField] bool damageOnlyWhenHooked = true;
+    [SerializeField] bool damageOnlyWhenHooked = false;
+    [Tooltip("Durée de l'animation de mort avant que le GameObject soit détruit")]
+    [SerializeField] float deathAnimationDuration = 1.5f;
+
+    [Header("Flip horizontal")]
+    [Tooltip("Vitesse minimale pour déclencher un flip (anti-jitter)")]
+    [SerializeField] float flipThreshold = 0.5f;
+    [Tooltip("Si le sprite original regarde à GAUCHE par défaut, coche cette case")]
+    [SerializeField] bool spriteDefaultFacesLeft = true;
+
+    [Header("Références")]
+    [SerializeField] Animator animator;
 
     // ════════════════════════════════════════════════════════════
     //  État runtime
     // ════════════════════════════════════════════════════════════
 
     Rigidbody2D rb;
+    SpriteRenderer spriteRenderer;
     Transform player;
     DroneLaser laser;
 
@@ -69,14 +88,18 @@ public class DroneEnemy : MonoBehaviour
     Transform currentPatrolTarget;
     float stateTimer;
     float currentHealth;
+    bool isDying;
 
     // ── Système Grappin ─────────────────────────────────────────
     public bool isHooked { get; private set; }
 
-    // ── Accesseurs publics (utilisés par DroneVisuals) ──────────
+    // ── Accesseurs publics ──────────────────────────────────────
     public DroneState State => currentState;
     public Vector2 CurrentVelocity => rb != null ? rb.linearVelocity : Vector2.zero;
-    public bool IsAlive => currentHealth > 0f;
+    public bool IsAlive => currentHealth > 0f && !isDying;
+
+    // ── Hash du paramètre Animator (perf : évite de chercher par nom à chaque frame) ──
+    static readonly int AnimStateHash = Animator.StringToHash("State");
 
     // ════════════════════════════════════════════════════════════
     //  Initialisation
@@ -88,6 +111,9 @@ public class DroneEnemy : MonoBehaviour
         rb.gravityScale = 0f;
         rb.freezeRotation = true;
 
+        spriteRenderer = GetComponent<SpriteRenderer>();
+        if (animator == null) animator = GetComponent<Animator>();
+
         laser = GetComponent<DroneLaser>();
         currentHealth = maxHealth;
 
@@ -96,6 +122,8 @@ public class DroneEnemy : MonoBehaviour
 
         currentState = DroneState.Patrol;
         currentPatrolTarget = patrolPointA;
+
+        SetAnimatorState(ANIM_IDLE);
     }
 
     // ════════════════════════════════════════════════════════════
@@ -104,10 +132,12 @@ public class DroneEnemy : MonoBehaviour
 
     void Update()
     {
-        // ── Si accroché par le grappin : IA désactivée ──
+        // En cours de mort : on attend juste la fin de l'animation
+        if (isDying) return;
+
+        // Si accroché : IA désactivée
         if (isHooked)
         {
-            // S'assure que le laser est éteint pendant l'accroche
             if (laser != null) laser.SetFiring(false);
             return;
         }
@@ -116,11 +146,13 @@ public class DroneEnemy : MonoBehaviour
 
         stateTimer += Time.deltaTime;
         EvaluateStateTransitions();
+        UpdateFlip();
     }
 
     void FixedUpdate()
     {
-        // ── Si accroché : on bloque le mouvement ──
+        if (isDying) return;
+
         if (isHooked)
         {
             rb.linearVelocity = Vector2.zero;
@@ -151,8 +183,7 @@ public class DroneEnemy : MonoBehaviour
         switch (currentState)
         {
             case DroneState.Patrol:
-                if (playerDetected)
-                    ChangeState(DroneState.Chase);
+                if (playerDetected) ChangeState(DroneState.Chase);
                 break;
 
             case DroneState.Chase:
@@ -187,8 +218,21 @@ public class DroneEnemy : MonoBehaviour
         currentState = newState;
         stateTimer = 0f;
 
+        // Active le laser uniquement en mode Attack
         if (laser != null)
             laser.SetFiring(newState == DroneState.Attack);
+
+        // Met à jour l'animation : Patrol = Idle, tout le reste = Chase
+        if (newState == DroneState.Patrol)
+            SetAnimatorState(ANIM_IDLE);
+        else
+            SetAnimatorState(ANIM_CHASE);
+    }
+
+    void SetAnimatorState(int animState)
+    {
+        if (animator != null)
+            animator.SetInteger(AnimStateHash, animState);
     }
 
     // ════════════════════════════════════════════════════════════
@@ -205,9 +249,7 @@ public class DroneEnemy : MonoBehaviour
         rb.linearVelocity = direction * patrolSpeed;
 
         if (Vector2.Distance(transform.position, targetPos) < pointReachedDistance)
-        {
             currentPatrolTarget = (currentPatrolTarget == patrolPointA) ? patrolPointB : patrolPointA;
-        }
     }
 
     void ChaseBehavior()
@@ -251,6 +293,34 @@ public class DroneEnemy : MonoBehaviour
     }
 
     // ════════════════════════════════════════════════════════════
+    //  Flip horizontal (suit la direction de mouvement OU vise le joueur)
+    // ════════════════════════════════════════════════════════════
+
+    void UpdateFlip()
+    {
+        if (spriteRenderer == null) return;
+
+        // En mode Attack/Chase : on regarde toujours vers le joueur
+        // En mode Patrol/Recharge : on regarde dans le sens du mouvement
+        bool shouldFaceRight;
+
+        if ((currentState == DroneState.Chase || currentState == DroneState.Attack) && player != null)
+        {
+            shouldFaceRight = player.position.x > transform.position.x;
+        }
+        else
+        {
+            float vx = rb.linearVelocity.x;
+            if (Mathf.Abs(vx) < flipThreshold) return; // anti-jitter
+            shouldFaceRight = vx > 0;
+        }
+
+        // flipX = false → sprite dans son orientation par défaut
+        // flipX = true  → sprite miroité
+        spriteRenderer.flipX = spriteDefaultFacesLeft ? shouldFaceRight : !shouldFaceRight;
+    }
+
+    // ════════════════════════════════════════════════════════════
     //  Ligne de vue
     // ════════════════════════════════════════════════════════════
 
@@ -265,29 +335,23 @@ public class DroneEnemy : MonoBehaviour
     }
 
     // ════════════════════════════════════════════════════════════
-    //  Système Grappin (appelé par GrappinAccrochageBehavior)
+    //  Système Grappin
     // ════════════════════════════════════════════════════════════
 
-    /// <summary>Le joueur a accroché le drone avec son grappin.</summary>
     public void GetHooked()
     {
-        if (isHooked) return;
+        if (isHooked || isDying) return;
         isHooked = true;
         rb.linearVelocity = Vector2.zero;
 
-        // Le laser s'éteint immédiatement
         if (laser != null) laser.SetFiring(false);
-
-        // Reset l'état pour reprendre proprement à la libération
+        SetAnimatorState(ANIM_IDLE);
         stateTimer = 0f;
     }
 
-    /// <summary>Le joueur a relâché le grappin.</summary>
     public void ReleaseHook()
     {
         isHooked = false;
-        // L'IA reprendra naturellement au prochain Update()
-        // On retourne en Chase si le joueur est encore proche, sinon Patrol
         if (player != null)
         {
             float dist = Vector2.Distance(transform.position, player.position);
@@ -296,29 +360,34 @@ public class DroneEnemy : MonoBehaviour
     }
 
     // ════════════════════════════════════════════════════════════
-    //  Vie / dégâts (appelé par SawAbility)
+    //  Vie / dégâts
     // ════════════════════════════════════════════════════════════
 
-    /// <summary>
-    /// Inflige des dégâts au drone.
-    /// Par défaut : ne fait des dégâts QUE si le drone est accroché par le grappin
-    /// (game design : il faut d'abord harponner, puis attaquer).
-    /// </summary>
     public void TakeDamage(float amount)
     {
+        if (isDying) return;
         if (damageOnlyWhenHooked && !isHooked) return;
 
         currentHealth -= amount;
-
-        if (currentHealth <= 0f)
-            Die();
+        if (currentHealth <= 0f) Die();
     }
 
     void Die()
     {
+        if (isDying) return;
+        isDying = true;
+
+        // Stoppe le laser
         if (laser != null) laser.SetFiring(false);
-        // Tu peux ajouter une explosion / particules ici
-        Destroy(gameObject);
+
+        // Stoppe le mouvement
+        rb.linearVelocity = Vector2.zero;
+
+        // Lance l'animation de mort
+        SetAnimatorState(ANIM_DEATH);
+
+        // Détruit après la fin de l'animation
+        Destroy(gameObject, deathAnimationDuration);
     }
 
     // ════════════════════════════════════════════════════════════
@@ -327,15 +396,12 @@ public class DroneEnemy : MonoBehaviour
 
     void OnDrawGizmosSelected()
     {
-        // Rayon de détection
         Gizmos.color = new Color(1f, 0.6f, 0f, 0.3f);
         Gizmos.DrawWireSphere(transform.position, detectionRadius);
 
-        // Distance d'attaque
         Gizmos.color = new Color(1f, 0f, 0f, 0.5f);
         Gizmos.DrawWireSphere(transform.position, attackDistance);
 
-        // Patrouille
         if (patrolPointA != null && patrolPointB != null)
         {
             Gizmos.color = Color.yellow;

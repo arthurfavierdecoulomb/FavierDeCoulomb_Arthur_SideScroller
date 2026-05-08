@@ -4,12 +4,10 @@
 /// Laser continu du drone.
 /// 
 /// Comportement :
-///   - Quand SetFiring(true) est appelé → le LineRenderer s'active
-///   - À chaque frame, raycast depuis l'origine vers le joueur
-///   - Si le rayon touche un mur : le laser s'arrête au mur
-///   - Si le rayon touche le joueur : il prend des dégâts par seconde
-/// 
-/// Le laser est désactivé visuellement quand SetFiring(false) est appelé.
+///   - Quand SetFiring(true) → le LineRenderer s'active
+///   - Le laser part de LaserOrigin et vise directement le joueur
+///   - Si un mur bloque la vue, le laser s'arrête au mur (pas de dégâts)
+///   - Si le joueur est touché, il prend des dégâts par seconde
 /// </summary>
 [RequireComponent(typeof(LineRenderer))]
 public class DroneLaser : MonoBehaviour
@@ -26,22 +24,23 @@ public class DroneLaser : MonoBehaviour
     [SerializeField] string playerTag = "Player";
 
     [Header("Comportement")]
-    [Tooltip("Distance maximale du laser (au-delà, il ne touche plus rien)")]
     [SerializeField] float maxRange = 15f;
-    [Tooltip("Layers qui bloquent le laser (murs, sol)")]
+    [Tooltip("Layers qui bloquent le laser (murs, sol). NE PAS inclure le layer du joueur !")]
     [SerializeField] LayerMask obstacleLayers;
 
     [Header("Dégâts")]
     [Tooltip("Dégâts infligés par seconde au joueur")]
     [SerializeField] float damagePerSecond = 25f;
-    [Tooltip("Intervalle minimal entre deux applications de dégâts (anti-spam)")]
+    [Tooltip("Intervalle entre deux applications de dégâts")]
     [SerializeField] float damageInterval = 0.1f;
 
     [Header("Visuel")]
-    [Tooltip("Effet de jitter (tremblement) pour rendre le laser vivant (0 = stable, 0.1 = tremble)")]
     [SerializeField] float jitterAmount = 0.05f;
-    [Tooltip("Vitesse du jitter")]
     [SerializeField] float jitterSpeed = 30f;
+
+    [Header("Debug")]
+    [Tooltip("Affiche des messages dans la console pour diagnostiquer")]
+    [SerializeField] bool debugMode = false;
 
     // ════════════════════════════════════════════════════════════
     //  État runtime
@@ -63,12 +62,23 @@ public class DroneLaser : MonoBehaviour
         lineRenderer.enabled = false;
         lineRenderer.positionCount = 2;
 
-        // Cherche le joueur
         GameObject p = GameObject.FindGameObjectWithTag(playerTag);
         if (p != null)
         {
             player = p.transform;
             playerHealth = p.GetComponent<PlayerHealth>();
+
+            if (debugMode)
+            {
+                if (playerHealth == null)
+                    Debug.LogError("[DroneLaser] Joueur trouvé mais SANS composant PlayerHealth !");
+                else
+                    Debug.Log("[DroneLaser] Joueur et PlayerHealth correctement détectés.");
+            }
+        }
+        else if (debugMode)
+        {
+            Debug.LogError($"[DroneLaser] Aucun GameObject avec le tag '{playerTag}' trouvé !");
         }
     }
 
@@ -76,52 +86,49 @@ public class DroneLaser : MonoBehaviour
     //  API publique
     // ════════════════════════════════════════════════════════════
 
-    /// <summary>
-    /// Active ou désactive le tir du laser.
-    /// Appelé par DroneEnemy lors des changements d'état.
-    /// </summary>
     public void SetFiring(bool firing)
     {
         isFiring = firing;
-        if (lineRenderer != null)
-            lineRenderer.enabled = firing;
+        if (lineRenderer != null) lineRenderer.enabled = firing;
+        if (!firing) damageTimer = 0f;
     }
 
     // ════════════════════════════════════════════════════════════
-    //  Update : vise + raycast + dégâts
+    //  Update
     // ════════════════════════════════════════════════════════════
 
     void Update()
     {
         if (!isFiring || laserOrigin == null || player == null) return;
 
-        // Direction depuis l'origine vers le joueur
         Vector2 origin = laserOrigin.position;
         Vector2 toPlayer = (Vector2)player.position - origin;
         float distance = Mathf.Min(toPlayer.magnitude, maxRange);
         Vector2 direction = toPlayer.normalized;
 
-        // Raycast pour voir si on touche un mur en chemin
-        Vector2 endPoint;
-        bool playerHit = false;
-
-        // On raycast en cherchant les murs ET le joueur (tout sauf nos propres colliders)
+        // Raycast pour voir si un mur bloque le passage
         RaycastHit2D obstacleHit = Physics2D.Raycast(origin, direction, distance, obstacleLayers);
+
+        Vector2 endPoint;
+        bool playerHit;
 
         if (obstacleHit.collider != null)
         {
-            // Mur en chemin → le laser s'arrête au mur, pas de dégâts
+            // Mur bloque → laser s'arrête au mur
             endPoint = obstacleHit.point;
             playerHit = false;
+
+            if (debugMode)
+                Debug.Log($"[DroneLaser] Mur en chemin : {obstacleHit.collider.name}");
         }
         else
         {
-            // Pas d'obstacle → le rayon va jusqu'au joueur
+            // Pas d'obstacle → laser atteint le joueur
             endPoint = origin + direction * distance;
             playerHit = true;
         }
 
-        // Applique le jitter visuel sur le point d'arrivée
+        // Jitter visuel
         if (jitterAmount > 0f)
         {
             float jitter = Mathf.Sin(Time.time * jitterSpeed) * jitterAmount;
@@ -133,20 +140,23 @@ public class DroneLaser : MonoBehaviour
         lineRenderer.SetPosition(0, origin);
         lineRenderer.SetPosition(1, endPoint);
 
-        // Inflige les dégâts si le joueur est touché
+        // Inflige les dégâts
         if (playerHit && playerHealth != null)
         {
             damageTimer += Time.deltaTime;
             if (damageTimer >= damageInterval)
             {
-                int damage = Mathf.RoundToInt(damagePerSecond * damageInterval);
+                float damage = damagePerSecond * damageInterval;
                 playerHealth.TakeDamage(damage);
                 damageTimer = 0f;
+
+                if (debugMode)
+                    Debug.Log($"[DroneLaser] Dégâts infligés : {damage}");
             }
         }
         else
         {
-            damageTimer = 0f; // reset si on tire dans le mur
+            damageTimer = 0f;
         }
     }
 }

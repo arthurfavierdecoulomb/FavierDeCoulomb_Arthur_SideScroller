@@ -1,16 +1,10 @@
 fileFormatVersion: 2
-guid: 1b9f5555fa4e57644b4134f5782d0d12
+guid: 9e8a85a54b7d88b46aaede43fe3db54e
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -1139569262366047135
-    second: spritesheet_fly_04_0
-  - first:
-      213: 2691814986288423659
-    second: spritesheet_fly_04_1
-  - first:
-      213: -3901796431992573842
-    second: spritesheet_fly_04_2
+      213: 8740584402649234893
+    second: Staminabar_background_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -54,10 +48,10 @@ TextureImporter:
   compressionQuality: 50
   spriteMode: 2
   spriteExtrude: 1
-  spriteMeshType: 0
+  spriteMeshType: 1
   alignment: 0
   spritePivot: {x: 0.5, y: 0.5}
-  spritePixelsToUnits: 480
+  spritePixelsToUnits: 100
   spriteBorder: {x: 0, y: 0, z: 0, w: 0}
   spriteGenerateFallbackPhysicsShape: 1
   alphaUsage: 1
@@ -78,7 +72,7 @@ TextureImporter:
   platformSettings:
   - serializedVersion: 4
     buildTarget: DefaultTexturePlatform
-    maxTextureSize: 4096
+    maxTextureSize: 2048
     resizeAlgorithm: 0
     textureFormat: -1
     textureCompression: 1
@@ -106,13 +100,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: spritesheet_fly_04_0
+      name: Staminabar_background_0
       rect:
         serializedVersion: 2
-        x: 695
-        y: 3117
-        width: 711
-        height: 849
+        x: 9
+        y: 0
+        width: 619
+        height: 628
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -121,52 +115,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 164c7b72bcf6f20f0800000000000000
-      internalID: -1139569262366047135
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: spritesheet_fly_04_1
-      rect:
-        serializedVersion: 2
-        x: 2629
-        y: 3118
-        width: 710
-        height: 848
-      alignment: 0
-      pivot: {x: 0, y: 0}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: -1
-      bones: []
-      spriteID: be26bcad77f3b5520800000000000000
-      internalID: 2691814986288423659
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: spritesheet_fly_04_2
-      rect:
-        serializedVersion: 2
-        x: 692
-        y: 2022
-        width: 710
-        height: 848
-      alignment: 0
-      pivot: {x: 0, y: 0}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: -1
-      bones: []
-      spriteID: e60323551d80ad9c0800000000000000
-      internalID: -3901796431992573842
+      spriteID: dcd3a31643bcc4970800000000000000
+      internalID: 8740584402649234893
       vertices: []
       indices: 
       edges: []
@@ -185,9 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      spritesheet_fly_04_0: -1139569262366047135
-      spritesheet_fly_04_1: 2691814986288423659
-      spritesheet_fly_04_2: -3901796431992573842
+      Staminabar_background_0: 8740584402649234893
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
