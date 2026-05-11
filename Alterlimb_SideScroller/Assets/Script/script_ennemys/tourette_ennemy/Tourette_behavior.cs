@@ -3,21 +3,8 @@
 public class Turret : MonoBehaviour
 {
     // ════════════════════════════════════════════════════════════
-    //  États
-    // ════════════════════════════════════════════════════════════
-
-    enum TurretState { Patrolling, Shooting }
-
-    // ════════════════════════════════════════════════════════════
     //  Champs sérialisés
     // ════════════════════════════════════════════════════════════
-
-    [Header("Rotation Patrouille (erratique)")]
-    [SerializeField] float patrolMinAngle = -60f;
-    [SerializeField] float patrolMaxAngle = 60f;
-    [SerializeField] float patrolSnapSpeed = 600f;
-    [SerializeField] float pauseMinTime = 0.05f;
-    [SerializeField] float pauseMaxTime = 0.3f;
 
     [Header("Détection")]
     [SerializeField] float detectionRange = 12f;
@@ -46,11 +33,8 @@ public class Turret : MonoBehaviour
     //  Données runtime
     // ════════════════════════════════════════════════════════════
 
-    TurretState state = TurretState.Patrolling;
-    TurretState previousState = TurretState.Patrolling;
+    bool playerInSight;
     float currentAngle;
-    float targetAngle;
-    float pauseTimer;
     float fireCooldown;
 
     // ════════════════════════════════════════════════════════════
@@ -64,8 +48,6 @@ public class Turret : MonoBehaviour
             GameObject p = GameObject.FindGameObjectWithTag("Player");
             if (p != null) player = p.transform;
         }
-
-        PickNewTargetAngle();
     }
 
     // ════════════════════════════════════════════════════════════
@@ -74,34 +56,26 @@ public class Turret : MonoBehaviour
 
     void Update()
     {
-        UpdateState();
+        playerInSight = CheckLineOfSight();
+
         SpinMotor();
 
-        switch (state)
+        if (playerInSight)
         {
-            case TurretState.Patrolling: Patrol(); break;
-            case TurretState.Shooting: Shoot(); break;
+            AimAtPlayer();
+
+            if (fireCooldown <= 0f)
+            {
+                FireBullet();
+                fireCooldown = fireRate;
+            }
         }
 
-        // Applique la rotation — un seul endroit, pas de conflit
+        // Applique la rotation
         if (turretHead != null)
             turretHead.localRotation = Quaternion.Euler(0f, 0f, currentAngle);
 
         fireCooldown -= Time.deltaTime;
-    }
-
-    // ════════════════════════════════════════════════════════════
-    //  Machine à états
-    // ════════════════════════════════════════════════════════════
-
-    void UpdateState()
-    {
-        previousState = state;
-        state = CheckLineOfSight() ? TurretState.Shooting : TurretState.Patrolling;
-
-        // Transition Shooting → Patrolling : reprend la patrouille depuis l'angle actuel
-        if (state == TurretState.Patrolling && previousState == TurretState.Shooting)
-            PickNewTargetAngle();
     }
 
     // ════════════════════════════════════════════════════════════
@@ -122,58 +96,8 @@ public class Turret : MonoBehaviour
     }
 
     // ════════════════════════════════════════════════════════════
-    //  Patrouille erratique
+    //  Visée
     // ════════════════════════════════════════════════════════════
-
-    void Patrol()
-    {
-        if (turretHead == null) return;
-
-        // En pause : attend avant de bouger vers un nouvel angle
-        if (pauseTimer > 0f)
-        {
-            pauseTimer -= Time.deltaTime;
-            return;
-        }
-
-        // Snap rapide vers l'angle cible
-        currentAngle = Mathf.MoveTowards(currentAngle, targetAngle, patrolSnapSpeed * Time.deltaTime);
-
-        // Arrivé à l'angle cible : pause courte puis nouvel angle
-        if (Mathf.Abs(currentAngle - targetAngle) < 0.5f)
-        {
-            pauseTimer = Random.Range(pauseMinTime, pauseMaxTime);
-            PickNewTargetAngle();
-        }
-    }
-
-    void PickNewTargetAngle()
-    {
-        // Choisit un angle aléatoire suffisamment différent de l'actuel
-        float newAngle;
-        do
-        {
-            newAngle = Random.Range(patrolMinAngle, patrolMaxAngle);
-        }
-        while (Mathf.Abs(newAngle - currentAngle) < 20f);
-
-        targetAngle = newAngle;
-    }
-
-    // ════════════════════════════════════════════════════════════
-    //  Tir
-    // ════════════════════════════════════════════════════════════
-
-    void Shoot()
-    {
-        AimAtPlayer();
-
-        if (fireCooldown <= 0f)
-        {
-            FireBullet();
-            fireCooldown = fireRate;
-        }
-    }
 
     void AimAtPlayer()
     {
@@ -187,6 +111,10 @@ public class Turret : MonoBehaviour
 
         currentAngle = Mathf.LerpAngle(currentAngle, localAngle, aimSpeed * Time.deltaTime);
     }
+
+    // ════════════════════════════════════════════════════════════
+    //  Tir
+    // ════════════════════════════════════════════════════════════
 
     void FireBullet()
     {
@@ -210,7 +138,7 @@ public class Turret : MonoBehaviour
     {
         if (motorTransform == null) return;
 
-        float speed = (state == TurretState.Shooting) ? shootingSpinSpeed : normalSpinSpeed;
+        float speed = playerInSight ? shootingSpinSpeed : normalSpinSpeed;
         motorTransform.Rotate(0f, 0f, speed * Time.deltaTime);
     }
 
