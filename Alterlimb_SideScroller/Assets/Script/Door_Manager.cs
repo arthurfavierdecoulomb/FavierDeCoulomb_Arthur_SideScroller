@@ -4,10 +4,11 @@ using System.Collections.Generic;
 
 /// <summary>
 /// Porte avec 4 états d'animation : OpenDoor, CloseDoor, Idle_Closed, Idle_Opened.
-/// Peut être ouverte de deux façons (au choix) :
-///   - Mode Proximity : le joueur appuie sur clic droit en étant proche
-///   - Mode Levers : tous les leviers requis doivent être activés
-/// Dans les deux cas, la porte se referme automatiquement 3 secondes après que le joueur soit passé.
+/// Peut être ouverte de trois façons (au choix) :
+///   - Mode Proximity     : le joueur appuie sur clic droit en étant proche
+///   - Mode Levers        : tous les leviers requis doivent être activés
+///   - Mode OnDroneKilled : la porte s'ouvre quand le drone cible meurt
+/// Dans tous les cas, la porte se referme automatiquement après que le joueur soit passé.
 /// 
 /// Hiérarchie de colliders attendue :
 ///   - Un Collider2D en mode Trigger (zone de détection du passage du joueur)
@@ -15,7 +16,7 @@ using System.Collections.Generic;
 /// </summary>
 public class Door : MonoBehaviour
 {
-    public enum OpeningMode { Proximity, Levers }
+    public enum OpeningMode { Proximity, Levers, OnDroneKilled }
 
     // ════════════════════════════════════════════════════════════
     //  Configuration
@@ -32,6 +33,10 @@ public class Door : MonoBehaviour
     [Header("Mode Leviers")]
     [Tooltip("Liste des leviers qui doivent TOUS être activés pour ouvrir la porte")]
     [SerializeField] List<Lever> requiredLevers = new List<Lever>();
+
+    [Header("Mode OnDroneKilled")]
+    [Tooltip("Drone dont la mort déverrouille cette porte")]
+    [SerializeField] DroneEnemy targetDrone;
 
     [Header("Comportement commun")]
     [Tooltip("Délai avant fermeture automatique après que le joueur soit passé")]
@@ -85,25 +90,36 @@ public class Door : MonoBehaviour
         else
             Debug.LogWarning($"[Door] '{name}' n'a pas de Solid Collider assigné. Le joueur pourra passer à travers.", this);
 
-        // S'abonne aux événements des leviers requis
-        if (mode == OpeningMode.Levers)
+        // Abonnement aux events selon le mode
+        switch (mode)
         {
-            foreach (Lever lever in requiredLevers)
-            {
-                if (lever != null)
-                    lever.OnLeverActivated += OnLeverStateChanged;
-            }
+            case OpeningMode.Levers:
+                foreach (Lever lever in requiredLevers)
+                {
+                    if (lever != null)
+                        lever.OnLeverActivated += OnLeverStateChanged;
+                }
+                break;
+
+            case OpeningMode.OnDroneKilled:
+                if (targetDrone == null)
+                    Debug.LogWarning($"[Door] '{name}' est en mode OnDroneKilled mais aucun targetDrone n'est assigné.", this);
+                DroneEnemy.OnDroneDied += OnDroneDiedHandler;
+                break;
         }
     }
 
     void OnDestroy()
     {
-        // Désinscription propre
+        // Désinscription propre (toujours, peu importe le mode actuel —
+        // si quelqu'un change le mode en runtime, on évite les fuites)
         foreach (Lever lever in requiredLevers)
         {
             if (lever != null)
                 lever.OnLeverActivated -= OnLeverStateChanged;
         }
+
+        DroneEnemy.OnDroneDied -= OnDroneDiedHandler;
     }
 
     // ════════════════════════════════════════════════════════════
@@ -193,6 +209,16 @@ public class Door : MonoBehaviour
             OpenDoor();
     }
 
+    /// <summary>Appelé quand n'importe quel drone meurt — on filtre pour ne réagir qu'au nôtre</summary>
+    void OnDroneDiedHandler(DroneEnemy deadDrone)
+    {
+        if (mode != OpeningMode.OnDroneKilled) return;
+        if (deadDrone != targetDrone) return;  // ce n'est pas notre drone, on ignore
+        if (isOpen) return;
+
+        OpenDoor();
+    }
+
     public void OpenDoor()
     {
         if (isOpen) return;
@@ -239,20 +265,30 @@ public class Door : MonoBehaviour
 
     void OnDrawGizmosSelected()
     {
-        if (mode == OpeningMode.Proximity)
+        switch (mode)
         {
-            Gizmos.color = Color.green;
-            Gizmos.DrawWireSphere(transform.position, interactionRange);
-        }
-        else
-        {
-            // Trace une ligne vers chaque levier requis
-            Gizmos.color = Color.yellow;
-            foreach (Lever lever in requiredLevers)
-            {
-                if (lever != null)
-                    Gizmos.DrawLine(transform.position, lever.transform.position);
-            }
+            case OpeningMode.Proximity:
+                Gizmos.color = Color.green;
+                Gizmos.DrawWireSphere(transform.position, interactionRange);
+                break;
+
+            case OpeningMode.Levers:
+                Gizmos.color = Color.yellow;
+                foreach (Lever lever in requiredLevers)
+                {
+                    if (lever != null)
+                        Gizmos.DrawLine(transform.position, lever.transform.position);
+                }
+                break;
+
+            case OpeningMode.OnDroneKilled:
+                if (targetDrone != null)
+                {
+                    Gizmos.color = Color.magenta;
+                    Gizmos.DrawLine(transform.position, targetDrone.transform.position);
+                    Gizmos.DrawWireSphere(targetDrone.transform.position, 0.5f);
+                }
+                break;
         }
     }
 }

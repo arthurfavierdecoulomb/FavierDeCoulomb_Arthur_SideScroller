@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using System;
 
 /// <summary>
 /// Drone ennemi volant — version "Animator" (utilise un spritesheet animé).
@@ -21,12 +22,23 @@
 /// Explosion à la mort :
 ///   - Déclenchée via Animation Event sur une frame précise de l'animation de mort
 ///   - L'event appelle la méthode publique TriggerDeathExplosion()
+/// 
+/// Notification de mort (pour ouverture de porte, etc.) :
+///   - Event statique OnDroneDied déclenché à la fin de l'animation de mort
+///   - Appelé via Animation Event NotifyDeathComplete() sur la dernière frame
+///   - Les Door en mode OnDroneKilled s'y abonnent
 /// </summary>
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(SpriteRenderer))]
 public class DroneEnemy : MonoBehaviour
 {
     public enum DroneState { Patrol, Chase, Attack, Recharge }
+
+    // ════════════════════════════════════════════════════════════
+    //  Event statique : notifie tous les écouteurs qu'un drone est mort
+    //  (utilisé par Door en mode OnDroneKilled)
+    // ════════════════════════════════════════════════════════════
+    public static event Action<DroneEnemy> OnDroneDied;
 
     // Constantes pour le paramètre "State" de l'Animator
     const int ANIM_IDLE = 0;
@@ -101,6 +113,7 @@ public class DroneEnemy : MonoBehaviour
     float stateTimer;
     float currentHealth;
     bool isDying;
+    bool deathNotified;  // évite de notifier deux fois si l'Animation Event est mal placé
 
     // ── Système Grappin ─────────────────────────────────────────
     public bool isHooked { get; private set; }
@@ -394,8 +407,18 @@ public class DroneEnemy : MonoBehaviour
         // Lance l'animation de mort
         SetAnimatorState(ANIM_DEATH);
 
+        // Filet de sécurité : si l'Animation Event NotifyDeathComplete()
+        // n'est pas placé (oubli sur la dernière frame), on notifie quand même
+        // juste avant que le GameObject soit détruit.
+        Invoke(nameof(EnsureDeathNotified), deathAnimationDuration - 0.05f);
+
         // Détruit après la fin de l'animation
         Destroy(gameObject, deathAnimationDuration);
+    }
+
+    void EnsureDeathNotified()
+    {
+        if (!deathNotified) NotifyDeathComplete();
     }
 
     // ════════════════════════════════════════════════════════════
@@ -423,6 +446,26 @@ public class DroneEnemy : MonoBehaviour
 
         // Détruit l'explosion après son cycle de vie pour ne pas polluer la scène
         Destroy(explosion, explosionLifetime);
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  Notification de mort (appelée par Animation Event)
+    // ════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Méthode publique appelée par un Animation Event placé sur la DERNIÈRE
+    /// frame de l'animation de mort. Notifie tous les écouteurs (notamment
+    /// les Door en mode OnDroneKilled) que ce drone a fini de mourir.
+    /// 
+    /// IMPORTANT : la signature doit être sans paramètre pour être
+    /// appelable depuis un Animation Event.
+    /// </summary>
+    public void NotifyDeathComplete()
+    {
+        if (deathNotified) return;
+        deathNotified = true;
+
+        OnDroneDied?.Invoke(this);
     }
 
     // ════════════════════════════════════════════════════════════
