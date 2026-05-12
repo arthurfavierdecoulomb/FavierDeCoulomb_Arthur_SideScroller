@@ -17,6 +17,10 @@
 /// Système Grappin :
 ///   - Le joueur peut accrocher le drone → IA désactivée, drone immobilisé
 ///   - La scie inflige des dégâts (configurable : avec ou sans grappin requis)
+/// 
+/// Explosion à la mort :
+///   - Déclenchée via Animation Event sur une frame précise de l'animation de mort
+///   - L'event appelle la méthode publique TriggerDeathExplosion()
 /// </summary>
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(SpriteRenderer))]
@@ -65,6 +69,14 @@ public class DroneEnemy : MonoBehaviour
     [SerializeField] bool damageOnlyWhenHooked = false;
     [Tooltip("Durée de l'animation de mort avant que le GameObject soit détruit")]
     [SerializeField] float deathAnimationDuration = 1.5f;
+
+    [Header("Explosion à la mort")]
+    [Tooltip("Prefab de Particle System à instancier lors de l'explosion. Déclenchée par Animation Event.")]
+    [SerializeField] GameObject explosionPrefab;
+    [Tooltip("Offset de position pour l'explosion par rapport au centre du drone")]
+    [SerializeField] Vector2 explosionOffset = Vector2.zero;
+    [Tooltip("Durée de vie de l'explosion avant destruction (en secondes)")]
+    [SerializeField] float explosionLifetime = 3f;
 
     [Header("Flip horizontal")]
     [Tooltip("Vitesse minimale pour déclencher un flip (anti-jitter)")]
@@ -300,8 +312,6 @@ public class DroneEnemy : MonoBehaviour
     {
         if (spriteRenderer == null) return;
 
-        // En mode Attack/Chase : on regarde toujours vers le joueur
-        // En mode Patrol/Recharge : on regarde dans le sens du mouvement
         bool shouldFaceRight;
 
         if ((currentState == DroneState.Chase || currentState == DroneState.Attack) && player != null)
@@ -311,12 +321,10 @@ public class DroneEnemy : MonoBehaviour
         else
         {
             float vx = rb.linearVelocity.x;
-            if (Mathf.Abs(vx) < flipThreshold) return; // anti-jitter
+            if (Mathf.Abs(vx) < flipThreshold) return;
             shouldFaceRight = vx > 0;
         }
 
-        // flipX = false → sprite dans son orientation par défaut
-        // flipX = true  → sprite miroité
         spriteRenderer.flipX = spriteDefaultFacesLeft ? shouldFaceRight : !shouldFaceRight;
     }
 
@@ -388,6 +396,33 @@ public class DroneEnemy : MonoBehaviour
 
         // Détruit après la fin de l'animation
         Destroy(gameObject, deathAnimationDuration);
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  Explosion (appelée par Animation Event sur l'anim de mort)
+    // ════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Méthode publique appelée par un Animation Event placé sur une frame
+    /// précise de l'animation de mort. Instancie le Particle System d'explosion
+    /// à la position du drone et le détruit après explosionLifetime secondes.
+    /// 
+    /// IMPORTANT : la signature doit être sans paramètre (ou avec un seul
+    /// paramètre simple) pour être appelable depuis un Animation Event.
+    /// </summary>
+    public void TriggerDeathExplosion()
+    {
+        if (explosionPrefab == null)
+        {
+            Debug.LogWarning($"[DroneEnemy {gameObject.name}] explosionPrefab non assigné — explosion ignorée");
+            return;
+        }
+
+        Vector3 spawnPos = transform.position + (Vector3)explosionOffset;
+        GameObject explosion = Instantiate(explosionPrefab, spawnPos, Quaternion.identity);
+
+        // Détruit l'explosion après son cycle de vie pour ne pas polluer la scène
+        Destroy(explosion, explosionLifetime);
     }
 
     // ════════════════════════════════════════════════════════════

@@ -87,7 +87,7 @@ public class ArtefactRoulette : MonoBehaviour
     void Awake()
     {
         if (abilityManager == null)
-            abilityManager = FindFirstObjectByType<AbilityManager>();
+            abilityManager = FindAnyObjectByType<AbilityManager>();
 
         if (rouletteCanvasGroup != null) rouletteCanvasGroup.alpha = 0f;
         if (pickupBounceCanvasGroup != null) pickupBounceCanvasGroup.alpha = 0f;
