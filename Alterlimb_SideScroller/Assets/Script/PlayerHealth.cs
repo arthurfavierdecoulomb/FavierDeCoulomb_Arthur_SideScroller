@@ -7,6 +7,8 @@ using UnityEngine.UI;
 ///   2. Collision physique avec un objet tagué (ennemi, projectile)
 ///   3. Trigger avec un objet tagué (zone de dégâts, hazard)
 /// 
+/// Régénération : après un délai sans dégâts, la vie remonte progressivement.
+/// 
 /// Tags reconnus pour les dégâts :
 ///   - "DroneEnemy" : dégâts du drone (collision physique)
 ///   - "Bullet" : dégâts d'une bullet (collision OU trigger)
@@ -22,6 +24,12 @@ public class PlayerHealth : MonoBehaviour
     [SerializeField] float bulletDamage = 10f;
     [SerializeField] float invincibilityDuration = 0.5f;
 
+    [Header("Regeneration")]
+    [Tooltip("Délai en secondes sans dégâts avant que la régen commence")]
+    [SerializeField] float regenDelay = 10f;
+    [Tooltip("Quantité de vie restaurée par seconde une fois la régen active")]
+    [SerializeField] float regenRate = 5f;
+
     [Header("UI")]
     [SerializeField] Image healthBar;
     [SerializeField] float barSmoothSpeed = 5f;
@@ -33,6 +41,7 @@ public class PlayerHealth : MonoBehaviour
     float currentHealth;
     float displayedHealth;
     float invincibilityTimer = 0f;
+    float timeSinceLastDamage = 0f;
 
     public float CurrentHealth => currentHealth;
     public float MaxHealth => maxHealth;
@@ -41,16 +50,40 @@ public class PlayerHealth : MonoBehaviour
     {
         currentHealth = maxHealth;
         displayedHealth = maxHealth;
+        timeSinceLastDamage = regenDelay; // Permet la régen immédiate au début (peu importe ici car full HP)
     }
 
     void Update()
     {
+        // Lissage de la barre de vie
         displayedHealth = Mathf.Lerp(displayedHealth, currentHealth, barSmoothSpeed * Time.deltaTime);
         if (healthBar != null)
             healthBar.fillAmount = displayedHealth / maxHealth;
 
+        // Décompte de l'invincibilité
         if (invincibilityTimer > 0f)
             invincibilityTimer -= Time.deltaTime;
+
+        // Régénération de vie
+        HandleRegeneration();
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  Régénération
+    // ════════════════════════════════════════════════════════════
+
+    void HandleRegeneration()
+    {
+        // Pas besoin de régen si full HP ou mort
+        if (currentHealth >= maxHealth || currentHealth <= 0f) return;
+
+        timeSinceLastDamage += Time.deltaTime;
+
+        // Attente du délai avant de commencer la régen
+        if (timeSinceLastDamage < regenDelay) return;
+
+        currentHealth += regenRate * Time.deltaTime;
+        currentHealth = Mathf.Min(currentHealth, maxHealth);
     }
 
     // ════════════════════════════════════════════════════════════
@@ -68,6 +101,7 @@ public class PlayerHealth : MonoBehaviour
         currentHealth -= amount;
         currentHealth = Mathf.Max(currentHealth, 0f);
         invincibilityTimer = invincibilityDuration;
+        timeSinceLastDamage = 0f; // Reset du timer de régen
 
         if (debugMode) Debug.Log($"[PlayerHealth] Dégâts reçus : {amount}. Vie restante : {currentHealth}/{maxHealth}");
 
@@ -84,6 +118,7 @@ public class PlayerHealth : MonoBehaviour
         currentHealth = maxHealth;
         displayedHealth = maxHealth;
         invincibilityTimer = 0f;
+        timeSinceLastDamage = regenDelay;
     }
 
     // ════════════════════════════════════════════════════════════
@@ -119,7 +154,7 @@ public class PlayerHealth : MonoBehaviour
         {
             TakeDamage(bulletDamage);
             if (debugMode) Debug.Log($"[PlayerHealth] Touché par Bullet : {obj.name}");
-            // Optionnel : détruire la bullet
+            
             Destroy(obj);
         }
         else if (obj.CompareTag("DamageZone"))

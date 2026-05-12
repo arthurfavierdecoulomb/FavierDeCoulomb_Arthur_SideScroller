@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 public class SawAbility : MonoBehaviour
 {
@@ -10,16 +10,23 @@ public class SawAbility : MonoBehaviour
 
     float cooldownCounter;
     AbilityEnergySystem energySystem;
+    PlayerAnimator playerAnimator; // ← AJOUTÉ
 
     void Awake()
     {
         energySystem = GetComponent<AbilityEnergySystem>();
+        playerAnimator = GetComponent<PlayerAnimator>(); // ← AJOUTÉ
     }
 
     void Update()
     {
         if (cooldownCounter > 0f)
             cooldownCounter -= Time.deltaTime;
+
+        if (Input.GetMouseButtonDown(0))
+        {
+            Debug.Log($"[SawAbility] Clic détecté. Cooldown : {cooldownCounter}, Enabled : {enabled}");
+        }
 
         if (Input.GetMouseButtonDown(0) && cooldownCounter <= 0f)
         {
@@ -30,10 +37,13 @@ public class SawAbility : MonoBehaviour
 
     void Attack()
     {
-        // Notifie le syst�me d'�nergie
+        // Notifie le système d'énergie
         energySystem?.OnSawUsed();
 
-        // Multiplicateur selon �nergie restante
+        // Déclenche l'animation d'attaque
+        playerAnimator?.TriggerAttack(); // ← AJOUTÉ
+
+        // Multiplicateur selon énergie restante
         float multiplier = energySystem != null ? energySystem.GetSawMultiplier() : 1f;
         float finalDamage = attackDamage * multiplier;
 

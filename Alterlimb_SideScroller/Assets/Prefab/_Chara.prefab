@@ -38,6 +38,7 @@ Transform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!212 &1350706790486595203
 SpriteRenderer:
+  serializedVersion: 2
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
@@ -83,6 +84,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_Sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
@@ -92,7 +94,6 @@ SpriteRenderer:
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
-  m_MaskInteraction: 0
   m_SpriteSortPoint: 0
 --- !u!114 &6806860510807169938
 MonoBehaviour:
@@ -110,8 +111,11 @@ MonoBehaviour:
   droneDamage: 20
   bulletDamage: 10
   invincibilityDuration: 0.5
+  regenDelay: 10
+  regenRate: 5
   healthBar: {fileID: 0}
   barSmoothSpeed: 5
+  debugMode: 0
 --- !u!114 &7051708387520343031
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -128,6 +132,7 @@ MonoBehaviour:
   Acceleration: 15
   Deceleration: 20
   JumpForce: 18
+  HighJumpForce: 28
   FallMultiplier: 3
   LowJumpMultiplier: 5
   CoyoteTime: 0.15
@@ -140,6 +145,11 @@ MonoBehaviour:
   groundLayer:
     serializedVersion: 2
     m_Bits: 0
+  iceLayer:
+    serializedVersion: 2
+    m_Bits: 0
+  IceAcceleration: 2
+  IceFriction: 0.985
 --- !u!114 &9003058991609469300
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -168,7 +178,7 @@ MonoBehaviour:
   isUsingGrapple: 0
 --- !u!120 &8793314359099259191
 LineRenderer:
-  serializedVersion: 2
+  serializedVersion: 3
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
@@ -214,6 +224,7 @@ LineRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_Positions:
   - {x: 0, y: 0, z: 0}
   - {x: 0, y: 0, z: 1}
@@ -272,7 +283,6 @@ LineRenderer:
     textureScale: {x: 1, y: 1}
     shadowBias: 0.5
     generateLightingData: 0
-  m_MaskInteraction: 0
   m_UseWorldSpace: 1
   m_Loop: 0
   m_ApplyActiveColorSpace: 1

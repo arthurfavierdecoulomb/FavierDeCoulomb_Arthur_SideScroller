@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using System;
 using System.Collections.Generic;
 
 public enum ArmAbility { Hand, Grapple, Saw }
@@ -6,7 +7,20 @@ public enum LegAbility { NormalJump, HighJump, Dash }
 
 public class AbilityManager : MonoBehaviour
 {
-    // Capacités débloquées
+    // ════════════════════════════════════════════════════════════
+    //  Événements (écoutés par l'UI, l'audio, les FX, etc.)
+    // ════════════════════════════════════════════════════════════
+
+    /// <summary>Déclenché quand le bras actif change (après un cycle Q).</summary>
+    public event Action<ArmAbility> OnArmChanged;
+
+    /// <summary>Déclenché quand un nouvel artefact de bras est débloqué (pickup).</summary>
+    public event Action<ArmAbility> OnArmUnlocked;
+
+    // ════════════════════════════════════════════════════════════
+    //  Données
+    // ════════════════════════════════════════════════════════════
+
     List<ArmAbility> unlockedArms = new List<ArmAbility> { ArmAbility.Hand };
     List<LegAbility> unlockedLegs = new List<LegAbility> { LegAbility.NormalJump };
 
@@ -15,6 +29,9 @@ public class AbilityManager : MonoBehaviour
 
     public ArmAbility CurrentArm => unlockedArms[armIndex];
     public LegAbility CurrentLeg => unlockedLegs[legIndex];
+
+    /// <summary>Liste lecture seule des bras débloqués (pour l'UI).</summary>
+    public IReadOnlyList<ArmAbility> UnlockedArms => unlockedArms;
 
     // Refs
     GrapplingHook grappleScript;
@@ -27,31 +44,34 @@ public class AbilityManager : MonoBehaviour
         sawScript = GetComponent<SawAbility>();
         charaController = GetComponent<CharaController>();
 
-        // Désactive tout au départ
         if (grappleScript) grappleScript.canUseGrapple = false;
         if (sawScript) sawScript.enabled = false;
     }
 
     void Update()
     {
-        // Cycle bras avec A
-        if (Input.GetKeyDown(KeyCode.Q))
+        // Cycle bras avec Q (uniquement si plus d'un bras débloqué)
+        if (Input.GetKeyDown(KeyCode.Q) && unlockedArms.Count > 1)
         {
             armIndex = (armIndex + 1) % unlockedArms.Count;
             ApplyArmAbility();
+            OnArmChanged?.Invoke(CurrentArm);
         }
 
         // Cycle jambes avec E
-        if (Input.GetKeyDown(KeyCode.E))
+        if (Input.GetKeyDown(KeyCode.E) && unlockedLegs.Count > 1)
         {
             legIndex = (legIndex + 1) % unlockedLegs.Count;
             ApplyLegAbility();
         }
     }
 
+    // ════════════════════════════════════════════════════════════
+    //  Application des capacités
+    // ════════════════════════════════════════════════════════════
+
     void ApplyArmAbility()
     {
-        // Désactive tout d'abord
         if (grappleScript)
         {
             grappleScript.canUseGrapple = false;
@@ -59,11 +79,9 @@ public class AbilityManager : MonoBehaviour
         }
         if (sawScript) sawScript.enabled = false;
 
-        // Active la capacité courante
         switch (CurrentArm)
         {
             case ArmAbility.Hand:
-                // Rien à activer, c'est la main de base
                 break;
             case ArmAbility.Grapple:
                 if (grappleScript) grappleScript.canUseGrapple = true;
@@ -97,7 +115,9 @@ public class AbilityManager : MonoBehaviour
         Debug.Log($"Jambes actives : {CurrentLeg}");
     }
 
-    // ── Débloquage des capacités (appelé par AbilityPickup) ──
+    // ════════════════════════════════════════════════════════════
+    //  Déblocage des capacités (appelé par AbilityPickup)
+    // ════════════════════════════════════════════════════════════
 
     public void UnlockArm(ArmAbility ability)
     {
@@ -105,6 +125,7 @@ public class AbilityManager : MonoBehaviour
         {
             unlockedArms.Add(ability);
             Debug.Log($"Capacité bras débloquée : {ability}");
+            OnArmUnlocked?.Invoke(ability);
         }
     }
 

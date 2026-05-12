@@ -7,7 +7,8 @@ public class Turret : MonoBehaviour
     // ════════════════════════════════════════════════════════════
 
     [Header("Détection")]
-    [SerializeField] float detectionRange = 12f;
+    [SerializeField] Vector2 detectionSize = new Vector2(12f, 4f);
+    [SerializeField] Vector2 detectionOffset = Vector2.zero;
     [SerializeField] LayerMask detectionMask;
 
     [Header("Tir")]
@@ -84,13 +85,23 @@ public class Turret : MonoBehaviour
 
     bool CheckLineOfSight()
     {
-        if (player == null || firePoint == null) return false;
+        if (player == null) return false;
 
-        float dist = Vector2.Distance(firePoint.position, player.position);
-        if (dist > detectionRange) return false;
+        // Convertit la position du joueur dans l'espace local de la tourelle
+        Vector2 localPlayerPos = transform.InverseTransformPoint(player.position);
+        Vector2 localOffsetPos = localPlayerPos - detectionOffset;
+
+        // Vérifie si le joueur est dans la boîte rectangulaire
+        Vector2 half = detectionSize * 0.5f;
+        if (Mathf.Abs(localOffsetPos.x) > half.x || Mathf.Abs(localOffsetPos.y) > half.y)
+            return false;
+
+        // Vérifie la ligne de vue (raycast obstacle)
+        if (firePoint == null) return true;
 
         Vector2 dir = (player.position - firePoint.position).normalized;
-        RaycastHit2D hit = Physics2D.Raycast(firePoint.position, dir, detectionRange, detectionMask);
+        float dist = Vector2.Distance(firePoint.position, player.position);
+        RaycastHit2D hit = Physics2D.Raycast(firePoint.position, dir, dist, detectionMask);
 
         return hit.collider != null && hit.collider.CompareTag("Player");
     }
@@ -148,7 +159,10 @@ public class Turret : MonoBehaviour
 
     void OnDrawGizmosSelected()
     {
+        // Matrix pour dessiner la zone dans l'espace local de la tourelle
         Gizmos.color = Color.yellow;
-        Gizmos.DrawWireSphere(transform.position, detectionRange);
+        Gizmos.matrix = transform.localToWorldMatrix;
+        Gizmos.DrawWireCube(detectionOffset, detectionSize);
+        Gizmos.matrix = Matrix4x4.identity;
     }
 }
