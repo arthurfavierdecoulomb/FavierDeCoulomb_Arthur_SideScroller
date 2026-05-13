@@ -29,7 +29,7 @@ public class CameraFollow : MonoBehaviour
     float lastTargetX;
     Vector3 currentVelocity; // pour SmoothDamp
 
-    void FixedUpdate()
+    void LateUpdate()
     {
         if (target == null) return;
 

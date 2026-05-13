@@ -5,10 +5,11 @@
 /// 
 /// Fonctionnement :
 ///   - Le joueur monte sur la plateforme (détecté via collision sur le dessus)
-///   - Tant qu'il est dessus, il peut appuyer sur upKey pour monter ou downKey pour descendre
+///   - Au lieu de parenter le joueur, on lui transmet la vélocité de la plateforme
+///     directement sur son Rigidbody2D → la physique gère tout proprement,
+///     pas de conflit gravité/parenting, montée et descente symétriques.
+///   - Le joueur peut appuyer sur upKey/downKey pour monter ou descendre
 ///   - La plateforme s'arrête automatiquement aux limites configurées
-///   - Le joueur est déplacé EN AVANCE de la plateforme pour éviter le conflit physique
-///     (sinon le poids du joueur bloque la montée du Kinematic)
 /// 
 /// Animator :
 ///   - Paramètre Int "moveDir" :  1 = monte,  -1 = descend,  0 = arrêt
@@ -38,18 +39,16 @@ public class LiftPlatform : MonoBehaviour
     [Header("Animation")]
     [SerializeField] Animator animator;
 
-    // Tolérance pour la détection "à la limite" (évite le jitter autour des bornes)
     const float LIMIT_EPSILON = 0.01f;
-
-    // Hash du paramètre Animator (perf : évite la recherche par string)
     static readonly int MoveDirHash = Animator.StringToHash("moveDir");
 
     Rigidbody2D rb;
     Rigidbody2D playerRb;
     Vector2 startPosition;
+    Vector2 platformVelocity;
     bool playerOnPlatform;
     float timeSinceLastContact;
-    int currentMoveDir; // cache pour éviter de spammer l'Animator
+    int currentMoveDir;
 
     // ════════════════════════════════════════════════════════════
     //  Initialisation
@@ -61,11 +60,11 @@ public class LiftPlatform : MonoBehaviour
         rb.bodyType = RigidbodyType2D.Kinematic;
         rb.freezeRotation = true;
         rb.useFullKinematicContacts = true;
+        rb.interpolation = RigidbodyInterpolation2D.Interpolate;
 
         if (animator == null) animator = GetComponent<Animator>();
 
         startPosition = rb.position;
-
         SetMoveDir(0);
     }
 
@@ -121,9 +120,8 @@ public class LiftPlatform : MonoBehaviour
     void FixedUpdate()
     {
         int newMoveDir = 0;
-        Vector2 plannedDelta = Vector2.zero;
+        platformVelocity = Vector2.zero;
 
-        // 1. Lire l'input et CALCULER (sans appliquer) le mouvement souhaité
         if (playerOnPlatform)
         {
             if (Input.GetKey(upKey)) newMoveDir += 1;
@@ -135,11 +133,8 @@ public class LiftPlatform : MonoBehaviour
                 float minY = startPosition.y - downLimit;
                 float maxY = startPosition.y + upLimit;
 
-                // Vérifie si la direction demandée est BLOQUÉE par une limite
                 bool blockedUp = newMoveDir > 0 && currentPos.y >= maxY - LIMIT_EPSILON;
                 bool blockedDown = newMoveDir < 0 && currentPos.y <= minY + LIMIT_EPSILON;
-
-                Debug.Log($"[Lift] inputDir={newMoveDir} | currentY={currentPos.y:F3} | startY={startPosition.y:F3} | minY={minY:F3} | maxY={maxY:F3} | blockedUp={blockedUp} | blockedDown={blockedDown} | playerOnPlatform={playerOnPlatform}");
 
                 if (blockedUp || blockedDown)
                 {
@@ -147,34 +142,36 @@ public class LiftPlatform : MonoBehaviour
                 }
                 else
                 {
-                    float deltaY = newMoveDir * moveSpeed * Time.fixedDeltaTime;
-                    float newY = Mathf.Clamp(currentPos.y + deltaY, minY, maxY);
-                    plannedDelta = new Vector2(0f, newY - currentPos.y);
+                    platformVelocity = new Vector2(0f, newMoveDir * moveSpeed);
                 }
             }
         }
 
-        // 2. Bouger le JOUEUR D'ABORD (anticipation)
-        //    → la plateforme aura le champ libre derrière lui
-        if (playerOnPlatform && playerRb != null && plannedDelta.sqrMagnitude > 0.0001f)
+        // 1. Bouger la plateforme via Rigidbody2D.linearVelocity
+        //    → en Kinematic, ça fait avancer la plateforme à vitesse constante
+        //      sans subir la physique, mais en restant "physiquement cohérente"
+        //      pour les contacts (le joueur dessus suit naturellement)
+        rb.linearVelocity = platformVelocity;
+
+        // 2. Si la plateforme DESCEND, on force le joueur à suivre pour éviter
+        //    qu'il se "décolle" à cause de la gravité (qui tombe moins vite
+        //    que la plateforme à pleine vitesse n'est PAS le cas ici, donc on
+        //    aide la physique en collant le joueur à la plateforme)
+        if (playerOnPlatform && playerRb != null && platformVelocity.y < 0f)
         {
-            playerRb.position += plannedDelta;
+            // On remplace la composante Y du joueur par celle de la plateforme
+            // UNIQUEMENT si le joueur ne saute pas (vy <= 0)
+            Vector2 v = playerRb.linearVelocity;
+            if (v.y <= 0f)
+            {
+                v.y = platformVelocity.y;
+                playerRb.linearVelocity = v;
+            }
         }
 
-        // 3. PUIS bouger la plateforme
-        if (plannedDelta.sqrMagnitude > 0.0001f)
-        {
-            rb.MovePosition(rb.position + plannedDelta);
-        }
-
-        // 4. Mettre à jour l'animation
         SetMoveDir(newMoveDir);
     }
 
-    /// <summary>
-    /// Met à jour le paramètre moveDir de l'Animator, uniquement s'il a changé
-    /// (évite de spammer l'Animator chaque frame).
-    /// </summary>
     void SetMoveDir(int dir)
     {
         if (dir == currentMoveDir) return;
@@ -183,7 +180,7 @@ public class LiftPlatform : MonoBehaviour
     }
 
     // ════════════════════════════════════════════════════════════
-    //  Gizmos : ligne verte montrant la course complète
+    //  Gizmos
     // ════════════════════════════════════════════════════════════
 
     void OnDrawGizmos()
