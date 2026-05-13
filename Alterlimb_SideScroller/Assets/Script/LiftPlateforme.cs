@@ -7,7 +7,8 @@
 ///   - Le joueur monte sur la plateforme (détecté via collision sur le dessus)
 ///   - Tant qu'il est dessus, il peut appuyer sur upKey pour monter ou downKey pour descendre
 ///   - La plateforme s'arrête automatiquement aux limites configurées
-///   - Le joueur suit le mouvement via application directe du delta (pas de parenting)
+///   - Le joueur est déplacé EN AVANCE de la plateforme pour éviter le conflit physique
+///     (sinon le poids du joueur bloque la montée du Kinematic)
 /// 
 /// Animator :
 ///   - Paramètre Int "moveDir" :  1 = monte,  -1 = descend,  0 = arrêt
@@ -46,7 +47,6 @@ public class LiftPlatform : MonoBehaviour
     Rigidbody2D rb;
     Rigidbody2D playerRb;
     Vector2 startPosition;
-    Vector2 lastPosition;
     bool playerOnPlatform;
     float timeSinceLastContact;
     int currentMoveDir; // cache pour éviter de spammer l'Animator
@@ -65,7 +65,6 @@ public class LiftPlatform : MonoBehaviour
         if (animator == null) animator = GetComponent<Animator>();
 
         startPosition = rb.position;
-        lastPosition = startPosition;
 
         SetMoveDir(0);
     }
@@ -122,8 +121,9 @@ public class LiftPlatform : MonoBehaviour
     void FixedUpdate()
     {
         int newMoveDir = 0;
+        Vector2 plannedDelta = Vector2.zero;
 
-        // 1. Lire l'input et bouger la plateforme si le joueur est dessus
+        // 1. Lire l'input et CALCULER (sans appliquer) le mouvement souhaité
         if (playerOnPlatform)
         {
             if (Input.GetKey(upKey)) newMoveDir += 1;
@@ -139,33 +139,36 @@ public class LiftPlatform : MonoBehaviour
                 bool blockedUp = newMoveDir > 0 && currentPos.y >= maxY - LIMIT_EPSILON;
                 bool blockedDown = newMoveDir < 0 && currentPos.y <= minY + LIMIT_EPSILON;
 
+                Debug.Log($"[Lift] inputDir={newMoveDir} | currentY={currentPos.y:F3} | startY={startPosition.y:F3} | minY={minY:F3} | maxY={maxY:F3} | blockedUp={blockedUp} | blockedDown={blockedDown} | playerOnPlatform={playerOnPlatform}");
+
                 if (blockedUp || blockedDown)
                 {
-                    // Bloqué à une limite : animation Idle, on ne bouge pas
                     newMoveDir = 0;
                 }
                 else
                 {
-                    // Mouvement autorisé : on applique le delta clampé proprement
                     float deltaY = newMoveDir * moveSpeed * Time.fixedDeltaTime;
                     float newY = Mathf.Clamp(currentPos.y + deltaY, minY, maxY);
-                    rb.MovePosition(new Vector2(currentPos.x, newY));
+                    plannedDelta = new Vector2(0f, newY - currentPos.y);
                 }
             }
         }
 
-        // 2. Met à jour l'animation
-        SetMoveDir(newMoveDir);
-
-        // 3. Calculer de combien la plateforme a bougé cette frame
-        Vector2 platformDelta = rb.position - lastPosition;
-        lastPosition = rb.position;
-
-        // 4. Appliquer le même delta au joueur s'il est dessus
-        if (playerOnPlatform && playerRb != null && platformDelta.sqrMagnitude > 0.0001f)
+        // 2. Bouger le JOUEUR D'ABORD (anticipation)
+        //    → la plateforme aura le champ libre derrière lui
+        if (playerOnPlatform && playerRb != null && plannedDelta.sqrMagnitude > 0.0001f)
         {
-            playerRb.position += platformDelta;
+            playerRb.position += plannedDelta;
         }
+
+        // 3. PUIS bouger la plateforme
+        if (plannedDelta.sqrMagnitude > 0.0001f)
+        {
+            rb.MovePosition(rb.position + plannedDelta);
+        }
+
+        // 4. Mettre à jour l'animation
+        SetMoveDir(newMoveDir);
     }
 
     /// <summary>
