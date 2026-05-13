@@ -52,7 +52,12 @@ public class CharaController : MonoBehaviour
     bool isOnIce;
     bool wasOnIce;
     bool isDead;
-    bool isInQuicksand; // ← NOUVEAU : état sable mouvant
+    bool isInQuicksand;
+
+    // ── NOUVEAU : Course automatique + invincibilité (transitions de niveau) ──
+    bool isAutoRunning;
+    float autoRunDirection;
+    bool isInvincible;
 
     JumpMode jumpMode = JumpMode.Normal;
     bool dashEnabled = false;
@@ -68,6 +73,18 @@ public class CharaController : MonoBehaviour
     void Update()
     {
         if (isDead) return;
+
+        // ── Course automatique (transitions de niveau) ──────────
+        // En auto-run : on force la direction, on garde la détection de sol
+        // (pour les animations), mais on ignore tous les autres inputs.
+        if (isAutoRunning)
+        {
+            inputX = autoRunDirection;
+            isGrounded = Physics2D.Raycast(transform.position, Vector2.down, GroundCheckDistance, groundLayer);
+            wasOnIce = isOnIce;
+            isOnIce = Physics2D.Raycast(transform.position, Vector2.down, GroundCheckDistance, iceLayer);
+            return;
+        }
 
         inputX = Input.GetAxisRaw("Horizontal");
         isGrounded = Physics2D.Raycast(transform.position, Vector2.down, GroundCheckDistance, groundLayer);
@@ -94,7 +111,6 @@ public class CharaController : MonoBehaviour
         // ── SAUT ───────────────────────────────────────────────
         if (jumpBufferCounter > 0f && coyoteTimeCounter > 0f)
         {
-            // Sable mouvant : sauter = mort
             if (isInQuicksand)
             {
                 Die();
@@ -121,7 +137,6 @@ public class CharaController : MonoBehaviour
         if (dashEnabled && Input.GetKeyDown(KeyCode.LeftShift)
             && dashCooldownCounter <= 0f && !isDashing)
         {
-            // Sable mouvant : dasher = mort
             if (isInQuicksand)
             {
                 Die();
@@ -189,8 +204,6 @@ public class CharaController : MonoBehaviour
         }
 
         // ── Gravité augmentée ──────────────────────────────────
-        // On désactive la gravité augmentée si on est dans le sable
-        // (le QuicksandZone gère déjà la chute lente)
         if (!isInQuicksand)
         {
             if (rb.linearVelocity.y < 0)
@@ -239,15 +252,56 @@ public class CharaController : MonoBehaviour
         isInQuicksand = value;
     }
 
+    // ── NOUVEAU : API pour LevelTransitionManager ──────────────
+
+    /// <summary>
+    /// Active/désactive la course automatique. Pendant l'auto-run :
+    ///   - L'input horizontal est forcé à `direction` (+1 = droite, -1 = gauche)
+    ///   - Tous les autres inputs (saut, dash) sont ignorés
+    ///   - La physique de mouvement et la gravité continuent normalement
+    /// </summary>
+    public void SetAutoRun(bool active, float direction = 1f)
+    {
+        isAutoRunning = active;
+        autoRunDirection = direction;
+
+        // Si on arrête l'auto-run, on remet inputX à zéro pour éviter
+        // que le joueur continue à se déplacer dans le sens forcé.
+        if (!active) inputX = 0f;
+    }
+
+    /// <summary>
+    /// Active/désactive l'invincibilité totale. Bloque les dead_zone et les hazards.
+    /// Utilisé pendant les transitions de niveau.
+    /// </summary>
+    public void SetInvincible(bool value)
+    {
+        isInvincible = value;
+    }
+
+    /// <summary>
+    /// Téléporte le joueur instantanément à la position donnée.
+    /// Reset la vélocité pour éviter qu'il continue sur sa lancée.
+    /// </summary>
+    public void TeleportTo(Vector2 position)
+    {
+        transform.position = position;
+        rb.linearVelocity = Vector2.zero;
+    }
+
     // ── Mort & Respawn ─────────────────────────────────────────
     void OnTriggerEnter2D(Collider2D other)
     {
+        if (isInvincible) return; // ← protection pendant les transitions
+
         if (other.CompareTag("dead_zone") || other.gameObject.layer == LayerMask.NameToLayer("dead_zone"))
             Die();
     }
 
     void OnCollisionEnter2D(Collision2D other)
     {
+        if (isInvincible) return; // ← protection pendant les transitions
+
         if (other.collider.CompareTag("dead_zone") || other.gameObject.layer == LayerMask.NameToLayer("dead_zone"))
             Die();
     }
@@ -255,8 +309,9 @@ public class CharaController : MonoBehaviour
     public void Die()
     {
         if (isDead) return;
+        if (isInvincible) return; // ← double sécurité au cas où Die() serait appelé directement
         isDead = true;
-        isInQuicksand = false; // sécurité : reset l'état au cas où
+        isInQuicksand = false;
         rb.linearVelocity = Vector2.zero;
         rb.gravityScale = 0f;
         SpawnManager.Instance.Respawn(this);
@@ -268,7 +323,7 @@ public class CharaController : MonoBehaviour
         rb.gravityScale = 1f;
         rb.linearVelocity = Vector2.zero;
         isDead = false;
-        isInQuicksand = false; // reset à la résurrection
+        isInQuicksand = false;
         GetComponent<PlayerHealth>()?.ResetHealth();
     }
 }

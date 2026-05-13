@@ -1,9 +1,18 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using UnityEngine;
 
 public class SpawnManager : MonoBehaviour
 {
     public static SpawnManager Instance { get; private set; }
+
+    /// <summary>
+    /// Déclenché juste avant que le joueur ne réapparaisse au checkpoint
+    /// (après l'animation de mort si elle existe).
+    /// Les abonnés peuvent l'écouter pour remettre leur état initial :
+    /// plateformes mobiles, portes activées, switches, ennemis, etc.
+    /// </summary>
+    public static event Action OnPlayerRespawn;
 
     [Header("Points de spawn")]
     [SerializeField] Transform[] spawnPoints;
@@ -63,9 +72,16 @@ public class SpawnManager : MonoBehaviour
         DoRevive(player, spawnPos);
     }
 
-    /// <summary>Le respawn effectif : repositionne et relance le joueur.</summary>
+    /// <summary>
+    /// Le respawn effectif : notifie les abonnés, repositionne et relance le joueur.
+    /// L'événement OnPlayerRespawn est déclenché JUSTE AVANT le Revive() du joueur,
+    /// pour que toutes les plateformes mobiles, portes, etc. soient déjà reset
+    /// quand le joueur réapparaît visuellement.
+    /// </summary>
     void DoRevive(CharaController player, Vector3 spawnPos)
     {
+        OnPlayerRespawn?.Invoke();
+
         player.Revive(spawnPos);
         player.ResetJumps();
     }

@@ -11,6 +11,10 @@
 ///   - Le joueur peut appuyer sur upKey/downKey pour monter ou descendre
 ///   - La plateforme s'arrête automatiquement aux limites configurées
 /// 
+/// Reset au respawn :
+///   - S'abonne à SpawnManager.OnPlayerRespawn pour revenir à sa position
+///     initiale quand le joueur meurt et respawn.
+/// 
 /// Animator :
 ///   - Paramètre Int "moveDir" :  1 = monte,  -1 = descend,  0 = arrêt
 /// </summary>
@@ -65,6 +69,37 @@ public class LiftPlatform : MonoBehaviour
         if (animator == null) animator = GetComponent<Animator>();
 
         startPosition = rb.position;
+        SetMoveDir(0);
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  Abonnement / désabonnement à l'événement de respawn
+    // ════════════════════════════════════════════════════════════
+
+    void OnEnable()
+    {
+        SpawnManager.OnPlayerRespawn += ResetToStartPosition;
+    }
+
+    void OnDisable()
+    {
+        SpawnManager.OnPlayerRespawn -= ResetToStartPosition;
+    }
+
+    /// <summary>
+    /// Remet la plateforme à sa position initiale et coupe tout mouvement en cours.
+    /// Appelé automatiquement quand le joueur respawn.
+    /// </summary>
+    void ResetToStartPosition()
+    {
+        rb.position = startPosition;
+        rb.linearVelocity = Vector2.zero;
+        platformVelocity = Vector2.zero;
+
+        // Détache le joueur s'il était dessus au moment de la mort
+        DetachPlayer();
+
+        // Reset de l'animation
         SetMoveDir(0);
     }
 
@@ -147,20 +182,10 @@ public class LiftPlatform : MonoBehaviour
             }
         }
 
-        // 1. Bouger la plateforme via Rigidbody2D.linearVelocity
-        //    → en Kinematic, ça fait avancer la plateforme à vitesse constante
-        //      sans subir la physique, mais en restant "physiquement cohérente"
-        //      pour les contacts (le joueur dessus suit naturellement)
         rb.linearVelocity = platformVelocity;
 
-        // 2. Si la plateforme DESCEND, on force le joueur à suivre pour éviter
-        //    qu'il se "décolle" à cause de la gravité (qui tombe moins vite
-        //    que la plateforme à pleine vitesse n'est PAS le cas ici, donc on
-        //    aide la physique en collant le joueur à la plateforme)
         if (playerOnPlatform && playerRb != null && platformVelocity.y < 0f)
         {
-            // On remplace la composante Y du joueur par celle de la plateforme
-            // UNIQUEMENT si le joueur ne saute pas (vy <= 0)
             Vector2 v = playerRb.linearVelocity;
             if (v.y <= 0f)
             {
