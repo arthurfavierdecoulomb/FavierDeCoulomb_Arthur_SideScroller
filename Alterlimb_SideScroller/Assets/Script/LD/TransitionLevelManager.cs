@@ -7,17 +7,18 @@ using TMPro;
 /// 
 /// Deux modes d'utilisation :
 ///   1. StartTransition(level, autoRunDir, runDistance)
-///      → utilisé par les TransitionZone en fin de niveau (course auto + écran + téléport + course auto)
+///      → utilisé par les TransitionZone en fin de niveau
+///        (course auto + écran + téléport + course auto)
 /// 
 ///   2. StartIntro(level)
 ///      → utilisé au démarrage du jeu pour afficher le titre du premier niveau
 ///        sans course automatique (le joueur garde le contrôle immédiatement après)
 /// 
-/// Effets visuels :
-///   - Fond noir + CRT pendant la phase d'écran
-///   - Titre et description apparaissent en "flicker in" (clignotement avant stabilisation)
-///   - Idem en "flicker out" pour disparaître
-///   - Pas de glitch de lettres (texte propre)
+/// Touche "continuer" :
+///   - Après le flicker in du titre + description, l'écran reste affiché.
+///   - Le joueur doit appuyer sur la touche configurée (par défaut Enter)
+///     pour déclencher le flicker out et poursuivre la séquence.
+///   - Un timeout de sécurité termine la transition si le joueur ne réagit pas.
 /// </summary>
 public class LevelTransitionManager : MonoBehaviour
 {
@@ -33,6 +34,8 @@ public class LevelTransitionManager : MonoBehaviour
     [SerializeField] GameObject crtEffect;
     [SerializeField] TextMeshProUGUI levelTitle;
     [SerializeField] TextMeshProUGUI levelDescription;
+    [Tooltip("Texte d'invite affiché en bas (ex: 'Appuyez sur Entrée pour continuer'). Optionnel.")]
+    [SerializeField] TextMeshProUGUI continuePrompt;
     [SerializeField] GameObject gameUICanvas;
 
     [Header("Références joueur & caméra")]
@@ -45,27 +48,35 @@ public class LevelTransitionManager : MonoBehaviour
     [Tooltip("Tolérance d'arrivée pour la course de sortie (distance X)")]
     [SerializeField] float arrivalTolerance = 0.3f;
 
-    [Header("Timings — Découpage de la séquence de 5s")]
+    [Header("Timings — Apparition du titre & description")]
     [Tooltip("Durée du flicker in (apparition clignotante) du titre")]
     [SerializeField] float titleFlickerInDuration = 0.5f;
     [Tooltip("Délai entre la stabilisation du titre et le début du flicker in de la description")]
     [SerializeField] float delayBeforeDescription = 0.5f;
     [Tooltip("Durée du flicker in (apparition clignotante) de la description")]
     [SerializeField] float descriptionFlickerInDuration = 0.5f;
-    [Tooltip("Temps de lecture du titre + description affichés stables")]
-    [SerializeField] float readingDuration = 2f;
-    [Tooltip("Durée du flicker out de la description")]
+    [Tooltip("Délai entre l'affichage stable de la description et l'apparition du prompt 'continuer'")]
+    [SerializeField] float delayBeforeContinuePrompt = 0.8f;
+
+    [Header("Touche pour continuer")]
+    [Tooltip("Touche que le joueur doit presser pour terminer l'écran de titre")]
+    [SerializeField] KeyCode continueKey = KeyCode.Return;
+    [Tooltip("Sécurité : si le joueur n'appuie pas, on continue automatiquement après X secondes")]
+    [SerializeField] float continueTimeout = 30f;
+
+    [Header("Timings — Disparition")]
     [SerializeField] float descriptionFlickerOutDuration = 0.5f;
-    [Tooltip("Durée du flicker out du titre")]
     [SerializeField] float titleFlickerOutDuration = 0.5f;
     [Tooltip("Pause finale (écran noir) avant fin de la séquence")]
     [SerializeField] float endBlackHold = 0.5f;
 
     [Header("Flicker (apparition / disparition clignotante)")]
-    [Tooltip("Intervalle MIN entre chaque clignotement")]
     [SerializeField] float flickerMinInterval = 0.04f;
-    [Tooltip("Intervalle MAX entre chaque clignotement")]
     [SerializeField] float flickerMaxInterval = 0.12f;
+
+    
+    [Tooltip("Intervalle (en secondes) du clignotement du texte 'Appuyez sur Entrée'")]
+    [SerializeField] float continuePromptBlinkInterval = 0.5f;
 
     [Header("Audio (optionnel)")]
     [SerializeField] AudioSource audioSource;
@@ -97,16 +108,13 @@ public class LevelTransitionManager : MonoBehaviour
         if (crtEffect != null) crtEffect.SetActive(false);
         if (levelTitle != null) { levelTitle.text = ""; levelTitle.gameObject.SetActive(false); }
         if (levelDescription != null) { levelDescription.text = ""; levelDescription.gameObject.SetActive(false); }
+        if (continuePrompt != null) { continuePrompt.gameObject.SetActive(false); }
     }
 
     // ════════════════════════════════════════════════════════════
     //  API publique
     // ════════════════════════════════════════════════════════════
 
-    /// <summary>
-    /// Transition complète entre deux niveaux :
-    /// course auto → écran de titre → téléport → course auto → reprise du contrôle.
-    /// </summary>
     public void StartTransition(LevelData target, float autoRunDir, float runDistance)
     {
         if (isTransitioning)
@@ -128,11 +136,6 @@ public class LevelTransitionManager : MonoBehaviour
         StartCoroutine(FullTransitionSequence(target, autoRunDir, runDistance));
     }
 
-    /// <summary>
-    /// Intro de démarrage du jeu : affiche juste l'écran de titre du niveau,
-    /// puis rend le contrôle au joueur sans course automatique.
-    /// À appeler au lancement de la scène (depuis un GameStarter par exemple).
-    /// </summary>
     public void StartIntro(LevelData target)
     {
         if (isTransitioning)
@@ -175,7 +178,7 @@ public class LevelTransitionManager : MonoBehaviour
             yield return null;
         }
 
-        // ── Phase 3 : Activation de l'écran noir + CRT ──────────
+        // ── Phase 3 : Activation écran noir + CRT ──────────────
         if (audioSource != null && transitionSound != null)
             audioSource.PlayOneShot(transitionSound, 0.6f);
 
@@ -183,7 +186,7 @@ public class LevelTransitionManager : MonoBehaviour
         if (crtEffect != null) crtEffect.SetActive(true);
         if (gameUICanvas != null) gameUICanvas.SetActive(false);
 
-        // ── Phase 4 : Séquence titre + description (5s) ─────────
+        // ── Phase 4 : Séquence titre + description + attente touche
         yield return StartCoroutine(TitleSequence(target));
 
         // ── Phase 5 : Téléportation pendant le noir ─────────────
@@ -213,8 +216,8 @@ public class LevelTransitionManager : MonoBehaviour
         if (gameUICanvas != null) gameUICanvas.SetActive(true);
 
         // ── Phase 7 : Course automatique de sortie ──────────────
-        float exitDir = Mathf.Sign(target.autoRunEndPosition.x - target.spawnPosition.x);
-        if (Mathf.Abs(exitDir) < 0.01f) exitDir = 1f;
+        float exitDir = Mathf.Sign(target.exitRunDirection);
+        if (Mathf.Abs(exitDir) < 0.01f) exitDir = 1f; // sécurité si valeur 0
 
         player.SetAutoRun(true, exitDir);
 
@@ -224,6 +227,7 @@ public class LevelTransitionManager : MonoBehaviour
             float currentX = player.transform.position.x;
             float remainingX = target.autoRunEndPosition.x - currentX;
 
+            // Arrivé si la distance restante est < tolérance, ou si on a dépassé
             if (Mathf.Abs(remainingX) <= arrivalTolerance ||
                 Mathf.Sign(remainingX) != exitDir)
                 break;
@@ -240,22 +244,19 @@ public class LevelTransitionManager : MonoBehaviour
     }
 
     // ════════════════════════════════════════════════════════════
-    //  Séquence d'intro (démarrage du jeu sur l'Usine)
+    //  Séquence d'intro (démarrage du jeu)
     // ════════════════════════════════════════════════════════════
 
     IEnumerator IntroSequence(LevelData target)
     {
         isTransitioning = true;
 
-        // Le joueur est verrouillé sans course (juste figé) pendant l'intro
         if (player != null)
         {
             player.SetInvincible(true);
             player.SetAutoRun(false, 0f);
+            player.TeleportTo(target.spawnPosition);
         }
-
-        // Téléport au spawn dès le départ (au cas où le joueur n'est pas déjà au bon endroit)
-        if (player != null) player.TeleportTo(target.spawnPosition);
         if (mainCamera != null)
         {
             Vector3 camPos = mainCamera.transform.position;
@@ -266,7 +267,6 @@ public class LevelTransitionManager : MonoBehaviour
             );
         }
 
-        // Activation de l'écran noir + CRT
         if (audioSource != null && transitionSound != null)
             audioSource.PlayOneShot(transitionSound, 0.6f);
 
@@ -274,7 +274,6 @@ public class LevelTransitionManager : MonoBehaviour
         if (crtEffect != null) crtEffect.SetActive(true);
         if (gameUICanvas != null) gameUICanvas.SetActive(false);
 
-        // Musique du niveau (si configurée)
         if (target.ambientMusic != null && audioSource != null)
         {
             audioSource.clip = target.ambientMusic;
@@ -282,32 +281,19 @@ public class LevelTransitionManager : MonoBehaviour
             audioSource.Play();
         }
 
-        // Séquence titre + description (5s)
         yield return StartCoroutine(TitleSequence(target));
 
-        // Désactivation écran noir + CRT
         if (crtEffect != null) crtEffect.SetActive(false);
         if (blackBackground != null) blackBackground.SetActive(false);
         if (gameUICanvas != null) gameUICanvas.SetActive(true);
 
-        // Rendu du contrôle au joueur (sans course auto)
         if (player != null) player.SetInvincible(false);
 
         isTransitioning = false;
     }
 
     // ════════════════════════════════════════════════════════════
-    //  Séquence titre + description (5s)
-    //  Découpage exact :
-    //    0.0s ─ flicker in titre
-    //    0.5s ─ titre stable
-    //    1.0s ─ flicker in description
-    //    1.5s ─ description stable
-    //    1.5s → 3.5s ─ tout stable (lecture)
-    //    3.5s ─ flicker out description
-    //    4.0s ─ flicker out titre
-    //    4.5s ─ écran noir
-    //    5.0s ─ fin
+    //  Séquence titre + description + attente touche
     // ════════════════════════════════════════════════════════════
 
     IEnumerator TitleSequence(LevelData target)
@@ -321,15 +307,27 @@ public class LevelTransitionManager : MonoBehaviour
         // ── Flicker IN titre ────────────────────────────────────
         yield return StartCoroutine(FlickerObjectIn(levelTitle.gameObject, titleFlickerInDuration));
 
-        // Délai avant la description
         yield return new WaitForSeconds(delayBeforeDescription);
 
         // ── Flicker IN description ──────────────────────────────
         if (levelDescription != null)
             yield return StartCoroutine(FlickerObjectIn(levelDescription.gameObject, descriptionFlickerInDuration));
 
-        // ── Lecture (tout stable) ───────────────────────────────
-        yield return new WaitForSeconds(readingDuration);
+        // ── Délai avant prompt "continuer" ──────────────────────
+        yield return new WaitForSeconds(delayBeforeContinuePrompt);
+
+        // ── Affichage du prompt clignotant + attente touche ─────
+        Coroutine blinkRoutine = null;
+        if (continuePrompt != null)
+        {
+            continuePrompt.gameObject.SetActive(true);
+            blinkRoutine = StartCoroutine(BlinkContinuePromptRoutine());
+        }
+
+        yield return StartCoroutine(WaitForContinueKey());
+
+        if (blinkRoutine != null) StopCoroutine(blinkRoutine);
+        if (continuePrompt != null) continuePrompt.gameObject.SetActive(false);
 
         // ── Flicker OUT description ─────────────────────────────
         if (levelDescription != null)
@@ -342,14 +340,70 @@ public class LevelTransitionManager : MonoBehaviour
         yield return new WaitForSeconds(endBlackHold);
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  Flicker IN / OUT — clignotement à l'apparition/disparition
-    // ════════════════════════════════════════════════════════════
+    /// <summary>
+    /// Attend que le joueur appuie sur la touche "continuer".
+    /// Met à jour le texte du prompt chaque seconde avec le temps restant.
+    /// Termine automatiquement après continueTimeout secondes par sécurité.
+    /// </summary>
+    IEnumerator WaitForContinueKey()
+    {
+        float elapsed = 0f;
+        float lastDisplayedSecond = -1f;
+
+        while (elapsed < continueTimeout)
+        {
+            if (Input.GetKeyDown(continueKey))
+                yield break;
+
+            // Mise à jour du texte chaque seconde (économie de perf : on ne reformate
+            // que quand la valeur entière change réellement)
+            if (continuePrompt != null)
+            {
+                float remaining = Mathf.Ceil(continueTimeout - elapsed);
+                if (!Mathf.Approximately(remaining, lastDisplayedSecond))
+                {
+                    continuePrompt.text = FormatContinuePrompt(remaining);
+                    lastDisplayedSecond = remaining;
+                }
+            }
+
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        Debug.Log("[LevelTransitionManager] Timeout 'continuer' atteint, poursuite automatique.");
+    }
 
     /// <summary>
-    /// Fait apparaître un GameObject avec un effet de flicker (clignotements rapides),
-    /// puis le laisse stable visible à la fin.
+    /// Formate le texte du prompt en intégrant le temps restant.
     /// </summary>
+    string FormatContinuePrompt(float secondsRemaining)
+    {
+        int s = Mathf.RoundToInt(secondsRemaining);
+        return $"Appuyez sur votre touche \"ENTRER\" pour continuer !\nSinon attendez simplement ({s} seconde{(s > 1 ? "s" : "")}) !";
+    }
+
+    /// <summary>
+    /// Fait clignoter le prompt pendant l'attente de la touche.
+    /// L'effet est un simple on/off du GameObject à intervalle fixe.
+    /// </summary>
+    IEnumerator BlinkContinuePromptRoutine()
+    {
+        if (continuePrompt == null) yield break;
+
+        bool visible = true;
+        while (true)
+        {
+            visible = !visible;
+            continuePrompt.gameObject.SetActive(visible);
+            yield return new WaitForSeconds(continuePromptBlinkInterval);
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  Flicker IN / OUT
+    // ════════════════════════════════════════════════════════════
+
     IEnumerator FlickerObjectIn(GameObject go, float duration)
     {
         if (go == null) yield break;
@@ -370,14 +424,9 @@ public class LevelTransitionManager : MonoBehaviour
             elapsed += interval;
         }
 
-        // État final : visible et stable
         go.SetActive(true);
     }
 
-    /// <summary>
-    /// Fait disparaître un GameObject avec un effet de flicker (clignotements rapides),
-    /// puis le laisse caché à la fin.
-    /// </summary>
     IEnumerator FlickerObjectOut(GameObject go, float duration)
     {
         if (go == null) yield break;
@@ -398,7 +447,6 @@ public class LevelTransitionManager : MonoBehaviour
             elapsed += interval;
         }
 
-        // État final : caché et stable
         go.SetActive(false);
     }
 }

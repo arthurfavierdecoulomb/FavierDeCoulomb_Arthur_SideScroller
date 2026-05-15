@@ -24,6 +24,11 @@ public class LevelData : ScriptableObject
     [Tooltip("Point où la course automatique d'arrivée se termine (le joueur reprend le contrôle ici)")]
     public Vector2 autoRunEndPosition;
 
+    [Header("Direction de la course de sortie")]
+    [Tooltip("Direction de la course automatique APRÈS le téléport (+1 = droite, -1 = gauche)")]
+    [Range(-1f, 1f)]
+    public float exitRunDirection = 1f;
+
     [Header("Audio (optionnel)")]
     public AudioClip ambientMusic;
 }
