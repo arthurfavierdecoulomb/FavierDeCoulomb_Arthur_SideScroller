@@ -12,8 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a84765160a1d26a4682aa5d6eec72b63, type: 3}
   m_Name: "LD_M\xE9tro"
   m_EditorClassIdentifier: Assembly-CSharp::LevelData
-  levelName: NIVEAU
-  levelDescription: Description du niveau
-  spawnPosition: {x: 99.91, y: -15.67001}
+  levelName: Le metro
+  levelDescription: 'Traversez le niveau avec des wagon encore fonctionnel et tentez
+    de survivre, comme toujours...
+
+'
+  spawnPosition: {x: 153.9, y: -270.04}
   autoRunEndPosition: {x: 0, y: 0}
   ambientMusic: {fileID: 0}
