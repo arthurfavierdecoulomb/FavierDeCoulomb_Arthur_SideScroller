@@ -17,6 +17,7 @@ MonoBehaviour:
     de survivre, comme toujours...
 
 '
-  spawnPosition: {x: 153.9, y: -270.04}
-  autoRunEndPosition: {x: 0, y: 0}
+  spawnPosition: {x: 153.75, y: -269.95}
+  autoRunEndPosition: {x: 165.43, y: -269.95}
+  exitRunDirection: 1
   ambientMusic: {fileID: 0}
