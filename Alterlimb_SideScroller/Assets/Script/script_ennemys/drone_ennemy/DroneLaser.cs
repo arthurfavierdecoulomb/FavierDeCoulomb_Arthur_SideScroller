@@ -5,7 +5,9 @@
 /// 
 /// Comportement :
 ///   - Quand SetFiring(true) → le LineRenderer s'active
-///   - Le laser part de LaserOrigin et vise directement le joueur
+///   - Le laser part de l'origine ACTIVE et vise directement le joueur
+///   - Deux origines (gauche / droite) : le DroneEnemy indique laquelle
+///     utiliser via SetActiveOrigin() à chaque flip → pas de "laser au cul"
 ///   - Si un mur bloque la vue, le laser s'arrête au mur (pas de dégâts)
 ///   - Si le joueur est touché, il prend des dégâts par seconde
 /// </summary>
@@ -16,9 +18,11 @@ public class DroneLaser : MonoBehaviour
     //  Configuration
     // ════════════════════════════════════════════════════════════
 
-    [Header("Référence")]
-    [Tooltip("Point d'origine du laser (Transform vide enfant du drone)")]
-    [SerializeField] Transform laserOrigin;
+    [Header("Références — Deux sorties de laser")]
+    [Tooltip("Point d'origine du laser quand le drone regarde à DROITE")]
+    [SerializeField] Transform laserOriginRight;
+    [Tooltip("Point d'origine du laser quand le drone regarde à GAUCHE")]
+    [SerializeField] Transform laserOriginLeft;
 
     [Header("Cible")]
     [SerializeField] string playerTag = "Player";
@@ -52,6 +56,9 @@ public class DroneLaser : MonoBehaviour
     bool isFiring;
     float damageTimer;
 
+    // Origine actuellement active (mise à jour par le DroneEnemy via SetActiveOrigin)
+    Transform activeOrigin;
+
     // ════════════════════════════════════════════════════════════
     //  Initialisation
     // ════════════════════════════════════════════════════════════
@@ -80,6 +87,9 @@ public class DroneLaser : MonoBehaviour
         {
             Debug.LogError($"[DroneLaser] Aucun GameObject avec le tag '{playerTag}' trouvé !");
         }
+
+        // Origine par défaut (sera mise à jour par le DroneEnemy dès le premier flip)
+        activeOrigin = laserOriginRight != null ? laserOriginRight : laserOriginLeft;
     }
 
     // ════════════════════════════════════════════════════════════
@@ -93,15 +103,26 @@ public class DroneLaser : MonoBehaviour
         if (!firing) damageTimer = 0f;
     }
 
+    /// <summary>
+    /// Définit quelle sortie de laser utiliser selon le sens où le drone regarde.
+    /// Appelé par DroneEnemy à chaque changement de direction (flip).
+    /// </summary>
+    /// <param name="facingRight">true = le drone regarde à droite</param>
+    public void SetActiveOrigin(bool facingRight)
+    {
+        Transform desired = facingRight ? laserOriginRight : laserOriginLeft;
+        if (desired != null) activeOrigin = desired;
+    }
+
     // ════════════════════════════════════════════════════════════
     //  Update
     // ════════════════════════════════════════════════════════════
 
     void Update()
     {
-        if (!isFiring || laserOrigin == null || player == null) return;
+        if (!isFiring || activeOrigin == null || player == null) return;
 
-        Vector2 origin = laserOrigin.position;
+        Vector2 origin = activeOrigin.position;
         Vector2 toPlayer = (Vector2)player.position - origin;
         float distance = Mathf.Min(toPlayer.magnitude, maxRange);
         Vector2 direction = toPlayer.normalized;
@@ -114,7 +135,6 @@ public class DroneLaser : MonoBehaviour
 
         if (obstacleHit.collider != null)
         {
-            // Mur bloque → laser s'arrête au mur
             endPoint = obstacleHit.point;
             playerHit = false;
 
@@ -123,7 +143,6 @@ public class DroneLaser : MonoBehaviour
         }
         else
         {
-            // Pas d'obstacle → laser atteint le joueur
             endPoint = origin + direction * distance;
             playerHit = true;
         }

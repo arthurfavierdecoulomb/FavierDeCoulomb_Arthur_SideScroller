@@ -16,7 +16,7 @@ using System.Collections.Generic;
 /// </summary>
 public class Door : MonoBehaviour
 {
-    public enum OpeningMode { Proximity, Levers, OnDroneKilled }
+    public enum OpeningMode { Proximity, Levers, OnDroneKilled, Fuses }
 
     // ════════════════════════════════════════════════════════════
     //  Configuration
@@ -47,6 +47,10 @@ public class Door : MonoBehaviour
     [Header("Références")]
     [SerializeField] Animator animator;
     [SerializeField] Transform playerTransform; // optionnel, sinon trouvé via tag
+
+    [Header("Mode Fusibles")]
+    [Tooltip("La porte s'ouvre quand tous les fusibles sont installés dans le FuseManager")]
+    [SerializeField] bool useFuseManager = true;
 
     [Header("Collisions physiques")]
     [Tooltip("Collider2D solide qui bloque le joueur. Désactivé quand la porte est ouverte.")]
@@ -106,7 +110,13 @@ public class Door : MonoBehaviour
                     Debug.LogWarning($"[Door] '{name}' est en mode OnDroneKilled mais aucun targetDrone n'est assigné.", this);
                 DroneEnemy.OnDroneDied += OnDroneDiedHandler;
                 break;
+
+            case OpeningMode.Fuses:
+                FuseManager.OnAllFusesInstalledStatic += OnAllFusesHandler;
+                break;
         }
+
+
     }
 
     void OnDestroy()
@@ -120,6 +130,7 @@ public class Door : MonoBehaviour
         }
 
         DroneEnemy.OnDroneDied -= OnDroneDiedHandler;
+        FuseManager.OnAllFusesInstalledStatic -= OnAllFusesHandler;
     }
 
     // ════════════════════════════════════════════════════════════
@@ -214,6 +225,15 @@ public class Door : MonoBehaviour
     {
         if (mode != OpeningMode.OnDroneKilled) return;
         if (deadDrone != targetDrone) return;  // ce n'est pas notre drone, on ignore
+        if (isOpen) return;
+
+        OpenDoor();
+    }
+
+    /// <summary>Appelé quand tous les fusibles sont installés dans le panneau.</summary>
+    void OnAllFusesHandler()
+    {
+        if (mode != OpeningMode.Fuses) return;
         if (isOpen) return;
 
         OpenDoor();

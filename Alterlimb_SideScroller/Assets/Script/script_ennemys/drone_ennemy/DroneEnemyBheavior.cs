@@ -4,29 +4,23 @@ using System;
 /// <summary>
 /// Drone ennemi volant — version "Animator" (utilise un spritesheet animé).
 /// 
+/// Détection : mode GARDIEN. Le drone ne réagit au joueur que si celui-ci est
+/// dans une zone de détection rectangulaire FIXE posée dans le niveau.
+/// Si le joueur sort de la zone, le drone le perd et retourne en patrouille.
+/// 
 /// État interne (state machine logique) :
 ///   - Patrol : patrouille A↔B
 ///   - Chase : poursuit le joueur sans tirer
-///   - Attack : tire le laser (le drone reste relativement immobile)
+///   - Attack : tire le laser
 ///   - Recharge : s'éloigne pour "recharger" puis revient
 /// 
-/// État envoyé à l'Animator (via paramètre Int "State") :
-///   - 0 = Idle  → quand Patrol ou stationnaire
-///   - 1 = Chase → quand Chase, Attack ou Recharge (hélice rapide)
-///   - 2 = Death → à la mort
+/// État envoyé à l'Animator (paramètre Int "State") :
+///   - 0 = Idle, 1 = Chase, 2 = Death
 /// 
-/// Système Grappin :
-///   - Le joueur peut accrocher le drone → IA désactivée, drone immobilisé
-///   - La scie inflige des dégâts (configurable : avec ou sans grappin requis)
+/// Laser : deux sorties (gauche/droite). Le DroneEnemy informe le DroneLaser
+/// de quel côté tirer à chaque flip, pour éviter le "laser au cul".
 /// 
-/// Explosion à la mort :
-///   - Déclenchée via Animation Event sur une frame précise de l'animation de mort
-///   - L'event appelle la méthode publique TriggerDeathExplosion()
-/// 
-/// Notification de mort (pour ouverture de porte, etc.) :
-///   - Event statique OnDroneDied déclenché à la fin de l'animation de mort
-///   - Appelé via Animation Event NotifyDeathComplete() sur la dernière frame
-///   - Les Door en mode OnDroneKilled s'y abonnent
+/// Notification de mort : event statique OnDroneDied (pour les Door).
 /// </summary>
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(SpriteRenderer))]
@@ -35,8 +29,7 @@ public class DroneEnemy : MonoBehaviour
     public enum DroneState { Patrol, Chase, Attack, Recharge }
 
     // ════════════════════════════════════════════════════════════
-    //  Event statique : notifie tous les écouteurs qu'un drone est mort
-    //  (utilisé par Door en mode OnDroneKilled)
+    //  Event statique : notifie qu'un drone est mort (Door OnDroneKilled)
     // ════════════════════════════════════════════════════════════
     public static event Action<DroneEnemy> OnDroneDied;
 
@@ -55,8 +48,11 @@ public class DroneEnemy : MonoBehaviour
     [SerializeField] float patrolSpeed = 2.5f;
     [SerializeField] float pointReachedDistance = 0.3f;
 
-    [Header("Détection joueur")]
-    [SerializeField] float detectionRadius = 8f;
+    [Header("Détection joueur — Zone gardien")]
+    [Tooltip("Centre de la zone de détection rectangulaire FIXE (un Transform vide posé dans le niveau)")]
+    [SerializeField] Transform detectionZoneCenter;
+    [Tooltip("Taille de la zone de détection rectangulaire (largeur × hauteur)")]
+    [SerializeField] Vector2 detectionZoneSize = new Vector2(10f, 6f);
     [SerializeField] string playerTag = "Player";
     [Tooltip("Layers qui bloquent la ligne de vue (murs, sol). NE PAS inclure le layer du joueur.")]
     [SerializeField] LayerMask lineOfSightObstacles;
@@ -113,7 +109,7 @@ public class DroneEnemy : MonoBehaviour
     float stateTimer;
     float currentHealth;
     bool isDying;
-    bool deathNotified;  // évite de notifier deux fois si l'Animation Event est mal placé
+    bool deathNotified;
 
     // ── Système Grappin ─────────────────────────────────────────
     public bool isHooked { get; private set; }
@@ -123,7 +119,6 @@ public class DroneEnemy : MonoBehaviour
     public Vector2 CurrentVelocity => rb != null ? rb.linearVelocity : Vector2.zero;
     public bool IsAlive => currentHealth > 0f && !isDying;
 
-    // ── Hash du paramètre Animator (perf : évite de chercher par nom à chaque frame) ──
     static readonly int AnimStateHash = Animator.StringToHash("State");
 
     // ════════════════════════════════════════════════════════════
@@ -157,10 +152,8 @@ public class DroneEnemy : MonoBehaviour
 
     void Update()
     {
-        // En cours de mort : on attend juste la fin de l'animation
         if (isDying) return;
 
-        // Si accroché : IA désactivée
         if (isHooked)
         {
             if (laser != null) laser.SetFiring(false);
@@ -196,14 +189,14 @@ public class DroneEnemy : MonoBehaviour
     }
 
     // ════════════════════════════════════════════════════════════
-    //  Transitions d'état
+    //  Transitions d'état (mode gardien)
     // ════════════════════════════════════════════════════════════
 
     void EvaluateStateTransitions()
     {
-        float distToPlayer = Vector2.Distance(transform.position, player.position);
-        bool playerDetected = distToPlayer <= detectionRadius;
+        bool playerDetected = IsPlayerInDetectionZone();
         bool hasLineOfSight = HasLineOfSightTo(player.position);
+        float distToPlayer = Vector2.Distance(transform.position, player.position);
 
         switch (currentState)
         {
@@ -212,7 +205,8 @@ public class DroneEnemy : MonoBehaviour
                 break;
 
             case DroneState.Chase:
-                if (distToPlayer > detectionRadius * 1.3f)
+                // Mode gardien : si le joueur sort de la zone, on le perd
+                if (!playerDetected)
                 {
                     ChangeState(DroneState.Patrol);
                     break;
@@ -222,6 +216,11 @@ public class DroneEnemy : MonoBehaviour
                 break;
 
             case DroneState.Attack:
+                if (!playerDetected)
+                {
+                    ChangeState(DroneState.Patrol);
+                    break;
+                }
                 if (!hasLineOfSight || distToPlayer > attackDistance + 2f)
                 {
                     ChangeState(DroneState.Chase);
@@ -232,10 +231,35 @@ public class DroneEnemy : MonoBehaviour
                 break;
 
             case DroneState.Recharge:
+                if (!playerDetected)
+                {
+                    ChangeState(DroneState.Patrol);
+                    break;
+                }
                 if (stateTimer >= rechargeDuration)
                     ChangeState(DroneState.Chase);
                 break;
         }
+    }
+
+    /// <summary>
+    /// Teste si le joueur est à l'intérieur de la zone de détection rectangulaire fixe.
+    /// Le drone est un "gardien" : il ne réagit que dans ce secteur.
+    /// </summary>
+    bool IsPlayerInDetectionZone()
+    {
+        if (detectionZoneCenter == null || player == null) return false;
+
+        Vector2 zoneCenter = detectionZoneCenter.position;
+        Vector2 halfSize = detectionZoneSize * 0.5f;
+        Vector2 playerPos = player.position;
+
+        bool insideX = playerPos.x >= zoneCenter.x - halfSize.x
+                    && playerPos.x <= zoneCenter.x + halfSize.x;
+        bool insideY = playerPos.y >= zoneCenter.y - halfSize.y
+                    && playerPos.y <= zoneCenter.y + halfSize.y;
+
+        return insideX && insideY;
     }
 
     void ChangeState(DroneState newState)
@@ -243,11 +267,9 @@ public class DroneEnemy : MonoBehaviour
         currentState = newState;
         stateTimer = 0f;
 
-        // Active le laser uniquement en mode Attack
         if (laser != null)
             laser.SetFiring(newState == DroneState.Attack);
 
-        // Met à jour l'animation : Patrol = Idle, tout le reste = Chase
         if (newState == DroneState.Patrol)
             SetAnimatorState(ANIM_IDLE);
         else
@@ -318,7 +340,7 @@ public class DroneEnemy : MonoBehaviour
     }
 
     // ════════════════════════════════════════════════════════════
-    //  Flip horizontal (suit la direction de mouvement OU vise le joueur)
+    //  Flip horizontal + synchro du laser
     // ════════════════════════════════════════════════════════════
 
     void UpdateFlip()
@@ -339,6 +361,10 @@ public class DroneEnemy : MonoBehaviour
         }
 
         spriteRenderer.flipX = spriteDefaultFacesLeft ? shouldFaceRight : !shouldFaceRight;
+
+        // Informe le laser de quel côté tirer (évite le "laser au cul" après un flip)
+        if (laser != null)
+            laser.SetActiveOrigin(shouldFaceRight);
     }
 
     // ════════════════════════════════════════════════════════════
@@ -375,8 +401,9 @@ public class DroneEnemy : MonoBehaviour
         isHooked = false;
         if (player != null)
         {
-            float dist = Vector2.Distance(transform.position, player.position);
-            ChangeState(dist <= detectionRadius ? DroneState.Chase : DroneState.Patrol);
+            // En mode gardien : on reprend la chasse seulement si le joueur
+            // est dans la zone, sinon retour patrouille.
+            ChangeState(IsPlayerInDetectionZone() ? DroneState.Chase : DroneState.Patrol);
         }
     }
 
@@ -398,21 +425,12 @@ public class DroneEnemy : MonoBehaviour
         if (isDying) return;
         isDying = true;
 
-        // Stoppe le laser
         if (laser != null) laser.SetFiring(false);
-
-        // Stoppe le mouvement
         rb.linearVelocity = Vector2.zero;
 
-        // Lance l'animation de mort
         SetAnimatorState(ANIM_DEATH);
 
-        // Filet de sécurité : si l'Animation Event NotifyDeathComplete()
-        // n'est pas placé (oubli sur la dernière frame), on notifie quand même
-        // juste avant que le GameObject soit détruit.
         Invoke(nameof(EnsureDeathNotified), deathAnimationDuration - 0.05f);
-
-        // Détruit après la fin de l'animation
         Destroy(gameObject, deathAnimationDuration);
     }
 
@@ -427,11 +445,8 @@ public class DroneEnemy : MonoBehaviour
 
     /// <summary>
     /// Méthode publique appelée par un Animation Event placé sur une frame
-    /// précise de l'animation de mort. Instancie le Particle System d'explosion
-    /// à la position du drone et le détruit après explosionLifetime secondes.
-    /// 
-    /// IMPORTANT : la signature doit être sans paramètre (ou avec un seul
-    /// paramètre simple) pour être appelable depuis un Animation Event.
+    /// précise de l'animation de mort. Instancie le Particle System d'explosion.
+    /// La signature doit être sans paramètre pour être appelable depuis un Animation Event.
     /// </summary>
     public void TriggerDeathExplosion()
     {
@@ -443,8 +458,6 @@ public class DroneEnemy : MonoBehaviour
 
         Vector3 spawnPos = transform.position + (Vector3)explosionOffset;
         GameObject explosion = Instantiate(explosionPrefab, spawnPos, Quaternion.identity);
-
-        // Détruit l'explosion après son cycle de vie pour ne pas polluer la scène
         Destroy(explosion, explosionLifetime);
     }
 
@@ -453,12 +466,9 @@ public class DroneEnemy : MonoBehaviour
     // ════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Méthode publique appelée par un Animation Event placé sur la DERNIÈRE
-    /// frame de l'animation de mort. Notifie tous les écouteurs (notamment
-    /// les Door en mode OnDroneKilled) que ce drone a fini de mourir.
-    /// 
-    /// IMPORTANT : la signature doit être sans paramètre pour être
-    /// appelable depuis un Animation Event.
+    /// Méthode publique appelée par un Animation Event sur la DERNIÈRE frame
+    /// de l'animation de mort. Notifie les écouteurs (Door en mode OnDroneKilled).
+    /// La signature doit être sans paramètre pour un Animation Event.
     /// </summary>
     public void NotifyDeathComplete()
     {
@@ -474,8 +484,14 @@ public class DroneEnemy : MonoBehaviour
 
     void OnDrawGizmosSelected()
     {
-        Gizmos.color = new Color(1f, 0.6f, 0f, 0.3f);
-        Gizmos.DrawWireSphere(transform.position, detectionRadius);
+        // Zone de détection rectangulaire fixe (gardien)
+        if (detectionZoneCenter != null)
+        {
+            Gizmos.color = new Color(1f, 0.6f, 0f, 0.25f);
+            Gizmos.DrawCube(detectionZoneCenter.position, detectionZoneSize);
+            Gizmos.color = new Color(1f, 0.6f, 0f, 1f);
+            Gizmos.DrawWireCube(detectionZoneCenter.position, detectionZoneSize);
+        }
 
         Gizmos.color = new Color(1f, 0f, 0f, 0.5f);
         Gizmos.DrawWireSphere(transform.position, attackDistance);
