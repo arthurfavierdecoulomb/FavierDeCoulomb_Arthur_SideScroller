@@ -162,23 +162,60 @@ public class ElevatorPlatform : MonoBehaviour
 
     void ResetToStartPosition()
     {
+        // L'ascenseur NE revient PAS à sa position de départ : il reste là où
+        // il est au moment de la mort (comportement naturel d'un ascenseur).
+        // On se contente d'arrêter proprement tout mouvement / bounce en cours
+        // et de remettre l'ascenseur dans un état stable "à l'arrêt".
+
         if (bounceCoroutine != null)
         {
             StopCoroutine(bounceCoroutine);
             bounceCoroutine = null;
         }
 
-        rb.position = startPosition;
         rb.linearVelocity = Vector2.zero;
         platformVelocity = Vector2.zero;
 
-        currentFloorIndex = startFloorIndex;
-        targetFloorIndex = startFloorIndex;
-        targetY = startPosition.y;
+        // Si le joueur est mort pendant un trajet, on "termine" le mouvement :
+        // l'ascenseur se cale sur l'étage le plus proche de sa position actuelle,
+        // pour ne pas rester bloqué entre deux étages.
+        SnapToNearestFloor();
+
         state = ElevatorState.Idle;
 
         DetachPlayer();
         SetMoveDir(0);
+    }
+
+    /// <summary>
+    /// Cale l'ascenseur sur l'étage dont le Y est le plus proche de sa position
+    /// actuelle, et met à jour currentFloorIndex en conséquence.
+    /// Évite que l'ascenseur reste figé entre deux étages si le joueur meurt
+    /// en plein trajet.
+    /// </summary>
+    void SnapToNearestFloor()
+    {
+        if (sortedFloorYs == null || sortedFloorYs.Length == 0) return;
+
+        float currentY = rb.position.y;
+        int nearestIndex = 0;
+        float nearestDistance = Mathf.Abs(sortedFloorYs[0] - currentY);
+
+        for (int i = 1; i < sortedFloorYs.Length; i++)
+        {
+            float distance = Mathf.Abs(sortedFloorYs[i] - currentY);
+            if (distance < nearestDistance)
+            {
+                nearestDistance = distance;
+                nearestIndex = i;
+            }
+        }
+
+        currentFloorIndex = nearestIndex;
+        targetFloorIndex = nearestIndex;
+        targetY = sortedFloorYs[nearestIndex];
+
+        rb.position = new Vector2(rb.position.x, targetY);
     }
 
     // ════════════════════════════════════════════════════════════
