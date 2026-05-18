@@ -2,58 +2,50 @@
 using System.Collections;
 
 /// <summary>
-/// Ascenseur à N étages contrôlable par le joueur.
+/// Ascenseur à N étages.
 /// 
-/// Fonctionnement :
-///   - Le joueur monte sur l'ascenseur (détecté via collision sur le dessus)
-///   - Tant qu'il est dessus et que l'ascenseur est À L'ARRÊT :
-///     * Z (upKey) → monte d'UN étage dans la liste
-///     * S (downKey) → descend d'UN étage dans la liste
-///   - Une fois lancé, le mouvement va FORCÉMENT jusqu'à l'étage suivant
-///     (pas d'interruption ni de changement de direction en plein vol)
-///   - À l'arrivée, un BOUNCE d'overshoot se joue (sinus amorti).
+/// Deux façons de le commander :
+///   - PILOTAGE : le joueur monte dessus, et tant qu'il est dessus et que
+///     l'ascenseur est à l'arrêt, W/S le déplacent d'UN étage.
+///   - APPEL : des boutons d'appel (ElevatorCallButton), un par étage,
+///     peuvent appeler l'ascenseur à leur étage via CallToFloor(). L'ascenseur
+///     traverse alors autant d'étages que nécessaire d'un seul trajet.
+/// 
+/// À l'arrivée, un BOUNCE d'overshoot se joue (sinus amorti).
+/// 
+/// Pas de logique de respawn : le système de boutons d'appel garantit que
+/// le joueur peut toujours faire venir l'ascenseur, où qu'il respawn.
 /// 
 /// Setup :
-///   - Crée des GameObjects vides nommés "Etage_0", "Etage_1", etc.
-///     et place-les visuellement aux bonnes positions dans la scène.
-///   - Drag-and-drop ces Transforms dans la liste "floors" de l'Inspector,
-///     dans l'ordre que tu veux (ils seront triés automatiquement par Y).
-///   - Configure "startFloorIndex" : l'étage initial (0 = le plus bas après tri).
-/// 
-/// Reset au respawn :
-///   - L'ascenseur revient à son étage de départ quand le joueur meurt.
+///   - GameObjects vides "Etage_0", "Etage_1"... placés dans la scène,
+///     drag-and-droppés dans "floors" (triés automatiquement par Y).
 /// 
 /// Animator :
-///   - Paramètre Int "moveDir" :  1 = monte,  -1 = descend,  0 = arrêt
+///   - Paramètre Int "moveDir" : 1 = monte, -1 = descend, 0 = arrêt
 /// </summary>
 [RequireComponent(typeof(Rigidbody2D))]
 public class ElevatorPlatform : MonoBehaviour
 {
     enum ElevatorState { Idle, Moving, Bouncing }
 
-    [Header("Contrôles")]
+    [Header("Contrôles de pilotage (joueur sur l'ascenseur)")]
     [SerializeField] KeyCode upKey = KeyCode.W;
     [SerializeField] KeyCode downKey = KeyCode.S;
 
     [Header("Étages")]
     [Tooltip("Liste des Transforms représentant chaque étage. Place-les visuellement dans la scène.")]
     [SerializeField] Transform[] floors;
-    [Tooltip("Index de l'étage de départ APRÈS tri par Y croissant (0 = étage le plus bas, etc.)")]
+    [Tooltip("Index de l'étage de départ APRÈS tri par Y croissant (0 = étage le plus bas)")]
     [SerializeField] int startFloorIndex = 0;
 
     [Header("Mouvement")]
-    [Tooltip("Vitesse de déplacement vertical (unités/seconde)")]
     [SerializeField] float moveSpeed = 4f;
 
     [Header("Bounce d'arrivée")]
-    [Tooltip("Amplitude du premier overshoot (en unités Unity). 0.3 = 30cm.")]
     [SerializeField] float bounceAmplitude = 0.3f;
-    [Tooltip("Durée totale du bounce (en secondes)")]
     [SerializeField] float bounceDuration = 0.5f;
-    [Tooltip("Nombre de rebonds amortis")]
     [Range(1, 4)]
     [SerializeField] int bounceCount = 2;
-    [Tooltip("Facteur d'amortissement entre rebonds")]
     [Range(0.1f, 0.9f)]
     [SerializeField] float bounceDamping = 0.4f;
 
@@ -69,7 +61,6 @@ public class ElevatorPlatform : MonoBehaviour
 
     Rigidbody2D rb;
     Rigidbody2D playerRb;
-    Vector2 startPosition;
     Vector2 platformVelocity;
 
     bool playerOnPlatform;
@@ -85,6 +76,11 @@ public class ElevatorPlatform : MonoBehaviour
     ElevatorState state = ElevatorState.Idle;
     Coroutine bounceCoroutine;
 
+    // ── Accès public ──
+    public int FloorCount => sortedFloorYs != null ? sortedFloorYs.Length : 0;
+    public int CurrentFloor => currentFloorIndex;
+    public bool IsIdle => state == ElevatorState.Idle;
+
     // ════════════════════════════════════════════════════════════
     //  Initialisation
     // ════════════════════════════════════════════════════════════
@@ -99,10 +95,8 @@ public class ElevatorPlatform : MonoBehaviour
 
         if (animator == null) animator = GetComponent<Animator>();
 
-        // Trie les étages par Y croissant pour avoir une indexation cohérente
         BuildSortedFloorList();
 
-        // Vérifie la validité de la config
         if (sortedFloorYs == null || sortedFloorYs.Length < 2)
         {
             Debug.LogError($"[ElevatorPlatform] '{name}' : il faut au moins 2 étages dans 'floors' !");
@@ -110,23 +104,16 @@ public class ElevatorPlatform : MonoBehaviour
             return;
         }
 
-        // Clamp l'index de départ et place l'ascenseur sur cet étage
         startFloorIndex = Mathf.Clamp(startFloorIndex, 0, sortedFloorYs.Length - 1);
         currentFloorIndex = startFloorIndex;
         targetFloorIndex = startFloorIndex;
         targetY = sortedFloorYs[startFloorIndex];
 
-        // Snap initial à l'étage de départ
         rb.position = new Vector2(rb.position.x, targetY);
-        startPosition = rb.position;
 
         SetMoveDir(0);
     }
 
-    /// <summary>
-    /// Construit le tableau sortedFloorYs en triant les positions Y des Transforms
-    /// par ordre croissant. L'index 0 sera donc le plus bas.
-    /// </summary>
     void BuildSortedFloorList()
     {
         if (floors == null || floors.Length == 0)
@@ -135,7 +122,6 @@ public class ElevatorPlatform : MonoBehaviour
             return;
         }
 
-        // Filtre les références nulles (au cas où un slot a été laissé vide)
         System.Collections.Generic.List<float> ys = new System.Collections.Generic.List<float>();
         foreach (Transform t in floors)
         {
@@ -144,78 +130,6 @@ public class ElevatorPlatform : MonoBehaviour
 
         ys.Sort();
         sortedFloorYs = ys.ToArray();
-    }
-
-    // ════════════════════════════════════════════════════════════
-    //  Respawn
-    // ════════════════════════════════════════════════════════════
-
-    void OnEnable()
-    {
-        SpawnManager.OnPlayerRespawn += ResetToStartPosition;
-    }
-
-    void OnDisable()
-    {
-        SpawnManager.OnPlayerRespawn -= ResetToStartPosition;
-    }
-
-    void ResetToStartPosition()
-    {
-        // L'ascenseur NE revient PAS à sa position de départ : il reste là où
-        // il est au moment de la mort (comportement naturel d'un ascenseur).
-        // On se contente d'arrêter proprement tout mouvement / bounce en cours
-        // et de remettre l'ascenseur dans un état stable "à l'arrêt".
-
-        if (bounceCoroutine != null)
-        {
-            StopCoroutine(bounceCoroutine);
-            bounceCoroutine = null;
-        }
-
-        rb.linearVelocity = Vector2.zero;
-        platformVelocity = Vector2.zero;
-
-        // Si le joueur est mort pendant un trajet, on "termine" le mouvement :
-        // l'ascenseur se cale sur l'étage le plus proche de sa position actuelle,
-        // pour ne pas rester bloqué entre deux étages.
-        SnapToNearestFloor();
-
-        state = ElevatorState.Idle;
-
-        DetachPlayer();
-        SetMoveDir(0);
-    }
-
-    /// <summary>
-    /// Cale l'ascenseur sur l'étage dont le Y est le plus proche de sa position
-    /// actuelle, et met à jour currentFloorIndex en conséquence.
-    /// Évite que l'ascenseur reste figé entre deux étages si le joueur meurt
-    /// en plein trajet.
-    /// </summary>
-    void SnapToNearestFloor()
-    {
-        if (sortedFloorYs == null || sortedFloorYs.Length == 0) return;
-
-        float currentY = rb.position.y;
-        int nearestIndex = 0;
-        float nearestDistance = Mathf.Abs(sortedFloorYs[0] - currentY);
-
-        for (int i = 1; i < sortedFloorYs.Length; i++)
-        {
-            float distance = Mathf.Abs(sortedFloorYs[i] - currentY);
-            if (distance < nearestDistance)
-            {
-                nearestDistance = distance;
-                nearestIndex = i;
-            }
-        }
-
-        currentFloorIndex = nearestIndex;
-        targetFloorIndex = nearestIndex;
-        targetY = sortedFloorYs[nearestIndex];
-
-        rb.position = new Vector2(rb.position.x, targetY);
     }
 
     // ════════════════════════════════════════════════════════════
@@ -257,6 +171,7 @@ public class ElevatorPlatform : MonoBehaviour
                 DetachPlayer();
         }
 
+        // Pilotage W/S : seulement si le joueur est dessus et l'ascenseur à l'arrêt
         if (state == ElevatorState.Idle && playerOnPlatform)
         {
             if (Input.GetKeyDown(upKey)) TryMoveUp();
@@ -271,21 +186,49 @@ public class ElevatorPlatform : MonoBehaviour
     }
 
     // ════════════════════════════════════════════════════════════
-    //  Logique de mouvement entre étages
+    //  Commandes : pilotage (1 étage) et appel (multi-étages)
     // ════════════════════════════════════════════════════════════
 
-    /// <summary>Tente de monter d'UN étage (incrément d'index).</summary>
+    /// <summary>Pilotage : monte d'UN étage.</summary>
     void TryMoveUp()
     {
-        if (currentFloorIndex >= sortedFloorYs.Length - 1) return; // déjà tout en haut
+        if (currentFloorIndex >= sortedFloorYs.Length - 1) return;
         StartMovement(currentFloorIndex + 1);
     }
 
-    /// <summary>Tente de descendre d'UN étage (décrément d'index).</summary>
+    /// <summary>Pilotage : descend d'UN étage.</summary>
     void TryMoveDown()
     {
-        if (currentFloorIndex <= 0) return; // déjà tout en bas
+        if (currentFloorIndex <= 0) return;
         StartMovement(currentFloorIndex - 1);
+    }
+
+    /// <summary>
+    /// APPEL : fait venir l'ascenseur à un étage précis (depuis un bouton d'appel).
+    /// L'ascenseur traverse autant d'étages que nécessaire en un seul trajet.
+    /// Ignoré si l'ascenseur n'est pas à l'arrêt, ou s'il est déjà à cet étage.
+    /// </summary>
+    public void CallToFloor(int floorIndex)
+    {
+        if (sortedFloorYs == null) return;
+
+        // L'appel n'est pris en compte que si l'ascenseur est à l'arrêt
+        if (state != ElevatorState.Idle)
+        {
+            Debug.Log("[ElevatorPlatform] Appel ignoré : l'ascenseur est déjà en mouvement.");
+            return;
+        }
+
+        floorIndex = Mathf.Clamp(floorIndex, 0, sortedFloorYs.Length - 1);
+
+        // Déjà à cet étage : rien à faire
+        if (floorIndex == currentFloorIndex)
+        {
+            Debug.Log($"[ElevatorPlatform] Appel ignoré : déjà à l'étage {floorIndex}.");
+            return;
+        }
+
+        StartMovement(floorIndex);
     }
 
     void StartMovement(int destinationIndex)
@@ -296,7 +239,7 @@ public class ElevatorPlatform : MonoBehaviour
     }
 
     // ════════════════════════════════════════════════════════════
-    //  FixedUpdate : mouvement principal (avec détection d'arrivée robuste)
+    //  FixedUpdate : mouvement (gère un trajet multi-étages)
     // ════════════════════════════════════════════════════════════
 
     void FixedUpdate()
@@ -311,8 +254,6 @@ public class ElevatorPlatform : MonoBehaviour
             int desiredDir = (remaining > 0f) ? 1 : -1;
             float stepDistance = moveSpeed * Time.fixedDeltaTime;
 
-            // Détection d'arrivée robuste : on arrête dès que le prochain pas dépasserait,
-            // ou si on a déjà dépassé (signe inversé)
             bool wouldOvershoot = Mathf.Abs(remaining) <= stepDistance;
             bool alreadyOvershot = (currentMoveDir != 0) && (desiredDir != currentMoveDir);
 
@@ -350,7 +291,7 @@ public class ElevatorPlatform : MonoBehaviour
     }
 
     // ════════════════════════════════════════════════════════════
-    //  Bounce : coroutine d'overshoot avec rebonds amortis
+    //  Bounce
     // ════════════════════════════════════════════════════════════
 
     IEnumerator BounceRoutine(float direction)
@@ -401,7 +342,7 @@ public class ElevatorPlatform : MonoBehaviour
     }
 
     // ════════════════════════════════════════════════════════════
-    //  Gizmos : tous les étages visualisés
+    //  Gizmos
     // ════════════════════════════════════════════════════════════
 
     void OnDrawGizmos()
@@ -410,8 +351,6 @@ public class ElevatorPlatform : MonoBehaviour
 
         float currentX = transform.position.x;
 
-        // Récupère et trie les Y des étages valides (à chaque frame d'éditeur,
-        // pour rester live quand on déplace les Transforms)
         System.Collections.Generic.List<float> ys = new System.Collections.Generic.List<float>();
         foreach (Transform t in floors)
         {
@@ -421,24 +360,19 @@ public class ElevatorPlatform : MonoBehaviour
 
         if (ys.Count == 0) return;
 
-        // Ligne verticale verte reliant tous les étages
         Gizmos.color = Color.green;
         Gizmos.DrawLine(new Vector3(currentX, ys[0], 0f),
                         new Vector3(currentX, ys[ys.Count - 1], 0f));
 
-        // Sphère pour chaque étage avec couleur qui varie du rouge (bas) au cyan (haut)
         for (int i = 0; i < ys.Count; i++)
         {
             float ratio = (ys.Count == 1) ? 0f : (float)i / (ys.Count - 1);
-            // Rouge → Jaune → Cyan
             Gizmos.color = (ratio < 0.5f)
                 ? Color.Lerp(Color.red, Color.yellow, ratio * 2f)
                 : Color.Lerp(Color.yellow, Color.cyan, (ratio - 0.5f) * 2f);
 
             Vector3 pos = new Vector3(currentX, ys[i], 0f);
             Gizmos.DrawWireSphere(pos, 0.25f);
-
-            // Petite ligne horizontale pour mieux visualiser le niveau
             Gizmos.DrawLine(pos + Vector3.left * 0.5f, pos + Vector3.right * 0.5f);
         }
     }

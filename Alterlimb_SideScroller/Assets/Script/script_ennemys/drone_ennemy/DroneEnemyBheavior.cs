@@ -20,6 +20,9 @@ using System;
 /// Laser : deux sorties (gauche/droite). Le DroneEnemy informe le DroneLaser
 /// de quel côté tirer à chaque flip, pour éviter le "laser au cul".
 /// 
+/// Feedback de dégâts : si un composant DamageFeedback est présent, chaque coup
+/// reçu déclenche un flash blanc + un damage number ("-30").
+/// 
 /// Notification de mort : event statique OnDroneDied (pour les Door).
 /// </summary>
 [RequireComponent(typeof(Rigidbody2D))]
@@ -103,6 +106,7 @@ public class DroneEnemy : MonoBehaviour
     SpriteRenderer spriteRenderer;
     Transform player;
     DroneLaser laser;
+    DamageFeedback damageFeedback;
 
     DroneState currentState;
     Transform currentPatrolTarget;
@@ -135,6 +139,7 @@ public class DroneEnemy : MonoBehaviour
         if (animator == null) animator = GetComponent<Animator>();
 
         laser = GetComponent<DroneLaser>();
+        damageFeedback = GetComponent<DamageFeedback>();
         currentHealth = maxHealth;
 
         GameObject p = GameObject.FindGameObjectWithTag(playerTag);
@@ -417,6 +422,11 @@ public class DroneEnemy : MonoBehaviour
         if (damageOnlyWhenHooked && !isHooked) return;
 
         currentHealth -= amount;
+
+        // Feedback visuel : flash blanc + damage number
+        if (damageFeedback != null)
+            damageFeedback.ShowDamage(amount);
+
         if (currentHealth <= 0f) Die();
     }
 
@@ -482,7 +492,7 @@ public class DroneEnemy : MonoBehaviour
     //  Gizmos
     // ════════════════════════════════════════════════════════════
 
-    void OnDrawGizmosSelected()
+    void OnDrawGizmos()
     {
         // Zone de détection rectangulaire fixe (gardien)
         if (detectionZoneCenter != null)
