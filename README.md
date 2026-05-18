@@ -29,13 +29,13 @@ Alterlimb est un **platformer 2D side-scroller** dans lequel le joueur utilise u
 
 ## Les Niveaux
 
-### Niveau 1 — Usine Abandonnée
+### Niveau 1: Usine Abandonnée
 > Azu se réveille dans les décombres d'une usine désaffectée envahie par la végétation. Tourelles, lasers et plateformes instables jalonnent sa progression. C'est ici qu'il découvre sa première arme, la scie, et neutralise son premier drone.
 
-### Niveau 2 — Métro Abandonné
+### Niveau 2: Métro Abandonné
 > Les galeries souterraines sont devenues le terrain de chasse des drones d'OXI-O. Azu doit traverser des wagons en mouvement, collecter 5 fusibles dispersés dans les tunnels et activer un tableau électrique pour forcer l'accès au boss final.
 
-### Niveau 3 — OXI-O
+### Niveau 3: OXI-O
 > Azu affronte l'IA responsable de l'explosion. Un combat frontal intense où OXI-O corrompt progressivement l'interface du joueur, barre de vie glitchée, stamina drainée. À l'issue du combat : un choix définitif.
 
 ---
