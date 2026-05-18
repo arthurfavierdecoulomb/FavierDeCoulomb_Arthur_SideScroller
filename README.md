@@ -5,7 +5,7 @@
 
 ## Synopsis
 
-> Azu, adolescent rescapé d'une explosion industrielle mystérieuse, se réveille avec des membres cybernétiques modulaires. Dans un monde post-apocalyptique contrôlé par une IA hostile — OXI-O — il doit explorer les ruines pour découvrir la vérité, et choisir entre rester humain ou devenir machine.
+> Azu, adolescent rescapé d'une explosion industrielle mystérieuse, se réveille avec des membres cybernétiques modulaires. Dans un monde post-apocalyptique contrôlé par une IA hostile nommé OXI-O. il doit explorer les ruines pour découvrir la vérité, et choisir entre rester humain ou devenir machine.
 >
 > *Le joueur ne collecte pas des pouvoirs. Il devient l'outil.*
 
@@ -13,7 +13,7 @@
 
 ## Concept
 
-Alterlimb est un **platformer 2D side-scroller** dans lequel le joueur utilise un corps modulaire pour progresser. Le grappin pour franchir les vides, la scie pour combattre les drones — chaque membre répond à un obstacle précis.
+Alterlimb est un **platformer 2D side-scroller** dans lequel le joueur utilise un corps modulaire pour progresser. Le grappin pour franchir les vides, la scie pour combattre les drones. Chaque membre répond à un obstacle précis.
 
 ---
 
@@ -30,13 +30,13 @@ Alterlimb est un **platformer 2D side-scroller** dans lequel le joueur utilise u
 ## Les Niveaux
 
 ### Niveau 1 — Usine Abandonnée
-> Azu se réveille dans les décombres d'une usine désaffectée envahie par la végétation. Tourelles, lasers et plateformes instables jalonnent sa progression. C'est ici qu'il découvre sa première arme — la scie — et neutralise son premier drone.
+> Azu se réveille dans les décombres d'une usine désaffectée envahie par la végétation. Tourelles, lasers et plateformes instables jalonnent sa progression. C'est ici qu'il découvre sa première arme, la scie, et neutralise son premier drone.
 
 ### Niveau 2 — Métro Abandonné
 > Les galeries souterraines sont devenues le terrain de chasse des drones d'OXI-O. Azu doit traverser des wagons en mouvement, collecter 5 fusibles dispersés dans les tunnels et activer un tableau électrique pour forcer l'accès au boss final.
 
 ### Niveau 3 — OXI-O
-> Azu affronte l'IA responsable de l'explosion. Un combat frontal intense où OXI-O corrompt progressivement l'interface du joueur — barre de vie glitchée, stamina drainée. À l'issue du combat : un choix définitif.
+> Azu affronte l'IA responsable de l'explosion. Un combat frontal intense où OXI-O corrompt progressivement l'interface du joueur, barre de vie glitchée, stamina drainée. À l'issue du combat : un choix définitif.
 
 ---
 
@@ -64,4 +64,4 @@ La bande sonore d'Alterlimb a été composée spécifiquement pour chaque niveau
 
 ---
 
-*ESMA — École Supérieure des Métiers Artistiques | Bordeaux | 2025–2026*
+*ESMA École Supérieure des Métiers Artistiques | Bordeaux | 2025–2026*
