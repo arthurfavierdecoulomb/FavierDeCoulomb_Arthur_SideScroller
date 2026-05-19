@@ -14,8 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LevelData
   levelName: L'usine
   levelDescription: "Trouvez les deux levier pour ouvrir la porte v\xE9rouill\xE9e,
-    et surtout survivez... il vous attend toujours quand vous vous y attendez le
+    et surtout survivez... il vous attends toujours quand vous vous y attendez le
     moins."
   spawnPosition: {x: 34.4, y: -283.13}
   autoRunEndPosition: {x: 121.28, y: -270.12}
+  exitRunDirection: 1
   ambientMusic: {fileID: 0}

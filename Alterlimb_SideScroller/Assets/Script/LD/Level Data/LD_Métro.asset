@@ -13,10 +13,8 @@ MonoBehaviour:
   m_Name: "LD_M\xE9tro"
   m_EditorClassIdentifier: Assembly-CSharp::LevelData
   levelName: Le metro
-  levelDescription: 'Traversez le niveau avec des wagon encore fonctionnel et tentez
-    de survivre, comme toujours...
-
-'
+  levelDescription: "Traversez ce metro abandonn\xE9 avec des wagons encore fonctionnel,
+    survivez aux drone de surveillance et trouvez les 5 fusibles !\n"
   spawnPosition: {x: 153.75, y: -269.95}
   autoRunEndPosition: {x: 165.43, y: -269.95}
   exitRunDirection: 1
