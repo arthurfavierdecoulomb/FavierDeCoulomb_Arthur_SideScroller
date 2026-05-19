@@ -3,24 +3,18 @@ using System.Collections;
 using System.Collections.Generic;
 
 /// <summary>
-/// Porte avec 4 états d'animation : OpenDoor, CloseDoor, Idle_Closed, Idle_Opened.
-/// Peut être ouverte de trois façons (au choix) :
-///   - Mode Proximity     : le joueur appuie sur clic droit en étant proche
-///   - Mode Levers        : tous les leviers requis doivent être activés
-///   - Mode OnDroneKilled : la porte s'ouvre quand le drone cible meurt
-/// Dans tous les cas, la porte se referme automatiquement après que le joueur soit passé.
+/// Porte avec 4 modes d'ouverture : Proximity, Levers, OnDroneKilled, Fuses.
 /// 
-/// Hiérarchie de colliders attendue :
-///   - Un Collider2D en mode Trigger (zone de détection du passage du joueur)
-///   - Un Collider2D solide (NON-trigger) → assigné dans "Solid Collider", désactivé quand la porte est ouverte
+/// Option stayOpenForever : si cochée, la porte reste ouverte définitivement
+/// après ouverture (pas de fermeture auto).
+/// 
+/// Message verrouillé : quand le joueur fait un clic droit sur une porte
+/// encore verrouillée (Levers/OnDroneKilled/Fuses pas satisfaits), un message
+/// du TutorialManager s'affiche (id configuré dans 'lockedMessageId').
 /// </summary>
 public class Door : MonoBehaviour
 {
     public enum OpeningMode { Proximity, Levers, OnDroneKilled, Fuses }
-
-    // ════════════════════════════════════════════════════════════
-    //  Configuration
-    // ════════════════════════════════════════════════════════════
 
     [Header("Mode d'ouverture")]
     [SerializeField] OpeningMode mode = OpeningMode.Proximity;
@@ -39,10 +33,18 @@ public class Door : MonoBehaviour
     [SerializeField] DroneEnemy targetDrone;
 
     [Header("Comportement commun")]
+    [Tooltip("Si coché, la porte reste ouverte définitivement après ouverture (pas de fermeture auto)")]
+    [SerializeField] bool stayOpenForever = false;
     [Tooltip("Délai avant fermeture automatique après que le joueur soit passé")]
     [SerializeField] float autoCloseDelay = 3f;
     [Tooltip("Détection du joueur via tag")]
     [SerializeField] string playerTag = "Player";
+
+    [Header("Message si verrouillée")]
+    [Tooltip("Id du message TutorialManager à afficher si le joueur interagit avec la porte verrouillée. Laisser vide pour aucun message.")]
+    [SerializeField] string lockedMessageId = "";
+    [Tooltip("Distance max pour déclencher le message verrouillé au clic droit")]
+    [SerializeField] float lockedMessageRange = 2.5f;
 
     [Header("Références")]
     [SerializeField] Animator animator;
@@ -55,9 +57,7 @@ public class Door : MonoBehaviour
     [Header("Collisions physiques")]
     [Tooltip("Collider2D solide qui bloque le joueur. Désactivé quand la porte est ouverte.")]
     [SerializeField] Collider2D solidCollider;
-    [Tooltip("Délai entre le déclenchement de l'animation d'ouverture et la désactivation du collider")]
     [SerializeField] float openColliderDelay = 0.2f;
-    [Tooltip("Délai entre le déclenchement de l'animation de fermeture et la réactivation du collider")]
     [SerializeField] float closeColliderDelay = 0.4f;
 
     // ════════════════════════════════════════════════════════════
@@ -65,11 +65,10 @@ public class Door : MonoBehaviour
     // ════════════════════════════════════════════════════════════
 
     bool isOpen;
-    bool playerWasInside;       // pour détecter qu'il a "traversé"
+    bool playerWasInside;
     float closeTimer;
     bool autoCloseScheduled;
 
-    // ── Hash des paramètres Animator ──
     static readonly int OpenTrigger = Animator.StringToHash("Open");
     static readonly int CloseTrigger = Animator.StringToHash("Close");
 
@@ -88,13 +87,11 @@ public class Door : MonoBehaviour
             if (p != null) playerTransform = p.transform;
         }
 
-        // S'assure que le collider solide est bien actif au départ (porte fermée)
         if (solidCollider != null)
             solidCollider.enabled = true;
         else
             Debug.LogWarning($"[Door] '{name}' n'a pas de Solid Collider assigné. Le joueur pourra passer à travers.", this);
 
-        // Abonnement aux events selon le mode
         switch (mode)
         {
             case OpeningMode.Levers:
@@ -115,14 +112,10 @@ public class Door : MonoBehaviour
                 FuseManager.OnAllFusesInstalledStatic += OnAllFusesHandler;
                 break;
         }
-
-
     }
 
     void OnDestroy()
     {
-        // Désinscription propre (toujours, peu importe le mode actuel —
-        // si quelqu'un change le mode en runtime, on évite les fuites)
         foreach (Lever lever in requiredLevers)
         {
             if (lever != null)
@@ -141,6 +134,8 @@ public class Door : MonoBehaviour
     {
         if (mode == OpeningMode.Proximity)
             HandleProximityMode();
+        else
+            HandleLockedInteraction();
 
         HandleAutoClose();
     }
@@ -153,6 +148,27 @@ public class Door : MonoBehaviour
         if (distance <= interactionRange && Input.GetKeyDown(interactionKey))
         {
             OpenDoor();
+        }
+    }
+
+    /// <summary>
+    /// Pour les modes Levers/OnDroneKilled/Fuses : si le joueur fait un clic droit
+    /// près de la porte alors qu'elle est encore verrouillée, on affiche un message.
+    /// </summary>
+    void HandleLockedInteraction()
+    {
+        if (isOpen) return;
+        if (string.IsNullOrEmpty(lockedMessageId)) return;
+        if (playerTransform == null) return;
+
+        if (Input.GetKeyDown(interactionKey))
+        {
+            float distance = Vector2.Distance(transform.position, playerTransform.position);
+            if (distance <= lockedMessageRange)
+            {
+                if (TutorialManager.Instance != null)
+                    TutorialManager.Instance.ShowMessageById(lockedMessageId);
+            }
         }
     }
 
@@ -178,7 +194,6 @@ public class Door : MonoBehaviour
         if (!other.CompareTag(playerTag)) return;
 
         playerWasInside = true;
-        // Annule toute fermeture programmée tant qu'il est dans la porte
         autoCloseScheduled = false;
     }
 
@@ -189,10 +204,13 @@ public class Door : MonoBehaviour
 
         if (playerWasInside)
         {
-            // Le joueur est passé : on programme la fermeture
+            playerWasInside = false;
+
+            // Si la porte doit rester ouverte définitivement, on ne programme rien
+            if (stayOpenForever) return;
+
             closeTimer = autoCloseDelay;
             autoCloseScheduled = true;
-            playerWasInside = false;
         }
     }
 
@@ -200,12 +218,10 @@ public class Door : MonoBehaviour
     //  Logique d'ouverture / fermeture
     // ════════════════════════════════════════════════════════════
 
-    /// <summary>Appelé quand un levier change d'état</summary>
     void OnLeverStateChanged()
     {
         if (mode != OpeningMode.Levers) return;
 
-        // Vérifie si TOUS les leviers requis sont activés
         bool allActivated = true;
         foreach (Lever lever in requiredLevers)
         {
@@ -220,17 +236,15 @@ public class Door : MonoBehaviour
             OpenDoor();
     }
 
-    /// <summary>Appelé quand n'importe quel drone meurt — on filtre pour ne réagir qu'au nôtre</summary>
     void OnDroneDiedHandler(DroneEnemy deadDrone)
     {
         if (mode != OpeningMode.OnDroneKilled) return;
-        if (deadDrone != targetDrone) return;  // ce n'est pas notre drone, on ignore
+        if (deadDrone != targetDrone) return;
         if (isOpen) return;
 
         OpenDoor();
     }
 
-    /// <summary>Appelé quand tous les fusibles sont installés dans le panneau.</summary>
     void OnAllFusesHandler()
     {
         if (mode != OpeningMode.Fuses) return;
@@ -245,8 +259,6 @@ public class Door : MonoBehaviour
         isOpen = true;
         if (animator != null) animator.SetTrigger(OpenTrigger);
 
-        // Désactive le collider solide après un petit délai
-        // (pour que ça colle visuellement à l'animation d'ouverture)
         StartCoroutine(SetColliderAfterDelay(false, openColliderDelay));
     }
 
@@ -256,7 +268,6 @@ public class Door : MonoBehaviour
         isOpen = false;
         if (animator != null) animator.SetTrigger(CloseTrigger);
 
-        // Réactive le collider solide après un petit délai
         StartCoroutine(SetColliderAfterDelay(true, closeColliderDelay));
     }
 
@@ -270,10 +281,6 @@ public class Door : MonoBehaviour
         solidCollider.enabled = enabled;
     }
 
-    /// <summary>
-    /// Permet à un Lever de demander si cette porte est sa cible
-    /// (utilisé pour différencier vrais et faux leviers)
-    /// </summary>
     public bool IsLeverRequired(Lever lever)
     {
         return mode == OpeningMode.Levers && requiredLevers.Contains(lever);
@@ -309,6 +316,13 @@ public class Door : MonoBehaviour
                     Gizmos.DrawWireSphere(targetDrone.transform.position, 0.5f);
                 }
                 break;
+        }
+
+        // Zone du message verrouillé (si configuré)
+        if (!string.IsNullOrEmpty(lockedMessageId))
+        {
+            Gizmos.color = new Color(1f, 0.5f, 0f, 0.5f);
+            Gizmos.DrawWireSphere(transform.position, lockedMessageRange);
         }
     }
 }

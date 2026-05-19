@@ -7,5 +7,15 @@ AnimatorOverrideController:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: Azu_Override_sans_grappin
-  m_Controller: {fileID: 0}
-  m_Clips: []
+  m_Controller: {fileID: 9100000, guid: bfbd3efe823566b41a14784d5c76e50d, type: 2}
+  m_Clips:
+  - m_OriginalClip: {fileID: 7400000, guid: ded70a43452bfeb48bbe339922ec4b10, type: 2}
+    m_OverrideClip: {fileID: 7400000, guid: eb1bd89a79da69746b65b8956cc08011, type: 2}
+  - m_OriginalClip: {fileID: 7400000, guid: 5664b500f60b413408e1256ebd4507ad, type: 2}
+    m_OverrideClip: {fileID: 7400000, guid: 8f2963fdf21f4d444afe0a41420d4711, type: 2}
+  - m_OriginalClip: {fileID: 7400000, guid: 288bc4c0028a92f4488eb57a58e96379, type: 2}
+    m_OverrideClip: {fileID: 7400000, guid: e5c069d5b996c80438e251adaa3c5f37, type: 2}
+  - m_OriginalClip: {fileID: 7400000, guid: 424e2698b1f35ce478a5f0dcebdab366, type: 2}
+    m_OverrideClip: {fileID: 7400000, guid: df6a337d7124f3c468115e501dace3c9, type: 2}
+  - m_OriginalClip: {fileID: 7400000, guid: a7ec965935da07a4db5f3844d672beed, type: 2}
+    m_OverrideClip: {fileID: 7400000, guid: 6e97ca39e17d776489076b99c8e4c2b8, type: 2}

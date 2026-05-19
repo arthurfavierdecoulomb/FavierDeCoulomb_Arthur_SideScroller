@@ -49,9 +49,14 @@ public class Lever : MonoBehaviour
     [SerializeField] KeyCode interactionKey = KeyCode.Mouse1; // clic droit
     [SerializeField] string playerTag = "Player";
 
+
     [Header("Liaison porte (laisser vide = faux levier)")]
     [Tooltip("Porte que ce levier doit aider à ouvrir. Laisser vide = faux levier.")]
     [SerializeField] Door connectedDoor;
+
+    [Header("Message si faux levier")]
+    [Tooltip("Id du message TutorialManager affiché quand on actionne un faux levier. Vide = aucun message.")]
+    [SerializeField] string brokenMessageId = "";
 
     // ════════════════════════════════════════════════════════════
     //  État runtime
@@ -127,9 +132,16 @@ public class Lever : MonoBehaviour
     }
 
     /// <summary>Faux levier : descend partiellement puis remonte</summary>
+    /// <summary>Faux levier : descend partiellement puis remonte. Affiche un message si configuré.</summary>
     IEnumerator FakeActivateRoutine()
     {
         isAnimating = true;
+
+        // Affiche le message "levier cassé" si un id est configuré
+        if (!string.IsNullOrEmpty(brokenMessageId) && TutorialManager.Instance != null)
+        {
+            TutorialManager.Instance.ShowMessageById(brokenMessageId);
+        }
 
         // Descente sans bounce (rapide, sec)
         yield return RotateHandle(restAngle, fakeAngle, fakeDownDuration, useBounce: false);
