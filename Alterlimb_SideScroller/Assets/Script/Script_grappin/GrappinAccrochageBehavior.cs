@@ -1,7 +1,21 @@
 ﻿using UnityEngine;
 
+/// <summary>
+/// Grappin du joueur : déploiement progressif, accroche sur décor ou drone,
+/// swing latéral et contrôle de la longueur de corde.
+/// 
+/// États logiques (exposés via la propriété State pour les systèmes visuels) :
+///   - Idle      : rien en cours
+///   - Deploying : le harpon voyage vers le point d'accroche
+///   - Hooked    : accroché, le SpringJoint2D est actif
+/// 
+/// isUsingGrapple : vrai uniquement quand le grappin est réellement en action
+/// (tir qui a accroché). Reste faux si le tir part dans le vide.
+/// </summary>
 public class GrapplingHook : MonoBehaviour
 {
+    public enum GrappleState { Idle, Deploying, Hooked }
+
     [Header("Grappin")]
     [SerializeField] float maxDistance = 15f;
     [SerializeField] float deploySpeed = 25f;
@@ -24,7 +38,6 @@ public class GrapplingHook : MonoBehaviour
     public bool canUseGrapple = true;
     public bool isUsingGrapple = false;
 
-    enum GrappleState { Idle, Deploying, Hooked }
     GrappleState state = GrappleState.Idle;
 
     Vector2 hookPoint;
@@ -33,6 +46,25 @@ public class GrapplingHook : MonoBehaviour
     SpringJoint2D springJoint;
     DroneEnemy hookedDrone = null;
     Rigidbody2D droneRb = null;
+
+    // ════════════════════════════════════════════════════════════
+    //  Accès public (pour les systèmes visuels : bras, harpon, anim)
+    // ════════════════════════════════════════════════════════════
+
+    /// <summary>État actuel du grappin (Idle / Deploying / Hooked).</summary>
+    public GrappleState State => state;
+
+    /// <summary>Position du bout de la corde (le harpon) en temps réel.</summary>
+    public Vector2 HookTipPosition => hookTipPosition;
+
+    /// <summary>Vrai si le grappin est accroché (état Hooked).</summary>
+    public bool IsHooked => state == GrappleState.Hooked;
+
+    /// <summary>
+    /// Direction du dernier scroll molette : 1 = raccourcir (dur),
+    /// -1 = rallonger (moux), 0 = pas de scroll. Mis à jour chaque frame.
+    /// </summary>
+    public int ScrollDirection { get; private set; }
 
     void Awake()
     {
@@ -50,17 +82,21 @@ public class GrapplingHook : MonoBehaviour
 
     void HandleInput()
     {
-        if (!canUseGrapple) return;
+        if (!canUseGrapple)
+        {
+            // Sécurité : si on change d'artefact pendant qu'on grappine,
+            // on relâche proprement.
+            if (state != GrappleState.Idle) ReleaseGrapple();
+            return;
+        }
 
         if (Input.GetMouseButtonDown(0) && state == GrappleState.Idle)
         {
-            isUsingGrapple = true;
             TryShoot();
         }
 
         if (Input.GetMouseButtonUp(0) && state != GrappleState.Idle)
         {
-            isUsingGrapple = false;
             ReleaseGrapple();
         }
     }
@@ -79,10 +115,15 @@ public class GrapplingHook : MonoBehaviour
             state = GrappleState.Deploying;
             lineRenderer.enabled = true;
 
+            // Le grappin est réellement en action (le tir a accroché)
+            isUsingGrapple = true;
+
             hookedDrone = hit.collider.GetComponent<DroneEnemy>();
             if (hookedDrone != null)
                 droneRb = hit.collider.GetComponent<Rigidbody2D>();
         }
+        // Si le raycast ne touche rien : isUsingGrapple reste false,
+        // le bras grappin n'apparaîtra pas pour un tir dans le vide.
     }
 
     void UpdateDeployment()
@@ -132,11 +173,17 @@ public class GrapplingHook : MonoBehaviour
 
     void UpdateRopeLength()
     {
+        // Réinitialise la direction de scroll chaque frame
+        ScrollDirection = 0;
+
         if (state != GrappleState.Hooked || springJoint == null) return;
 
         float scroll = Input.GetAxis("Mouse ScrollWheel");
         if (scroll != 0f)
         {
+            // Mémorise le sens du scroll pour l'animation du bras
+            ScrollDirection = (scroll > 0f) ? 1 : -1;
+
             springJoint.distance = Mathf.Clamp(
                 springJoint.distance - scroll * ropeShortenSpeed,
                 minRopeLength,
@@ -161,6 +208,8 @@ public class GrapplingHook : MonoBehaviour
     {
         CancelInvoke(nameof(ReleaseGrapple));
         state = GrappleState.Idle;
+        isUsingGrapple = false;
+        ScrollDirection = 0;
         lineRenderer.enabled = false;
 
         if (springJoint != null)
@@ -196,7 +245,7 @@ public class GrapplingHook : MonoBehaviour
             lineRenderer.SetPosition(1, hookTipPosition);
     }
 
-    void OnDrawGizmosSelected()
+    void OnDrawGizmos()
     {
         Gizmos.color = Color.cyan;
         Gizmos.DrawWireSphere(transform.position, maxDistance);
