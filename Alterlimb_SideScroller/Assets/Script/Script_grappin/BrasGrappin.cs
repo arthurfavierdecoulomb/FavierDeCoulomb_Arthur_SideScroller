@@ -1,22 +1,24 @@
 ﻿using UnityEngine;
 
 /// <summary>
-/// Bras du grappin : un GameObject séparé qui rotationne vers la souris.
+/// Bras du grappin : un GameObject séparé qui rotationne vers la souris,
+/// gère sa visibilité, et pilote son Animator (les 5 animations du bras).
 /// 
-/// VISIBILITÉ : le bras est visible dès que le grappin est l'artefact équipé
-/// (AbilityManager.CurrentArm == Grapple). Quand un autre artefact est équipé,
-/// le bras est masqué (c'est l'animation normale d'Azu qui prend le relais).
+/// VISIBILITÉ : visible dès que le grappin est l'artefact équipé
+/// (AbilityManager.CurrentArm == Grapple).
 /// 
-/// VISÉE : quand il est visible, le bras vise la souris pendant qu'on utilise
-/// le grappin (clic). Au repos (pas de clic), il revient à une pose neutre.
-/// Le flip du joueur (scale X négatif) est compensé.
+/// VISÉE : quand visible, le bras vise la souris pendant qu'on utilise le
+/// grappin. Au repos, il revient à une pose neutre. Le flip est compensé.
 /// 
-/// Ce script gère la rotation et la visibilité. Les animations du bras
-/// (charge, tire, etc.) seront branchées à l'étape suivante.
+/// ANIMATIONS : le bras lit l'état du GrapplingHook et pilote son Animator :
+///   - Charge (Trigger)  : au tir (Idle → Deploying)
+///   - Hooked (Bool)     : vrai pendant l'état Hooked
+///   - Scrolling (Int)   : 1 = dur, -1 = moux, 0 = rien (scroll molette)
+///   - Release (Trigger) : au relâché du grappin (retour à Idle)
 /// 
 /// Setup :
 ///   - GameObject "BrasGrappin" enfant du joueur, pivot à l'épaule.
-///   - Un SpriteRenderer (le visuel du bras).
+///   - Un SpriteRenderer + un Animator (avec les 7 états du bras).
 ///   - Ce script attaché dessus.
 /// </summary>
 public class GrappleArm : MonoBehaviour
@@ -30,14 +32,25 @@ public class GrappleArm : MonoBehaviour
     [Header("Références")]
     [Tooltip("L'AbilityManager du joueur (pour savoir quel artefact est équipé)")]
     [SerializeField] AbilityManager abilityManager;
-    [Tooltip("Le GrapplingHook du joueur (pour savoir si on est en train de viser)")]
+    [Tooltip("Le GrapplingHook du joueur (source de l'état du grappin)")]
     [SerializeField] GrapplingHook grapplingHook;
     [Tooltip("Le Transform du corps du joueur, pour détecter le sens du flip (scale X)")]
     [SerializeField] Transform playerBody;
+    [Tooltip("L'Animator du bras grappin (les 5 animations)")]
+    [SerializeField] Animator armAnimator;
 
     Camera cam;
     SpriteRenderer spriteRenderer;
     bool isVisible;
+
+    // Mémorise l'état du grappin à la frame précédente, pour détecter les transitions
+    GrapplingHook.GrappleState previousState = GrapplingHook.GrappleState.Idle;
+
+    // ── Hash des paramètres Animator ──
+    static readonly int ChargeTrigger = Animator.StringToHash("Charge");
+    static readonly int HookedBool = Animator.StringToHash("Hooked");
+    static readonly int ScrollingInt = Animator.StringToHash("Scrolling");
+    static readonly int ReleaseTrigger = Animator.StringToHash("Release");
 
     void Awake()
     {
@@ -48,13 +61,15 @@ public class GrappleArm : MonoBehaviour
             abilityManager = GetComponentInParent<AbilityManager>();
         if (grapplingHook == null)
             grapplingHook = GetComponentInParent<GrapplingHook>();
+        if (armAnimator == null)
+            armAnimator = GetComponent<Animator>();
 
         SetVisible(false);
     }
 
     void Update()
     {
-        // ── Visibilité : le bras est visible si le grappin est l'artefact équipé ──
+        // ── Visibilité : visible si le grappin est l'artefact équipé ──
         bool grappleEquipped = (abilityManager != null)
                             && abilityManager.CurrentArm == ArmAbility.Grapple;
 
@@ -63,23 +78,68 @@ public class GrappleArm : MonoBehaviour
 
         if (!isVisible) return;
 
-        // ── Visée : le bras vise la souris quand on utilise le grappin ──
+        // ── Rotation ──
         bool aiming = (grapplingHook != null) && grapplingHook.isUsingGrapple;
-
         if (aiming)
             AimAtMouse();
         else
             ReturnToRest();
+
+        // ── Animations ──
+        UpdateArmAnimations();
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  Pilotage de l'Animator du bras
+    // ════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Lit l'état du GrapplingHook et pilote l'Animator du bras.
+    /// Détecte les TRANSITIONS d'état pour déclencher les triggers au bon moment.
+    /// </summary>
+    void UpdateArmAnimations()
+    {
+        if (grapplingHook == null || armAnimator == null) return;
+
+        GrapplingHook.GrappleState currentState = grapplingHook.State;
+
+        // ── Détection des transitions d'état ──
+        if (currentState != previousState)
+        {
+            // Idle → Deploying : on vient de tirer → animation charge→tire
+            if (previousState == GrapplingHook.GrappleState.Idle
+                && currentState == GrapplingHook.GrappleState.Deploying)
+            {
+                armAnimator.SetTrigger(ChargeTrigger);
+            }
+
+            // N'importe quel état → Idle : on vient de relâcher → animation reprise
+            if (currentState == GrapplingHook.GrappleState.Idle
+                && previousState != GrapplingHook.GrappleState.Idle)
+            {
+                armAnimator.SetTrigger(ReleaseTrigger);
+            }
+
+            previousState = currentState;
+        }
+
+        // ── Paramètres continus ──
+
+        // Hooked : vrai pendant tout l'état Hooked
+        armAnimator.SetBool(HookedBool, currentState == GrapplingHook.GrappleState.Hooked);
+
+        // Scrolling : direction du scroll (1 = dur, -1 = moux, 0 = rien)
+        // On ne scrolle que quand on est accroché
+        int scrolling = (currentState == GrapplingHook.GrappleState.Hooked)
+                       ? grapplingHook.ScrollDirection
+                       : 0;
+        armAnimator.SetInteger(ScrollingInt, scrolling);
     }
 
     // ════════════════════════════════════════════════════════════
     //  Visibilité
     // ════════════════════════════════════════════════════════════
 
-    /// <summary>
-    /// Affiche ou masque le bras. On désactive le SpriteRenderer (pas le
-    /// GameObject) pour que ce script continue de tourner.
-    /// </summary>
     void SetVisible(bool visible)
     {
         isVisible = visible;
@@ -95,10 +155,6 @@ public class GrappleArm : MonoBehaviour
     //  Rotation
     // ════════════════════════════════════════════════════════════
 
-    /// <summary>
-    /// Vrai si le joueur est retourné (regarde à gauche).
-    /// On se base sur le scale X du corps : négatif = flippé.
-    /// </summary>
     bool IsPlayerFlipped()
     {
         if (playerBody != null)
@@ -110,10 +166,6 @@ public class GrappleArm : MonoBehaviour
         return false;
     }
 
-    /// <summary>
-    /// Oriente le bras vers la position de la souris.
-    /// Compense le flip du joueur pour que la visée reste correcte des deux côtés.
-    /// </summary>
     void AimAtMouse()
     {
         Vector2 mouseWorld = cam.ScreenToWorldPoint(Input.mousePosition);
@@ -127,7 +179,6 @@ public class GrappleArm : MonoBehaviour
         transform.localRotation = Quaternion.Euler(0f, 0f, angle);
     }
 
-    /// <summary>Ramène doucement le bras à sa rotation neutre.</summary>
     void ReturnToRest()
     {
         Quaternion targetRot = Quaternion.Euler(0f, 0f, restAngle);
