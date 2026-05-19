@@ -49,7 +49,6 @@ public class Lever : MonoBehaviour
     [SerializeField] KeyCode interactionKey = KeyCode.Mouse1; // clic droit
     [SerializeField] string playerTag = "Player";
 
-
     [Header("Liaison porte (laisser vide = faux levier)")]
     [Tooltip("Porte que ce levier doit aider à ouvrir. Laisser vide = faux levier.")]
     [SerializeField] Door connectedDoor;
@@ -57,6 +56,8 @@ public class Lever : MonoBehaviour
     [Header("Message si faux levier")]
     [Tooltip("Id du message TutorialManager affiché quand on actionne un faux levier. Vide = aucun message.")]
     [SerializeField] string brokenMessageId = "";
+
+    
 
     // ════════════════════════════════════════════════════════════
     //  État runtime

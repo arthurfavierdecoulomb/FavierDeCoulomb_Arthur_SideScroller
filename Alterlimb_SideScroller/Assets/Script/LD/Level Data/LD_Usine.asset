@@ -16,7 +16,7 @@ MonoBehaviour:
   levelDescription: "Trouvez les deux levier pour ouvrir la porte v\xE9rouill\xE9e,
     et surtout survivez... il vous attends toujours quand vous vous y attendez le
     moins."
-  spawnPosition: {x: 34.4, y: -283.13}
+  spawnPosition: {x: 23.18, y: -282.3}
   autoRunEndPosition: {x: 121.28, y: -270.12}
   exitRunDirection: 1
-  ambientMusic: {fileID: 0}
+  ambientMusic: {fileID: 8300000, guid: 18caab6f74a688a429db189d65a25076, type: 3}
