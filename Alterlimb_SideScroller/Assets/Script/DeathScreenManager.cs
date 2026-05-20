@@ -6,12 +6,10 @@ using TMPro;
 /// <summary>
 /// Gère la séquence d'animation de mort façon "BIOS reboot".
 /// 
-/// Architecture des références :
-///   - deathOverlay : conteneur principal qui reste actif pendant toute la séquence
-///   - blackBackground : l'Image noire fullscreen (flicker)
-///   - disconnectedTitle : le grand titre "DISCONNECTED" glitché et flickeré au centre
-///   - biosText : le log BIOS qui s'affiche ligne par ligne
-///   - crtEffect : l'overlay shader CRT scanlines (optionnel)
+/// MUSIQUE : à la mort, la musique est mise en sourdine (MuffleMusic) ;
+/// au respawn (Phase 3.5), elle revient à la normale (UnmuffleMusic).
+/// 
+/// STATS : chaque mort incrémente le compteur de GameStats.
 /// 
 /// Déroulé :
 ///   1. Flicker initial (alternance rapide de l'Image noire)
@@ -201,6 +199,14 @@ public class DeathAnimationManager : MonoBehaviour
     {
         isPlaying = true;
 
+        // ── Comptabilise la mort dans les stats ─────────────
+        if (GameStats.Instance != null)
+            GameStats.Instance.AddDeath();
+
+        // ── Musique : plonge en sourdine dès la mort ────────
+        if (LevelMusicPlayer.Instance != null)
+            LevelMusicPlayer.Instance.MuffleMusic();
+
         if (gameUICanvas != null) gameUICanvas.SetActive(false);
 
         // ── Phase 1 : Flicker initial ───────────────────────
@@ -239,6 +245,10 @@ public class DeathAnimationManager : MonoBehaviour
         // ── Phase 3.5 : Respawn caché ───────────────────────
         onRespawn?.Invoke();
 
+        // ── Musique : revient à la normale au respawn ───────
+        if (LevelMusicPlayer.Instance != null)
+            LevelMusicPlayer.Instance.UnmuffleMusic();
+
         if (biosText != null)
         {
             biosText.text = "";
@@ -260,43 +270,28 @@ public class DeathAnimationManager : MonoBehaviour
     //  Titre DISCONNECTED — Glitch + Flicker en parallèle
     // ════════════════════════════════════════════════════════════
 
-    /// <summary>
-    /// Affiche le titre "DISCONNECTED" pendant `disconnectedDuration` secondes.
-    /// Lance EN PARALLÈLE deux coroutines :
-    ///   - GlitchTextRoutine : modifie aléatoirement les lettres
-    ///   - FlickerTitleRoutine : fait apparaître/disparaître le titre rapidement
-    /// </summary>
     IEnumerator ShowDisconnectedTitle()
     {
         if (disconnectedTitle == null) yield break;
 
-        // Active le titre et initialise le texte
         disconnectedTitle.gameObject.SetActive(true);
         disconnectedTitle.text = disconnectedText;
 
-        // Lance les deux effets en parallèle
         Coroutine glitchRoutine = StartCoroutine(GlitchTextRoutine());
         Coroutine flickerRoutine = null;
 
         if (useFlicker)
             flickerRoutine = StartCoroutine(FlickerTitleRoutine());
 
-        // Attend la durée totale
         yield return new WaitForSeconds(disconnectedDuration);
 
-        // Stoppe les deux effets
         if (glitchRoutine != null) StopCoroutine(glitchRoutine);
         if (flickerRoutine != null) StopCoroutine(flickerRoutine);
 
-        // Cache le titre
         disconnectedTitle.text = "";
         disconnectedTitle.gameObject.SetActive(false);
     }
 
-    /// <summary>
-    /// Boucle infinie qui modifie le texte du titre avec des lettres corrompues.
-    /// Doit être stoppée par StopCoroutine depuis l'extérieur.
-    /// </summary>
     IEnumerator GlitchTextRoutine()
     {
         while (true)
@@ -310,17 +305,12 @@ public class DeathAnimationManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Boucle infinie qui fait clignoter le titre (active/désactive son GameObject).
-    /// Doit être stoppée par StopCoroutine depuis l'extérieur.
-    /// </summary>
     IEnumerator FlickerTitleRoutine()
     {
         while (true)
         {
             if (disconnectedTitle != null)
             {
-                // Tirage aléatoire pour décider si le titre est visible ou caché
                 bool visible = Random.value < flickerVisibility;
                 disconnectedTitle.gameObject.SetActive(visible);
             }
@@ -330,10 +320,6 @@ public class DeathAnimationManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Renvoie le texte avec une partie des lettres aléatoirement remplacées
-    /// par des caractères de la palette glitchChars.
-    /// </summary>
     string GenerateGlitchedText(string original)
     {
         if (string.IsNullOrEmpty(original) || string.IsNullOrEmpty(glitchChars))

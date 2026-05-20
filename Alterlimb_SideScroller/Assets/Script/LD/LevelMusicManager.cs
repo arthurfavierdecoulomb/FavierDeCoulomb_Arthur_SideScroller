@@ -4,21 +4,16 @@ using System.Collections;
 /// <summary>
 /// Lecteur de la musique de fond des niveaux.
 /// 
-/// Possède son PROPRE AudioSource, séparé de celui des bruitages du
-/// LevelTransitionManager — pour que la musique et les bruitages ne se
-/// coupent jamais l'un l'autre.
+/// Possède son PROPRE AudioSource, séparé des bruitages.
 /// 
-/// Deux opérations :
-///   - FadeOut(durée)    : estompe la musique actuelle jusqu'au silence.
-///   - PlayMusic(clip)   : lance une nouvelle musique en boucle, avec un
-///                         léger fondu d'entrée.
+/// Opérations :
+///   - FadeOut(durée)   : estompe la musique jusqu'au silence.
+///   - PlayMusic(clip)  : lance une musique en boucle avec fondu d'entrée.
+///   - MuffleMusic()    : "étouffe" la musique (pitch grave + volume bas) sans
+///                        l'arrêter — utilisé à la mort du joueur.
+///   - UnmuffleMusic()  : ramène pitch et volume à la normale — au respawn.
 /// 
 /// Accès global via LevelMusicPlayer.Instance.
-/// 
-/// Setup :
-///   - Un GameObject permanent de la scène (ex: "LevelMusicPlayer").
-///   - Un composant AudioSource dessus (Play On Awake décoché, Loop coché).
-///   - Ce script, avec l'AudioSource assigné.
 /// </summary>
 public class LevelMusicPlayer : MonoBehaviour
 {
@@ -29,15 +24,28 @@ public class LevelMusicPlayer : MonoBehaviour
     [SerializeField] AudioSource musicSource;
 
     [Header("Volume")]
-    [Tooltip("Volume cible de la musique quand elle joue")]
+    [Tooltip("Volume cible de la musique quand elle joue normalement")]
     [Range(0f, 1f)]
     [SerializeField] float musicVolume = 0.6f;
 
-    [Header("Fondus")]
+    [Header("Fondus (transitions de niveau)")]
     [Tooltip("Durée du fondu d'entrée quand une nouvelle musique démarre")]
     [SerializeField] float defaultFadeInDuration = 1.0f;
 
+    [Header("Effet sourdine (mort du joueur)")]
+    [Tooltip("Volume de la musique quand elle est étouffée (sourdine)")]
+    [Range(0f, 1f)]
+    [SerializeField] float muffledVolume = 0.2f;
+    [Tooltip("Pitch de la musique quand elle est étouffée (1 = normal, plus bas = grave/ralenti)")]
+    [Range(0.1f, 1f)]
+    [SerializeField] float muffledPitch = 0.5f;
+    [Tooltip("Durée de la transition vers la sourdine (à la mort)")]
+    [SerializeField] float muffleDuration = 0.4f;
+    [Tooltip("Durée de la transition de retour à la normale (au respawn)")]
+    [SerializeField] float unmuffleDuration = 0.6f;
+
     Coroutine fadeRoutine;
+    Coroutine muffleRoutine;
 
     void Awake()
     {
@@ -55,17 +63,14 @@ public class LevelMusicPlayer : MonoBehaviour
         {
             musicSource.loop = true;
             musicSource.playOnAwake = false;
+            musicSource.pitch = 1f;
         }
     }
 
     // ════════════════════════════════════════════════════════════
-    //  API publique
+    //  Transitions de niveau
     // ════════════════════════════════════════════════════════════
 
-    /// <summary>
-    /// Estompe progressivement la musique en cours jusqu'au silence,
-    /// puis arrête la lecture.
-    /// </summary>
     public void FadeOut(float duration)
     {
         if (musicSource == null) return;
@@ -74,16 +79,11 @@ public class LevelMusicPlayer : MonoBehaviour
         fadeRoutine = StartCoroutine(FadeOutRoutine(duration));
     }
 
-    /// <summary>
-    /// Lance une nouvelle musique en boucle, avec un fondu d'entrée.
-    /// Si un clip joue déjà, il est remplacé.
-    /// </summary>
     public void PlayMusic(AudioClip clip)
     {
         PlayMusic(clip, defaultFadeInDuration);
     }
 
-    /// <summary>Lance une nouvelle musique avec une durée de fondu d'entrée précise.</summary>
     public void PlayMusic(AudioClip clip, float fadeInDuration)
     {
         if (musicSource == null) return;
@@ -97,7 +97,6 @@ public class LevelMusicPlayer : MonoBehaviour
         fadeRoutine = StartCoroutine(PlayMusicRoutine(clip, fadeInDuration));
     }
 
-    /// <summary>Coupe la musique immédiatement, sans fondu.</summary>
     public void StopImmediate()
     {
         if (musicSource == null) return;
@@ -108,7 +107,62 @@ public class LevelMusicPlayer : MonoBehaviour
     }
 
     // ════════════════════════════════════════════════════════════
-    //  Coroutines
+    //  Effet sourdine (mort / respawn)
+    // ════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// "Étouffe" la musique : le pitch descend (grave/ralenti) et le volume
+    /// baisse, en douceur. La musique NE S'ARRÊTE PAS — elle joue en sourdine.
+    /// À appeler à la mort du joueur.
+    /// </summary>
+    public void MuffleMusic()
+    {
+        if (musicSource == null) return;
+
+        if (muffleRoutine != null) StopCoroutine(muffleRoutine);
+        muffleRoutine = StartCoroutine(MuffleRoutine(muffledVolume, muffledPitch, muffleDuration));
+    }
+
+    /// <summary>
+    /// Ramène la musique à la normale : pitch et volume reviennent à leurs
+    /// valeurs normales, en douceur. À appeler au respawn du joueur.
+    /// </summary>
+    public void UnmuffleMusic()
+    {
+        if (musicSource == null) return;
+
+        if (muffleRoutine != null) StopCoroutine(muffleRoutine);
+        muffleRoutine = StartCoroutine(MuffleRoutine(musicVolume, 1f, unmuffleDuration));
+    }
+
+    /// <summary>
+    /// Transition douce du volume ET du pitch vers des valeurs cibles.
+    /// Sert aussi bien à étouffer (Muffle) qu'à rétablir (Unmuffle).
+    /// </summary>
+    IEnumerator MuffleRoutine(float targetVolume, float targetPitch, float duration)
+    {
+        float startVolume = musicSource.volume;
+        float startPitch = musicSource.pitch;
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+
+            musicSource.volume = Mathf.Lerp(startVolume, targetVolume, t);
+            musicSource.pitch = Mathf.Lerp(startPitch, targetPitch, t);
+
+            yield return null;
+        }
+
+        musicSource.volume = targetVolume;
+        musicSource.pitch = targetPitch;
+        muffleRoutine = null;
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  Coroutines de fondu
     // ════════════════════════════════════════════════════════════
 
     IEnumerator FadeOutRoutine(float duration)
@@ -131,13 +185,13 @@ public class LevelMusicPlayer : MonoBehaviour
 
     IEnumerator PlayMusicRoutine(AudioClip clip, float fadeInDuration)
     {
-        // Démarre le nouveau clip à volume nul
+        // Une nouvelle musique repart toujours à pitch normal
+        musicSource.pitch = 1f;
         musicSource.clip = clip;
         musicSource.loop = true;
         musicSource.volume = 0f;
         musicSource.Play();
 
-        // Fondu d'entrée jusqu'au volume cible
         float elapsed = 0f;
 
         while (elapsed < fadeInDuration)

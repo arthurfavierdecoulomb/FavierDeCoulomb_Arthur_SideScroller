@@ -8,6 +8,12 @@ using TMPro;
 /// Quand le joueur entre dans la zone, ses fusibles s'insèrent un par un
 /// (effet visuel via délai). Le compteur est mis à jour.
 /// 
+/// VISUEL : le panneau a un SpriteRenderer dont l'image change à chaque
+/// fusible installé. On fournit une LISTE DE SPRITES dans l'Inspector,
+/// un par état (0 fusible, 1 fusible, ... 5 fusibles). Le code pioche
+/// le bon sprite selon FuseManager.FusesInstalled. Pas de GameObjects
+/// à activer, pas d'Animator à monter.
+/// 
 /// L'ouverture de la porte n'est PAS gérée ici : la Door en mode "Fuses"
 /// s'abonne à FuseManager.OnAllFusesInstalledStatic de son côté.
 /// </summary>
@@ -17,9 +23,12 @@ public class FusePanel : MonoBehaviour
     [Header("Détection joueur")]
     [SerializeField] string playerTag = "Player";
 
-    [Header("Visuels des fusibles installés")]
-    [Tooltip("Les 5 GameObjects des fusibles dans le panneau (désactivés au départ). Ordre = ordre d'apparition.")]
-    [SerializeField] GameObject[] fuseSlots;
+    [Header("Visuel du panneau")]
+    [Tooltip("Le SpriteRenderer dont on change le sprite. Si vide, on prend celui de ce GameObject.")]
+    [SerializeField] SpriteRenderer panelRenderer;
+    [Tooltip("Liste des sprites du panneau, indexés par nombre de fusibles installés. " +
+             "Index 0 = panneau vide, index 1 = 1 fusible, ... index 5 = tous installés.")]
+    [SerializeField] Sprite[] fuseStateSprites;
 
     [Header("Animation d'insertion")]
     [Tooltip("Délai entre l'insertion de deux fusibles consécutifs (secondes)")]
@@ -37,10 +46,12 @@ public class FusePanel : MonoBehaviour
 
     void Start()
     {
-        foreach (GameObject slot in fuseSlots)
-        {
-            if (slot != null) slot.SetActive(false);
-        }
+        // Si pas assigné dans l'Inspector, on essaie de le trouver
+        if (panelRenderer == null)
+            panelRenderer = GetComponent<SpriteRenderer>();
+
+        // État visuel initial : aucun fusible installé
+        UpdateSprite();
         UpdateCounter();
     }
 
@@ -74,12 +85,8 @@ public class FusePanel : MonoBehaviour
             bool installed = FuseManager.Instance.TryInstallOneFuse();
             if (!installed) break;
 
-            int slotIndex = FuseManager.Instance.FusesInstalled - 1;
-            if (slotIndex >= 0 && slotIndex < fuseSlots.Length && fuseSlots[slotIndex] != null)
-            {
-                fuseSlots[slotIndex].SetActive(true);
-            }
-
+            // Changement de sprite selon le nombre de fusibles installés
+            UpdateSprite();
             UpdateCounter();
 
             // (Optionnel : son d'insertion ici)
@@ -88,6 +95,27 @@ public class FusePanel : MonoBehaviour
         }
 
         isInserting = false;
+    }
+
+    /// <summary>
+    /// Met le sprite du panneau qui correspond au nombre de fusibles installés.
+    /// Pioche dans la liste fuseStateSprites en utilisant FusesInstalled comme index.
+    /// </summary>
+    void UpdateSprite()
+    {
+        if (panelRenderer == null) return;
+        if (FuseManager.Instance == null) return;
+        if (fuseStateSprites == null || fuseStateSprites.Length == 0) return;
+
+        int installed = FuseManager.Instance.FusesInstalled;
+
+        // Sécurité : on borne l'index dans la liste (au cas où la liste n'aurait pas
+        // assez de sprites pour le total de fusibles)
+        int index = Mathf.Clamp(installed, 0, fuseStateSprites.Length - 1);
+
+        Sprite spriteToShow = fuseStateSprites[index];
+        if (spriteToShow != null)
+            panelRenderer.sprite = spriteToShow;
     }
 
     void UpdateCounter()
