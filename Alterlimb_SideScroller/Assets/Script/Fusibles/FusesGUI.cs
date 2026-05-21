@@ -18,15 +18,7 @@ using TMPro;
 /// Le GUI apparaît en flicker au premier fusible, disparaît en flicker
 /// quand tous les fusibles sont installés.
 /// 
-/// Hiérarchie attendue :
-///   ArtefactFuse (CanvasGroup + ce script)
-///   └── Background_Fuse
-///       ├── FuseCount   (TextMeshProUGUI)
-///       ├── FuseName    (TextMeshProUGUI — "Fusibles")
-///       └── OnFuseCount (TextMeshProUGUI — "/5")
 /// 
-/// + un GameObject "FlyingFuseIcon" (Image UI) quelque part dans le Canvas,
-///   désactivé au départ — c'est l'icône qui vole.
 /// </summary>
 [RequireComponent(typeof(CanvasGroup))]
 public class FuseGUI : MonoBehaviour
@@ -183,13 +175,18 @@ public class FuseGUI : MonoBehaviour
 
     IEnumerator PlayPickupAnimation()
     {
-        // Si le GUI n'est pas encore visible, on le fait apparaître d'abord
+        // Si le GUI n'est pas encore visible, on le fait apparaître d'abord.
+        // On yield SUR la coroutine de flicker pour garantir que l'alpha
+        // est bien posé à 1 avant que l'animation ne démarre.
         if (!isVisible)
         {
-            StartFlicker(appearing: true);
-            // On attend un peu que le flicker démarre (pas bloquant longtemps)
-            yield return new WaitForSeconds(flickerDuration);
+            isVisible = true; // set tout de suite pour éviter une 2e entrée
+            if (flickerCoroutine != null) StopCoroutine(flickerCoroutine);
+            yield return StartCoroutine(FlickerRoutine(appearing: true));
         }
+
+        // Sécurité : on force l'alpha à 1 au cas où.
+        canvasGroup.alpha = 1f;
 
         if (flyingIcon == null || iconTarget == null)
         {
@@ -199,7 +196,7 @@ public class FuseGUI : MonoBehaviour
         }
 
         // Calcul de la position centrale de l'écran
-        screenCenter = Vector2.zero; // le centre dépend de l'ancrage, voir setup Unity
+        screenCenter = Vector2.zero; // l'icône doit avoir ses anchors au centre (0.5, 0.5)
 
         // ── Préparation : icône au centre, échelle 0 ──
         flyingIcon.gameObject.SetActive(true);
