@@ -1,6 +1,5 @@
 # ALTERLIMB
-### par Arthur Favier de Coulomb — ESMA 2025–2026
-
+### par Arthur Favier de Coulomb
 ---
 
 ## Synopsis
