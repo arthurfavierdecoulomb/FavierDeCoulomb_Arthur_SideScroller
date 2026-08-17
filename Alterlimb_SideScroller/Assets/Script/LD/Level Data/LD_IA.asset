@@ -16,4 +16,5 @@ MonoBehaviour:
   levelDescription: Description du niveau
   spawnPosition: {x: 0, y: 0}
   autoRunEndPosition: {x: 0, y: 0}
-  ambientMusic: {fileID: 0}
+  exitRunDirection: 1
+  ambientMusic: {fileID: 8300000, guid: a5d80a893e2b02743a5a0776bda3cd67, type: 3}
