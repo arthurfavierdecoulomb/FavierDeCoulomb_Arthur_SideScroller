@@ -1,154 +1,79 @@
 ﻿using UnityEngine;
 using System.Collections;
-using System.Collections.Generic;
 using TMPro;
 
-/// <summary>
-/// Gère la séquence d'animation de mort façon "BIOS reboot".
-/// 
-/// MUSIQUE : à la mort, la musique est mise en sourdine (MuffleMusic) ;
-/// au respawn (Phase 3.5), elle revient à la normale (UnmuffleMusic).
-/// 
-/// STATS : chaque mort incrémente le compteur de GameStats.
-/// 
-/// Déroulé :
-///   1. Flicker initial (alternance rapide de l'Image noire)
-///   2. Titre DISCONNECTED : glitch des lettres + flicker en parallèle
-///   3. Phase BIOS : Image noire stable + effet CRT + log de boot ligne par ligne
-///   4. Flicker final (avant respawn)
-///   5. Nettoyage : tout est caché, le joueur est respawné
-/// </summary>
 public class DeathAnimationManager : MonoBehaviour
 {
     public static DeathAnimationManager Instance { get; private set; }
 
-    // ════════════════════════════════════════════════════════════
-    //  Types
-    // ════════════════════════════════════════════════════════════
-
-    [System.Serializable]
-    public class BootLine
-    {
-        [Tooltip("Texte de la ligne. Utilise {x} et {y} pour insérer les coordonnées du checkpoint.")]
-        [TextArea(1, 3)]
-        public string text;
-
-        [Tooltip("Délai après cette ligne avant la suivante (en secondes)")]
-        [Range(0f, 2f)]
-        public float delayAfter = 0.15f;
-
-        [Tooltip("Joue un son de typing pour cette ligne")]
-        public bool playSound = true;
-    }
-
-    // ════════════════════════════════════════════════════════════
-    //  Configuration
-    // ════════════════════════════════════════════════════════════
-
     [Header("Références UI")]
-    [Tooltip("Conteneur principal (parent de tout). Reste actif pendant toute la séquence.")]
     [SerializeField] GameObject deathOverlay;
-    [Tooltip("L'Image noire fullscreen. C'est elle qu'on flicker.")]
-    [SerializeField] GameObject blackBackground;
-    [Tooltip("Titre DISCONNECTED glitché au centre de l'écran")]
-    [SerializeField] TextMeshProUGUI disconnectedTitle;
-    [Tooltip("Le composant TextMeshPro qui affichera le log BIOS.")]
-    [SerializeField] TextMeshProUGUI biosText;
-    [Tooltip("Effet CRT scanlines (optionnel) — activé pendant la phase BIOS")]
+    [SerializeField] CanvasGroup backgroundGroup;
+    [SerializeField] CanvasGroup textGroup;
+    [SerializeField] RectTransform textRect;
+    [SerializeField] TextMeshProUGUI deathText;
     [SerializeField] GameObject crtEffect;
-    [Tooltip("Canvas de l'interface de jeu à masquer pendant l'animation")]
+    [SerializeField] CanvasGroup crtGroup;
+    [Range(0f, 1f)]
+    [SerializeField] float crtMaxAlpha = 1f;
     [SerializeField] GameObject gameUICanvas;
 
-    [Header("Titre DISCONNECTED — Texte")]
-    [Tooltip("Texte à afficher (par défaut : DISCONNECTED)")]
-    [SerializeField] string disconnectedText = "DISCONNECTED";
-    [Tooltip("Durée totale d'affichage du titre")]
-    [SerializeField] float disconnectedDuration = 1.8f;
+    [Header("Texte")]
+    [SerializeField] string message = "Déconnecté...";
 
-    [Header("Titre DISCONNECTED — Glitch (lettres corrompues)")]
-    [Tooltip("Probabilité qu'une lettre soit corrompue à chaque tick (0 = jamais, 1 = toujours)")]
+    [Header("Caméra")]
+    [SerializeField] Camera targetCamera;
+    [SerializeField] MonoBehaviour cameraFollowScript;
+    [SerializeField] Transform player;
+    [SerializeField] string playerTag = "Player";
+    [SerializeField] float cameraReturnDuration = 0.8f;
+    [SerializeField] AnimationCurve cameraReturnCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
+
+    [Header("Tremblement de caméra")]
+    [SerializeField] bool useCameraShake = true;
+    [SerializeField] float shakeDuration = 0.45f;
+    [SerializeField] float shakeMagnitude = 0.35f;
+    [SerializeField] float shakeInterval = 0.02f;
+    [SerializeField] AnimationCurve shakeFalloff = AnimationCurve.EaseInOut(0f, 1f, 1f, 0f);
+
+    [Header("Ralenti")]
+    [SerializeField] bool useSlowMotion = true;
+    [Range(0.01f, 1f)]
+    [SerializeField] float slowMotionScale = 0.2f;
+    [SerializeField] float slowMotionEnterDuration = 0.35f;
+    [SerializeField] float slowMotionExitDuration = 0.5f;
+
+    [Header("Fondu du background")]
+    [SerializeField] float backgroundFadeInDuration = 0.6f;
+    [SerializeField] float backgroundFadeOutDuration = 0.7f;
     [Range(0f, 1f)]
-    [SerializeField] float glitchProbability = 0.25f;
-    [Tooltip("Intervalle entre chaque mise à jour du glitch (en secondes)")]
-    [SerializeField] float glitchUpdateInterval = 0.05f;
-    [Tooltip("Caractères utilisés pour remplacer aléatoirement les lettres")]
-    [SerializeField] string glitchChars = "█▓▒░#@%&*?!|/\\<>";
+    [SerializeField] float backgroundMaxAlpha = 0.9f;
+    [SerializeField] bool blackoutBeforeRespawn = true;
+    [SerializeField] float blackoutDuration = 0.2f;
+    [SerializeField] bool overlapFadeAndCameraReturn = true;
 
-    [Header("Titre DISCONNECTED — Flicker (apparition/disparition)")]
-    [Tooltip("Active le flicker du titre (en plus du glitch des lettres)")]
-    [SerializeField] bool useFlicker = true;
-    [Tooltip("Intervalle MIN entre chaque changement de visibilité (en secondes)")]
-    [SerializeField] float flickerTitleMin = 0.04f;
-    [Tooltip("Intervalle MAX entre chaque changement de visibilité (en secondes)")]
-    [SerializeField] float flickerTitleMax = 0.18f;
-    [Tooltip("Probabilité que le titre soit visible à chaque tick (0.7 = visible 70% du temps)")]
-    [Range(0.1f, 1f)]
-    [SerializeField] float flickerVisibility = 0.65f;
+    [Header("Apparition du texte")]
+    [SerializeField] float textStartOffsetY = -450f;
+    [SerializeField] float textRiseDuration = 0.7f;
+    [Range(0f, 4f)]
+    [SerializeField] float bounceOvershoot = 1.7f;
+    [SerializeField] float textFadeInDuration = 0.35f;
+    [SerializeField] float textFadeOutDuration = 0.5f;
 
-    [Header("Lignes du log BIOS")]
-    [Tooltip("Une entrée = une ligne. Chaque ligne a son propre délai pour créer du rythme.")]
-    [SerializeField]
-    List<BootLine> bootLog = new List<BootLine>
-    {
-        new BootLine { text = "ALTERLIMB BIOS v0.4.2 — © FavierDeCoulomb Industries", delayAfter = 0.20f },
-        new BootLine { text = "Copyright (c) 2089. All limbs reserved.",              delayAfter = 0.30f },
-        new BootLine { text = "",                                                     delayAfter = 0.10f, playSound = false },
-        new BootLine { text = "[ OK ] CPU detected: BioCortex M7 @ 2.4 GHz",          delayAfter = 0.08f },
-        new BootLine { text = "[ OK ] Memory check ......... 4096 MB",               delayAfter = 0.08f },
-        new BootLine { text = "[ OK ] Skeletal frame integrity: NOMINAL",             delayAfter = 0.10f },
-        new BootLine { text = "[ .. ] Detecting limbs",                               delayAfter = 0.40f },
-        new BootLine { text = "       > LeftArm  ......... CONNECTED",                delayAfter = 0.06f },
-        new BootLine { text = "       > RightArm ......... CONNECTED",                delayAfter = 0.06f },
-        new BootLine { text = "       > LeftLeg  ......... CONNECTED",                delayAfter = 0.06f },
-        new BootLine { text = "       > RightLeg ......... CONNECTED",                delayAfter = 0.20f },
-        new BootLine { text = "[ ERR ] FATAL: Vital signs lost.",                     delayAfter = 0.60f },
-        new BootLine { text = "[ ERR ] Last known cause: TRAUMA",                     delayAfter = 0.50f },
-        new BootLine { text = "",                                                     delayAfter = 0.15f, playSound = false },
-        new BootLine { text = "Initiating recovery protocol...",                      delayAfter = 0.30f },
-        new BootLine { text = "Loading checkpoint data ......... [{x}, {y}]",         delayAfter = 0.25f },
-        new BootLine { text = "Recompiling consciousness .........",                  delayAfter = 0.35f },
-        new BootLine { text = "Restoring neural pathways .........",                  delayAfter = 0.20f },
-        new BootLine { text = "Calibrating camera to host position ...",              delayAfter = 0.30f },
-        new BootLine { text = "[ OK ] Camera locked on host.",                        delayAfter = 0.20f },
-        new BootLine { text = "",                                                     delayAfter = 0.10f, playSound = false },
-        new BootLine { text = "> Booting host: Prinze",                               delayAfter = 0.30f },
-        new BootLine { text = "> Press any key to resume operations_",                delayAfter = 0.40f },
-    };
+    [Header("Timings")]
+    [SerializeField] float delayBeforeText = 0.25f;
+    [SerializeField] float holdDuration = 5f;
 
-    [Header("Timings — Phases")]
-    [Tooltip("Durée du flicker initial (avant titre DISCONNECTED)")]
-    [SerializeField] float initialFlickerDuration = 0.5f;
-    [Tooltip("Délai entre la disparition du titre et le début du BIOS")]
-    [SerializeField] float titleToBiosDelay = 0.3f;
-    [Tooltip("Délai après la dernière ligne avant le flicker final")]
-    [SerializeField] float biosEndPause = 0.6f;
-    [Tooltip("Durée du flicker final (avant respawn)")]
-    [SerializeField] float finalFlickerDuration = 0.6f;
-
-    [Header("Timings — Flicker écran")]
-    [SerializeField] float flickerMinInterval = 0.04f;
-    [SerializeField] float flickerMaxInterval = 0.12f;
-
-    [Header("Timings — Texte")]
-    [SerializeField] float biosStartDelay = 0.2f;
-    [SerializeField] bool useBlinkingCursor = true;
-
-    [Header("Audio (optionnel)")]
+    [Header("Audio")]
     [SerializeField] AudioSource audioSource;
-    [SerializeField] AudioClip flickerSound;
-    [SerializeField] AudioClip lineTypeSound;
-    [SerializeField] AudioClip disconnectSound;
+    [SerializeField] AudioClip deathSound;
+    [SerializeField] AudioClip textAppearSound;
 
-    // ════════════════════════════════════════════════════════════
-    //  État runtime
-    // ════════════════════════════════════════════════════════════
-
-    Vector3 lastCheckpointPosition;
+    Vector2 textCenterPosition;
+    float defaultFixedDeltaTime;
     bool isPlaying;
 
-    // ════════════════════════════════════════════════════════════
-    //  Initialisation
-    // ════════════════════════════════════════════════════════════
+    float DeltaTime => Time.unscaledDeltaTime;
 
     void Awake()
     {
@@ -159,25 +84,41 @@ public class DeathAnimationManager : MonoBehaviour
         }
         Instance = this;
 
-        if (deathOverlay != null) deathOverlay.SetActive(true);
+        if (targetCamera == null) targetCamera = Camera.main;
+        if (player == null) FindPlayer();
 
-        if (blackBackground != null) blackBackground.SetActive(false);
-        if (crtEffect != null) crtEffect.SetActive(false);
-        if (disconnectedTitle != null)
-        {
-            disconnectedTitle.text = "";
-            disconnectedTitle.gameObject.SetActive(false);
-        }
-        if (biosText != null)
-        {
-            biosText.text = "";
-            biosText.gameObject.SetActive(false);
-        }
+        defaultFixedDeltaTime = Time.fixedDeltaTime;
+
+        if (textRect != null)
+            textCenterPosition = textRect.anchoredPosition;
+
+        if (deathText != null)
+            deathText.text = message;
+
+        HideEverything();
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  API publique
-    // ════════════════════════════════════════════════════════════
+    void OnDisable()
+    {
+        RestoreTimeScale();
+    }
+
+    void FindPlayer()
+    {
+        GameObject go = GameObject.FindGameObjectWithTag(playerTag);
+        if (go != null) player = go.transform;
+    }
+
+    void HideEverything()
+    {
+        if (backgroundGroup != null) backgroundGroup.alpha = 0f;
+        if (textGroup != null) textGroup.alpha = 0f;
+        if (crtGroup != null) crtGroup.alpha = 0f;
+        if (crtEffect != null) crtEffect.SetActive(false);
+        if (textRect != null)
+            textRect.anchoredPosition = textCenterPosition + new Vector2(0f, textStartOffsetY);
+        if (deathOverlay != null) deathOverlay.SetActive(false);
+    }
 
     public void PlayDeathSequence(System.Action onRespawn, Vector3 checkpointPosition = default)
     {
@@ -186,229 +127,246 @@ public class DeathAnimationManager : MonoBehaviour
             Debug.LogWarning("[DeathAnimationManager] Une séquence est déjà en cours. Ignoré.");
             return;
         }
-
-        lastCheckpointPosition = checkpointPosition;
         StartCoroutine(DeathSequence(onRespawn));
     }
-
-    // ════════════════════════════════════════════════════════════
-    //  Séquence principale
-    // ════════════════════════════════════════════════════════════
 
     IEnumerator DeathSequence(System.Action onRespawn)
     {
         isPlaying = true;
 
-        // ── Comptabilise la mort dans les stats ─────────────
         if (GameStats.Instance != null)
             GameStats.Instance.AddDeath();
 
-        // ── Musique : plonge en sourdine dès la mort ────────
         if (LevelMusicPlayer.Instance != null)
             LevelMusicPlayer.Instance.MuffleMusic();
 
+        if (audioSource != null && deathSound != null)
+            audioSource.PlayOneShot(deathSound, 0.8f);
+
         if (gameUICanvas != null) gameUICanvas.SetActive(false);
 
-        // ── Phase 1 : Flicker initial ───────────────────────
-        yield return StartCoroutine(FlickerRoutine(initialFlickerDuration, endVisible: true));
+        if (deathOverlay != null) deathOverlay.SetActive(true);
+        if (backgroundGroup != null) backgroundGroup.alpha = 0f;
+        if (textGroup != null) textGroup.alpha = 0f;
+        if (deathText != null) deathText.text = message;
 
-        // ── Phase 2 : Titre DISCONNECTED glitché + flickeré ─
-        if (blackBackground != null) blackBackground.SetActive(true);
         if (crtEffect != null) crtEffect.SetActive(true);
+        if (crtGroup != null) crtGroup.alpha = 0f;
 
-        if (audioSource != null && disconnectSound != null)
-            audioSource.PlayOneShot(disconnectSound, 0.7f);
+        if (textRect != null)
+            textRect.anchoredPosition = textCenterPosition + new Vector2(0f, textStartOffsetY);
 
-        yield return StartCoroutine(ShowDisconnectedTitle());
+        if (cameraFollowScript != null) cameraFollowScript.enabled = false;
 
-        yield return new WaitForSeconds(titleToBiosDelay);
+        if (useCameraShake)
+            yield return StartCoroutine(ShakeCameraRoutine());
 
-        // ── Phase 3 : BIOS — texte qui s'affiche ────────────
-        if (biosText != null)
-        {
-            biosText.text = "";
-            biosText.gameObject.SetActive(true);
-        }
+        if (useSlowMotion)
+            yield return StartCoroutine(LerpTimeScale(1f, slowMotionScale, slowMotionEnterDuration));
 
-        yield return new WaitForSeconds(biosStartDelay);
+        Coroutine crtFadeIn = StartCoroutine(FadeCanvasGroup(crtGroup, 0f, crtMaxAlpha, backgroundFadeInDuration));
+        yield return StartCoroutine(FadeCanvasGroup(backgroundGroup, 0f, backgroundMaxAlpha, backgroundFadeInDuration));
+        if (crtFadeIn != null) yield return crtFadeIn;
 
-        Coroutine cursorRoutine = null;
-        if (useBlinkingCursor && biosText != null)
-            cursorRoutine = StartCoroutine(BlinkCursorRoutine());
+        yield return WaitFor(delayBeforeText);
 
-        yield return StartCoroutine(TypeBiosLog());
+        if (audioSource != null && textAppearSound != null)
+            audioSource.PlayOneShot(textAppearSound, 0.7f);
 
-        yield return new WaitForSeconds(biosEndPause);
+        yield return StartCoroutine(TextEnterRoutine());
 
-        if (cursorRoutine != null) StopCoroutine(cursorRoutine);
+        yield return WaitFor(holdDuration);
 
-        // ── Phase 3.5 : Respawn caché ───────────────────────
+        if (blackoutBeforeRespawn && backgroundMaxAlpha < 1f)
+            yield return StartCoroutine(FadeCanvasGroup(backgroundGroup, backgroundMaxAlpha, 1f, blackoutDuration));
+
         onRespawn?.Invoke();
 
-        // ── Musique : revient à la normale au respawn ───────
         if (LevelMusicPlayer.Instance != null)
             LevelMusicPlayer.Instance.UnmuffleMusic();
 
-        if (biosText != null)
-        {
-            biosText.text = "";
-            biosText.gameObject.SetActive(false);
-        }
-        if (crtEffect != null) crtEffect.SetActive(false);
+        if (player == null) FindPlayer();
 
-        // ── Phase 4 : Flicker final ─────────────────────────
-        yield return StartCoroutine(FlickerRoutine(finalFlickerDuration, endVisible: false));
+        Coroutine timeRestore = null;
+        if (useSlowMotion)
+            timeRestore = StartCoroutine(LerpTimeScale(Time.timeScale, 1f, slowMotionExitDuration));
 
-        // ── Phase 5 : Nettoyage ─────────────────────────────
-        if (blackBackground != null) blackBackground.SetActive(false);
+        Coroutine cameraReturn = StartCoroutine(ReturnCameraToPlayer(cameraReturnDuration));
+
+        if (!overlapFadeAndCameraReturn)
+            yield return cameraReturn;
+
+        Coroutine textFade = StartCoroutine(FadeCanvasGroup(textGroup, 1f, 0f, textFadeOutDuration));
+        Coroutine crtFadeOut = StartCoroutine(FadeCanvasGroup(crtGroup, GetAlpha(crtGroup), 0f, backgroundFadeOutDuration));
+        yield return StartCoroutine(FadeCanvasGroup(backgroundGroup, GetAlpha(backgroundGroup), 0f, backgroundFadeOutDuration));
+        if (textFade != null) yield return textFade;
+        if (crtFadeOut != null) yield return crtFadeOut;
+
+        if (cameraReturn != null) yield return cameraReturn;
+        if (timeRestore != null) yield return timeRestore;
+
+        RestoreTimeScale();
+
+        if (cameraFollowScript != null) cameraFollowScript.enabled = true;
+
+        HideEverything();
         if (gameUICanvas != null) gameUICanvas.SetActive(true);
 
         isPlaying = false;
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  Titre DISCONNECTED — Glitch + Flicker en parallèle
-    // ════════════════════════════════════════════════════════════
-
-    IEnumerator ShowDisconnectedTitle()
+    IEnumerator LerpTimeScale(float from, float to, float duration)
     {
-        if (disconnectedTitle == null) yield break;
-
-        disconnectedTitle.gameObject.SetActive(true);
-        disconnectedTitle.text = disconnectedText;
-
-        Coroutine glitchRoutine = StartCoroutine(GlitchTextRoutine());
-        Coroutine flickerRoutine = null;
-
-        if (useFlicker)
-            flickerRoutine = StartCoroutine(FlickerTitleRoutine());
-
-        yield return new WaitForSeconds(disconnectedDuration);
-
-        if (glitchRoutine != null) StopCoroutine(glitchRoutine);
-        if (flickerRoutine != null) StopCoroutine(flickerRoutine);
-
-        disconnectedTitle.text = "";
-        disconnectedTitle.gameObject.SetActive(false);
-    }
-
-    IEnumerator GlitchTextRoutine()
-    {
-        while (true)
+        if (duration <= 0f)
         {
-            if (disconnectedTitle != null)
-            {
-                disconnectedTitle.text = GenerateGlitchedText(disconnectedText);
-                disconnectedTitle.ForceMeshUpdate();
-            }
-            yield return new WaitForSeconds(glitchUpdateInterval);
+            ApplyTimeScale(to);
+            yield break;
         }
-    }
-
-    IEnumerator FlickerTitleRoutine()
-    {
-        while (true)
-        {
-            if (disconnectedTitle != null)
-            {
-                bool visible = Random.value < flickerVisibility;
-                disconnectedTitle.gameObject.SetActive(visible);
-            }
-
-            float interval = Random.Range(flickerTitleMin, flickerTitleMax);
-            yield return new WaitForSeconds(interval);
-        }
-    }
-
-    string GenerateGlitchedText(string original)
-    {
-        if (string.IsNullOrEmpty(original) || string.IsNullOrEmpty(glitchChars))
-            return original;
-
-        char[] chars = original.ToCharArray();
-        for (int i = 0; i < chars.Length; i++)
-        {
-            if (chars[i] == ' ') continue;
-
-            if (Random.value < glitchProbability)
-            {
-                int idx = Random.Range(0, glitchChars.Length);
-                chars[i] = glitchChars[idx];
-            }
-        }
-        return new string(chars);
-    }
-
-    // ════════════════════════════════════════════════════════════
-    //  Routines internes (flicker écran, BIOS, curseur)
-    // ════════════════════════════════════════════════════════════
-
-    IEnumerator FlickerRoutine(float duration, bool endVisible)
-    {
-        if (blackBackground == null) yield break;
 
         float elapsed = 0f;
-        bool visible = false;
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            ApplyTimeScale(Mathf.Lerp(from, to, Mathf.Clamp01(elapsed / duration)));
+            yield return null;
+        }
+
+        ApplyTimeScale(to);
+    }
+
+    void ApplyTimeScale(float scale)
+    {
+        Time.timeScale = scale;
+        Time.fixedDeltaTime = defaultFixedDeltaTime * scale;
+    }
+
+    void RestoreTimeScale()
+    {
+        Time.timeScale = 1f;
+        if (defaultFixedDeltaTime > 0f)
+            Time.fixedDeltaTime = defaultFixedDeltaTime;
+    }
+
+    IEnumerator ShakeCameraRoutine()
+    {
+        if (targetCamera == null || shakeDuration <= 0f) yield break;
+
+        Transform cam = targetCamera.transform;
+        Vector3 basePosition = cam.position;
+        float elapsed = 0f;
+
+        while (elapsed < shakeDuration)
+        {
+            float strength = shakeFalloff.Evaluate(Mathf.Clamp01(elapsed / shakeDuration)) * shakeMagnitude;
+            Vector2 offset = Random.insideUnitCircle * strength;
+
+            cam.position = basePosition + new Vector3(offset.x, offset.y, 0f);
+
+            float wait = Mathf.Max(0.001f, shakeInterval);
+            float waited = 0f;
+            while (waited < wait)
+            {
+                waited += DeltaTime;
+                elapsed += DeltaTime;
+                yield return null;
+            }
+        }
+
+        cam.position = basePosition;
+    }
+
+    IEnumerator ReturnCameraToPlayer(float duration)
+    {
+        if (targetCamera == null || player == null) yield break;
+
+        Transform cam = targetCamera.transform;
+        Vector3 startPos = cam.position;
+        float elapsed = 0f;
 
         while (elapsed < duration)
         {
-            visible = !visible;
-            blackBackground.SetActive(visible);
-
-            if (audioSource != null && flickerSound != null)
-                audioSource.PlayOneShot(flickerSound, 0.4f);
-
-            float interval = Random.Range(flickerMinInterval, flickerMaxInterval);
-            yield return new WaitForSeconds(interval);
-            elapsed += interval;
+            elapsed += DeltaTime;
+            float t = cameraReturnCurve.Evaluate(Mathf.Clamp01(elapsed / duration));
+            Vector3 target = new Vector3(player.position.x, player.position.y, startPos.z);
+            cam.position = Vector3.LerpUnclamped(startPos, target, t);
+            yield return null;
         }
 
-        blackBackground.SetActive(endVisible);
+        cam.position = new Vector3(player.position.x, player.position.y, startPos.z);
     }
 
-    IEnumerator TypeBiosLog()
+    IEnumerator TextEnterRoutine()
     {
-        if (biosText == null) yield break;
-
-        biosText.text = "";
-
-        foreach (BootLine line in bootLog)
+        if (textRect == null)
         {
-            string formatted = FormatLine(line.text);
-            biosText.text += formatted + "\n";
-            biosText.ForceMeshUpdate();
-
-            if (line.playSound && audioSource != null && lineTypeSound != null)
-                audioSource.PlayOneShot(lineTypeSound, 0.5f);
-
-            yield return new WaitForSeconds(line.delayAfter);
+            yield return StartCoroutine(FadeCanvasGroup(textGroup, 0f, 1f, textFadeInDuration));
+            yield break;
         }
-    }
 
-    string FormatLine(string raw)
-    {
-        if (string.IsNullOrEmpty(raw)) return raw;
-        return raw
-            .Replace("{x}", lastCheckpointPosition.x.ToString("F1"))
-            .Replace("{y}", lastCheckpointPosition.y.ToString("F1"));
-    }
+        Vector2 startPos = textCenterPosition + new Vector2(0f, textStartOffsetY);
+        textRect.anchoredPosition = startPos;
 
-    IEnumerator BlinkCursorRoutine()
-    {
-        const string cursor = "_";
-        bool visible = true;
+        Coroutine fade = StartCoroutine(FadeCanvasGroup(textGroup, 0f, 1f, textFadeInDuration));
 
-        while (true)
+        float elapsed = 0f;
+        float duration = Mathf.Max(0.01f, textRiseDuration);
+
+        while (elapsed < duration)
         {
-            if (biosText != null)
-            {
-                if (visible && !biosText.text.EndsWith(cursor))
-                    biosText.text += cursor;
-                else if (!visible && biosText.text.EndsWith(cursor))
-                    biosText.text = biosText.text.Substring(0, biosText.text.Length - cursor.Length);
-            }
-            visible = !visible;
-            yield return new WaitForSeconds(0.4f);
+            elapsed += DeltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            float eased = EaseOutBack(t, bounceOvershoot);
+            textRect.anchoredPosition = Vector2.LerpUnclamped(startPos, textCenterPosition, eased);
+            yield return null;
+        }
+
+        textRect.anchoredPosition = textCenterPosition;
+
+        if (fade != null) yield return fade;
+    }
+
+    static float EaseOutBack(float t, float overshoot)
+    {
+        float c1 = overshoot;
+        float c3 = c1 + 1f;
+        float p = t - 1f;
+        return 1f + c3 * (p * p * p) + c1 * (p * p);
+    }
+
+    float GetAlpha(CanvasGroup group) => group != null ? group.alpha : 0f;
+
+    IEnumerator FadeCanvasGroup(CanvasGroup group, float from, float to, float duration)
+    {
+        if (group == null) yield break;
+
+        if (duration <= 0f)
+        {
+            group.alpha = to;
+            yield break;
+        }
+
+        group.alpha = from;
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += DeltaTime;
+            group.alpha = Mathf.Lerp(from, to, Mathf.Clamp01(elapsed / duration));
+            yield return null;
+        }
+
+        group.alpha = to;
+    }
+
+    IEnumerator WaitFor(float seconds)
+    {
+        if (seconds <= 0f) yield break;
+
+        float elapsed = 0f;
+        while (elapsed < seconds)
+        {
+            elapsed += DeltaTime;
+            yield return null;
         }
     }
 }

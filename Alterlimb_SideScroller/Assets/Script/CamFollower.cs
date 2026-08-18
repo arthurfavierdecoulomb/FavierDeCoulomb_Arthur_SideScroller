@@ -1,15 +1,6 @@
 ﻿using UnityEngine;
 
-/// <summary>
-/// Caméra qui suit le joueur avec smoothing différencié X/Y, look-ahead
-/// (anticipation du mouvement), dead zone (zone centrale où la cam ne bouge
-/// pas) et bornes optionnelles.
-/// 
-/// ZOOM : la caméra interpole en douceur vers un orthographic size cible.
-/// Le zoom par défaut est mémorisé au démarrage. Des CameraZoomZone peuvent
-/// demander un zoom différent via SetTargetZoom() et revenir au défaut via
-/// ResetZoom().
-/// </summary>
+
 [RequireComponent(typeof(Camera))]
 public class CameraFollow : MonoBehaviour
 {

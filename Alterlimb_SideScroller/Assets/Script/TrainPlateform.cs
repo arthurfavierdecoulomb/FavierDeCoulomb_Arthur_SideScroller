@@ -1,32 +1,11 @@
 ﻿using UnityEngine;
 using System.Collections;
 
-/// <summary>
-/// Train qui fait des allers-retours automatiques entre deux points.
-/// Le joueur peut monter dessus et garder le contrôle total (saut + déplacement) :
-/// le train l'emmène en appliquant son delta de déplacement à la position du
-/// joueur, sans toucher à sa vélocité (donc ses sauts/courses restent intacts).
-/// 
-/// Cycle : roule vers une extrémité → bounce d'arrivée → pause → repart dans
-/// l'autre sens → etc. (boucle infinie).
-/// 
-/// Le joueur transporté :
-///   - On calcule le delta de déplacement du train à chaque FixedUpdate.
-///   - Si le joueur est sur le train, on ajoute ce delta à sa position.
-///   - On NE touche PAS à sa vélocité → il peut sauter/courir/dasher normalement.
-///   - Pendant un saut, le joueur quitte le contact → il n'est plus transporté
-///     (inertie réaliste : il "rate" le train s'il saute trop longtemps).
-/// 
-/// Reset au respawn via SpawnManager.OnPlayerRespawn.
-/// 
-/// Animator :
-///   - Int "moveDir" : 1 = droite, -1 = gauche, 0 = arrêt
-///   - Trigger "arretDroit" / "arretGauche" : bounce visuel d'arrivée
-/// </summary>
+
 [RequireComponent(typeof(Rigidbody2D))]
 public class TrainPlatform : MonoBehaviour
 {
-    enum TrainState { MovingRight, MovingLeft, Bouncing, Paused }
+    enum TrainState { MovingRight, MovingLeft, Bouncing, Paused, WaitingForPlayer }
 
     [Header("Trajet")]
     [Tooltip("Distance parcourue vers la droite depuis la position de départ")]
@@ -37,6 +16,14 @@ public class TrainPlatform : MonoBehaviour
     [SerializeField] float moveSpeed = 5f;
     [Tooltip("Direction de départ du train")]
     [SerializeField] bool startMovingRight = true;
+
+    [Header("Attente du joueur")]
+    [Tooltip("Si coché : le train ne part que lorsque le joueur est monté dessus")]
+    [SerializeField] bool waitForPlayer = true;
+    [Tooltip("Délai entre le moment où le joueur monte et le départ (laisse le temps de se stabiliser)")]
+    [SerializeField] float departDelay = 0.5f;
+    [Tooltip("Temps max d'attente sans joueur avant de repartir quand même. 0 = attente infinie.")]
+    [SerializeField] float maxWaitTime = 0f;
 
     [Header("Pause aux extrémités")]
     [Tooltip("Temps d'arrêt à chaque extrémité avant de repartir")]
@@ -68,22 +55,29 @@ public class TrainPlatform : MonoBehaviour
 
     Rigidbody2D rb;
     Rigidbody2D playerRb;
+
     Vector2 startPosition;
     Vector2 previousPosition;
 
     bool playerOnTrain;
     float timeSinceLastContact;
-    int currentMoveDir;
 
+    int currentMoveDir;
     TrainState state;
+
+   
+    bool nextDirIsRight;   
+    float waitTimer;       
+    float emptyWaitTimer;  
+
     float rightLimitX;
     float leftLimitX;
+
     Coroutine bounceCoroutine;
 
-    // ════════════════════════════════════════════════════════════
+    
     //  Initialisation
-    // ════════════════════════════════════════════════════════════
-
+    
     void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
@@ -100,13 +94,12 @@ public class TrainPlatform : MonoBehaviour
         rightLimitX = startPosition.x + rightDistance;
         leftLimitX = startPosition.x - leftDistance;
 
-        state = startMovingRight ? TrainState.MovingRight : TrainState.MovingLeft;
+        EnterWaitOrMove(startMovingRight);
     }
 
-    // ════════════════════════════════════════════════════════════
+    
     //  Respawn
-    // ════════════════════════════════════════════════════════════
-
+    
     void OnEnable()
     {
         SpawnManager.OnPlayerRespawn += ResetToStartPosition;
@@ -129,16 +122,35 @@ public class TrainPlatform : MonoBehaviour
         previousPosition = startPosition;
         rb.linearVelocity = Vector2.zero;
 
-        state = startMovingRight ? TrainState.MovingRight : TrainState.MovingLeft;
-
         DetachPlayer();
         SetMoveDir(0);
+
+        EnterWaitOrMove(startMovingRight);
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  Détection du joueur (collision sur le dessus)
-    // ════════════════════════════════════════════════════════════
+    
+    void EnterWaitOrMove(bool goRight)
+    {
+        nextDirIsRight = goRight;
+        waitTimer = 0f;
+        emptyWaitTimer = 0f;
 
+        if (waitForPlayer)
+            state = TrainState.WaitingForPlayer;
+        else
+            state = goRight ? TrainState.MovingRight : TrainState.MovingLeft;
+    }
+
+    void Depart()
+    {
+        state = nextDirIsRight ? TrainState.MovingRight : TrainState.MovingLeft;
+        waitTimer = 0f;
+        emptyWaitTimer = 0f;
+    }
+
+    
+    //  Détection du joueur (collision sur le dessus)
+    
     void OnCollisionStay2D(Collision2D collision)
     {
         if (!collision.collider.CompareTag(playerTag)) return;
@@ -180,17 +192,43 @@ public class TrainPlatform : MonoBehaviour
         playerRb = null;
     }
 
-    // ════════════════════════════════════════════════════════════
     //  FixedUpdate : mouvement + transport du joueur
-    // ════════════════════════════════════════════════════════════
-
+    
     void FixedUpdate()
     {
-        // Pendant le bounce, la coroutine gère le mouvement.
-        // On gère quand même le transport du joueur (voir plus bas).
+       
         if (state == TrainState.Bouncing)
         {
             TransportPlayer();
+            return;
+        }
+
+       
+        if (state == TrainState.WaitingForPlayer)
+        {
+            TransportPlayer();
+            SetMoveDir(0);
+
+            if (playerOnTrain)
+            {
+                emptyWaitTimer = 0f;
+                waitTimer += Time.fixedDeltaTime;
+
+                if (waitTimer >= departDelay)
+                    Depart();
+            }
+            else
+            {
+                
+                waitTimer = 0f;
+
+                if (maxWaitTime > 0f)
+                {
+                    emptyWaitTimer += Time.fixedDeltaTime;
+                    if (emptyWaitTimer >= maxWaitTime)
+                        Depart();
+                }
+            }
             return;
         }
 
@@ -229,17 +267,12 @@ public class TrainPlatform : MonoBehaviour
             rb.position = new Vector2(newX, startPosition.y);
         }
 
-        // Transport du joueur (applique le delta du train à sa position)
+        
         TransportPlayer();
-
         SetMoveDir(newMoveDir);
     }
 
-    /// <summary>
-    /// Applique le déplacement du train (delta depuis la frame précédente)
-    /// à la position du joueur, SANS toucher à sa vélocité.
-    /// Le joueur garde donc le plein contrôle de ses sauts et déplacements.
-    /// </summary>
+    
     void TransportPlayer()
     {
         Vector2 currentPos = rb.position;
@@ -252,16 +285,12 @@ public class TrainPlatform : MonoBehaviour
         }
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  Bounce + pause + demi-tour
-    // ════════════════════════════════════════════════════════════
-
+    
     void StartBounceAndPause(int arrivalDir)
     {
         state = TrainState.Bouncing;
         SetMoveDir(0);
 
-        // Déclenche l'animation de bounce visuel correspondante
         if (animator != null)
         {
             if (arrivalDir > 0) animator.SetTrigger(ArretDroitHash);
@@ -273,7 +302,7 @@ public class TrainPlatform : MonoBehaviour
 
     IEnumerator BounceThenPauseThenReverse(int arrivalDir)
     {
-        // ── Bounce d'overshoot horizontal ───────────────────────
+        
         float baseX = rb.position.x;
         float elapsed = 0f;
 
@@ -285,7 +314,6 @@ public class TrainPlatform : MonoBehaviour
             float offset = oscillation * dampingCurve * bounceAmplitude * arrivalDir;
 
             rb.position = new Vector2(baseX + offset, startPosition.y);
-
             TransportPlayer();
 
             elapsed += Time.fixedDeltaTime;
@@ -295,27 +323,26 @@ public class TrainPlatform : MonoBehaviour
         rb.position = new Vector2(baseX, startPosition.y);
         TransportPlayer();
 
-        // ── Pause ───────────────────────────────────────────────
+        
         state = TrainState.Paused;
-
         float pauseElapsed = 0f;
+
         while (pauseElapsed < pauseDuration)
         {
-            TransportPlayer(); // le train est immobile mais on garde la cohérence
+            TransportPlayer();
             pauseElapsed += Time.fixedDeltaTime;
             yield return new WaitForFixedUpdate();
         }
 
-        // ── Demi-tour : on repart dans l'autre sens ─────────────
-        state = (arrivalDir > 0) ? TrainState.MovingLeft : TrainState.MovingRight;
+        
+        EnterWaitOrMove(arrivalDir < 0);
 
         bounceCoroutine = null;
     }
 
-    // ════════════════════════════════════════════════════════════
+    
     //  Animator helper
-    // ════════════════════════════════════════════════════════════
-
+    
     void SetMoveDir(int dir)
     {
         if (dir == currentMoveDir) return;
@@ -323,10 +350,9 @@ public class TrainPlatform : MonoBehaviour
         if (animator != null) animator.SetInteger(MoveDirHash, dir);
     }
 
-    // ════════════════════════════════════════════════════════════
+    
     //  Gizmos
-    // ════════════════════════════════════════════════════════════
-
+    
     void OnDrawGizmos()
     {
         Vector2 reference = Application.isPlaying ? startPosition : (Vector2)transform.position;
@@ -338,6 +364,7 @@ public class TrainPlatform : MonoBehaviour
 
         Gizmos.color = Color.cyan;
         Gizmos.DrawWireSphere(rightPoint, 0.25f);
+
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(leftPoint, 0.25f);
 
