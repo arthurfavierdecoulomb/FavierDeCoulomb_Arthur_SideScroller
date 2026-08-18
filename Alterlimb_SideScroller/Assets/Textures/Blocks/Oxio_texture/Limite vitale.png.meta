@@ -1,0 +1,298 @@
+fileFormatVersion: 2
+guid: d0c0b73c407db594d9217ccde6bdfbaa
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -7773571440489376979
+    second: Limite vitale_0
+  - first:
+      213: 3083438241577015895
+    second: Limite vitale_1
+  - first:
+      213: -950505141691416341
+    second: Limite vitale_2
+  - first:
+      213: -1154160209143616050
+    second: Limite vitale_3
+  - first:
+      213: 1466496189619041191
+    second: Limite vitale_4
+  - first:
+      213: 837927588045178386
+    second: Limite vitale_5
+  - first:
+      213: -5647424321687609639
+    second: Limite vitale_6
+  - first:
+      213: 5043593025788646728
+    second: Limite vitale_7
+  - first:
+      213: -8153732553524645219
+    second: Limite vitale_8
+  - first:
+      213: 6729314892067513244
+    second: Limite vitale_9
+  - first:
+      213: -2935446103738261908
+    second: Limite vitale_10
+  - first:
+      213: -3497746890427173052
+    second: Limite vitale_11
+  - first:
+      213: -7417343991862186667
+    second: Limite vitale_12
+  - first:
+      213: 1088968497163237563
+    second: Limite vitale_13
+  - first:
+      213: 2680191733251765375
+    second: Limite vitale_14
+  - first:
+      213: -3150427181878289465
+    second: Limite vitale_15
+  - first:
+      213: -7329656126561136766
+    second: Limite vitale_16
+  - first:
+      213: 1764954771644598221
+    second: Limite vitale_17
+  - first:
+      213: -7700918981610540713
+    second: Limite vitale_18
+  - first:
+      213: 9131476958242641529
+    second: Limite vitale_19
+  - first:
+      213: -1538117098915958738
+    second: Limite vitale_20
+  - first:
+      213: -8459304687569526977
+    second: Limite vitale_21
+  - first:
+      213: 3660080458108593930
+    second: Limite vitale_22
+  - first:
+      213: -6663850039263496935
+    second: Limite vitale_23
+  - first:
+      213: 4710980900178850291
+    second: Limite vitale_24
+  - first:
+      213: 5598859735933707024
+    second: Limite vitale_25
+  - first:
+      213: 8569295738494998574
+    second: Limite vitale_26
+  - first:
+      213: -7121690741979088838
+    second: Limite vitale_27
+  - first:
+      213: -286959931809405229
+    second: Limite vitale_28
+  - first:
+      213: 5179445259934042704
+    second: Limite vitale_29
+  - first:
+      213: 3848806332895497144
+    second: Limite vitale_30
+  - first:
+      213: -4251053110375998586
+    second: Limite vitale_31
+  - first:
+      213: -2014916159505017025
+    second: Limite vitale_32
+  - first:
+      213: 8652055566287526981
+    second: Limite vitale_33
+  - first:
+      213: -3675771801794521752
+    second: Limite vitale_34
+  - first:
+      213: 7011985450192915456
+    second: Limite vitale_35
+  - first:
+      213: 6565252060234922143
+    second: Limite vitale_36
+  - first:
+      213: 217961802319607849
+    second: Limite vitale_37
+  - first:
+      213: 4995662899499841654
+    second: Limite vitale_38
+  - first:
+      213: 3618899111073823569
+    second: Limite vitale_39
+  - first:
+      213: 3696503222924072466
+    second: Limite vitale_40
+  - first:
+      213: 2062910654058144388
+    second: Limite vitale_41
+  - first:
+      213: 587496322124876208
+    second: Limite vitale_42
+  - first:
+      213: -4609084808704204278
+    second: Limite vitale_43
+  - first:
+      213: 7302674798805728441
+    second: Limite vitale_44
+  - first:
+      213: -5830262621340760215
+    second: Limite vitale_45
+  - first:
+      213: -3239475320963247894
+    second: Limite vitale_46
+  - first:
+      213: -6033690212328361135
+    second: Limite vitale_47
+  - first:
+      213: 5312719715349942911
+    second: Limite vitale_48
+  - first:
+      213: -4125189681412088127
+    second: Limite vitale_49
+  - first:
+      213: 1251379207124435028
+    second: Limite vitale_50
+  - first:
+      213: -3268720895292142728
+    second: Limite vitale_51
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 400
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: Limite vitale_0
+      rect:
+        serializedVersion: 2
+        x: 49
+        y: 655
+        width: 2638
+        height: 685
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d23528506f9be1490800000000000000
+      internalID: -7773571440489376979
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 41bf110ae4c5ef54db89e92f112ca101
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries:
+      - key: SpriteEditor.SliceSettings
+        value: '{"sliceOnImport":false,"gridCellCount":{"x":1.0,"y":1.0},"gridSpriteSize":{"x":2638.0,"y":685.0},"gridSpriteOffset":{"x":49.0,"y":708.0},"gridSpritePadding":{"x":0.0,"y":0.0},"pivot":{"x":0.5,"y":0.5},"pivotPixels":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":0,"pivotUnitMode":0,"slicingType":1,"keepEmptyRects":false,"isAlternate":false}'
+    nameFileIdTable:
+      Limite vitale_0: -7773571440489376979
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
