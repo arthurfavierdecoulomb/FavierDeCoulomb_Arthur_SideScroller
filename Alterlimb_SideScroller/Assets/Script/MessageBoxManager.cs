@@ -4,26 +4,9 @@ using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 
-/// <summary>
-/// Gère les bulles de tutoriel et de message.
-/// 
-/// Deux sources de messages :
-///   - ZONES de proximité (TutorialZone) : le joueur entre dans un rayon.
-///   - MESSAGES À LA DEMANDE : d'autres scripts (Door, Lever...) appellent
-///     ShowMessageById() avec l'id d'un message configuré dans 'messages'.
-/// 
-/// Animation : le bubblePanel slide depuis le haut avec un bounce d'overshoot.
-/// La machine à écrire démarre une fois le slide d'entrée terminé.
-/// 
-/// Accès global via TutorialManager.Instance (singleton léger).
-/// </summary>
 public class TutorialManager : MonoBehaviour
 {
     public static TutorialManager Instance { get; private set; }
-
-    // ════════════════════════════════════════════════════════════
-    //  Types
-    // ════════════════════════════════════════════════════════════
 
     [System.Serializable]
     public class TutorialZone
@@ -39,7 +22,7 @@ public class TutorialManager : MonoBehaviour
         public Sprite icon;
 
         [Header("Comportement")]
-        public float displayDuration = 0f;      // 0 = reste jusqu'à ce qu'on parte
+        public float displayDuration = 0f;
         public bool showOnce = true;
         public bool requireKeyPress = false;
         public KeyCode dismissKey = KeyCode.E;
@@ -48,26 +31,16 @@ public class TutorialManager : MonoBehaviour
         [HideInInspector] public bool isActive = false;
     }
 
-    /// <summary>
-    /// Un message réutilisable, identifié par un id texte.
-    /// Les portes, leviers, etc. demandent l'affichage via cet id.
-    /// </summary>
     [System.Serializable]
     public class TutorialMessage
     {
-        [Tooltip("Identifiant unique (ex: 'porte_fusibles', 'levier_casse')")]
         public string id = "";
         public string title = "";
         [TextArea(2, 6)]
         public string message = "";
         public Sprite icon;
-        [Tooltip("Durée d'affichage (0 = jusqu'à un nouveau message ou sortie de zone)")]
         public float displayDuration = 3f;
     }
-
-    // ════════════════════════════════════════════════════════════
-    //  Configuration
-    // ════════════════════════════════════════════════════════════
 
     [Header("UI Refs")]
     [SerializeField] GameObject bubblePanel;
@@ -82,8 +55,7 @@ public class TutorialManager : MonoBehaviour
     [Header("Zones tutoriel")]
     [SerializeField] List<TutorialZone> zones = new List<TutorialZone>();
 
-    [Header("Messages à la demande (portes, leviers...)")]
-    [Tooltip("Messages réutilisables, appelés par leur id via ShowMessageById()")]
+    [Header("Messages à la demande")]
     [SerializeField] List<TutorialMessage> messages = new List<TutorialMessage>();
 
     [Header("Machine à écrire")]
@@ -99,26 +71,23 @@ public class TutorialManager : MonoBehaviour
     [Range(0.1f, 0.9f)]
     [SerializeField] float bounceDamping = 0.45f;
 
-    // ════════════════════════════════════════════════════════════
-    //  Runtime
-    // ════════════════════════════════════════════════════════════
+    public bool IsSuppressed => suppressed;
 
     CanvasGroup canvasGroup;
     RectTransform panelRect;
-
     Vector2 shownPosition;
     Vector2 hiddenPosition;
 
     TutorialZone currentZone = null;
     float displayTimer = 0f;
+
     Coroutine typewriterCoroutine = null;
     Coroutine slideCoroutine = null;
 
     bool isShowing;
-
-    // Vrai si le message courant vient d'un appel à la demande (pas d'une zone)
     bool currentIsOnDemand = false;
     float onDemandTimer = 0f;
+    bool suppressed = false;
 
     void Awake()
     {
@@ -141,23 +110,67 @@ public class TutorialManager : MonoBehaviour
             canvasGroup = bubblePanel.AddComponent<CanvasGroup>();
 
         panelRect = bubblePanel.GetComponent<RectTransform>();
-
         shownPosition = panelRect.anchoredPosition;
         hiddenPosition = shownPosition + Vector2.up * hideOffsetY;
 
         bubblePanel.SetActive(true);
         panelRect.anchoredPosition = hiddenPosition;
+        canvasGroup.alpha = 0f;
+
+        ClearContent();
         SetInteractable(false);
         isShowing = false;
+    }
+
+    void ClearContent()
+    {
+        if (titleText != null) { titleText.text = ""; titleText.gameObject.SetActive(false); }
+        if (messageText != null) messageText.text = "";
+        if (iconImage != null) { iconImage.sprite = null; iconImage.gameObject.SetActive(false); }
+        if (dismissHint != null) { dismissHint.text = ""; dismissHint.gameObject.SetActive(false); }
     }
 
     void Update()
     {
         if (player == null) return;
+        if (suppressed) return;
 
         CheckZones();
         HandleDismiss();
         HandleOnDemandTimer();
+    }
+
+    public void Suppress(bool value)
+    {
+        if (suppressed == value) return;
+
+        suppressed = value;
+
+        if (suppressed)
+            ForceHide();
+    }
+
+    void ForceHide()
+    {
+        if (typewriterCoroutine != null)
+        {
+            StopCoroutine(typewriterCoroutine);
+            typewriterCoroutine = null;
+        }
+
+        if (currentZone != null)
+        {
+            currentZone.isActive = false;
+            currentZone = null;
+        }
+
+        currentIsOnDemand = false;
+        onDemandTimer = 0f;
+
+        if (!isShowing) return;
+
+        if (slideCoroutine != null) StopCoroutine(slideCoroutine);
+        slideCoroutine = StartCoroutine(SlideOutRoutine());
     }
 
     void SetInteractable(bool interactable)
@@ -166,18 +179,11 @@ public class TutorialManager : MonoBehaviour
         canvasGroup.blocksRaycasts = interactable;
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  API PUBLIQUE — messages à la demande
-    // ════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Affiche un message depuis la liste 'messages', identifié par son id.
-    /// Appelé par les portes verrouillées, leviers cassés, etc.
-    /// </summary>
     public void ShowMessageById(string id)
     {
-        TutorialMessage msg = messages.Find(m => m.id == id);
+        if (suppressed) return;
 
+        TutorialMessage msg = messages.Find(m => m.id == id);
         if (msg == null)
         {
             Debug.LogWarning($"[TutorialManager] Aucun message avec l'id '{id}'.");
@@ -189,7 +195,6 @@ public class TutorialManager : MonoBehaviour
 
     void ShowOnDemandMessage(TutorialMessage msg)
     {
-        // Un message à la demande prend le dessus sur une zone éventuelle
         if (currentZone != null)
         {
             currentZone.isActive = false;
@@ -199,43 +204,39 @@ public class TutorialManager : MonoBehaviour
         currentIsOnDemand = true;
         onDemandTimer = msg.displayDuration;
 
-        // Remplit les éléments
         if (titleText != null)
         {
             titleText.text = msg.title;
             titleText.gameObject.SetActive(!string.IsNullOrEmpty(msg.title));
         }
+
         if (iconImage != null)
         {
             iconImage.sprite = msg.icon;
             iconImage.gameObject.SetActive(msg.icon != null);
         }
+
         if (dismissHint != null)
-        {
             dismissHint.gameObject.SetActive(false);
-        }
+
         if (messageText != null)
             messageText.text = "";
 
-        // Lance le slide d'entrée
         if (slideCoroutine != null) StopCoroutine(slideCoroutine);
         slideCoroutine = StartCoroutine(SlideInRoutine(msg.message));
     }
 
-    /// <summary>
-    /// Gère la fermeture automatique d'un message à la demande après sa durée.
-    /// </summary>
     void HandleOnDemandTimer()
     {
         if (!currentIsOnDemand) return;
-        if (onDemandTimer <= 0f) return;  // 0 = pas de fermeture auto
+        if (onDemandTimer <= 0f) return;
 
         onDemandTimer -= Time.deltaTime;
+
         if (onDemandTimer <= 0f)
             HideCurrentMessage();
     }
 
-    /// <summary>Ferme le message à la demande en cours.</summary>
     void HideCurrentMessage()
     {
         currentIsOnDemand = false;
@@ -250,13 +251,8 @@ public class TutorialManager : MonoBehaviour
         slideCoroutine = StartCoroutine(SlideOutRoutine());
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  Zones de proximité
-    // ════════════════════════════════════════════════════════════
-
     void CheckZones()
     {
-        // Si un message à la demande est affiché, les zones attendent leur tour
         if (currentIsOnDemand) return;
 
         foreach (TutorialZone zone in zones)
@@ -315,17 +311,20 @@ public class TutorialManager : MonoBehaviour
             titleText.text = zone.title;
             titleText.gameObject.SetActive(!string.IsNullOrEmpty(zone.title));
         }
+
         if (iconImage != null)
         {
             iconImage.sprite = zone.icon;
             iconImage.gameObject.SetActive(zone.icon != null);
         }
+
         if (dismissHint != null)
         {
             dismissHint.gameObject.SetActive(zone.requireKeyPress);
             if (zone.requireKeyPress)
                 dismissHint.text = $"[ {zone.dismissKey} ] pour continuer";
         }
+
         if (messageText != null)
             messageText.text = "";
 
@@ -346,19 +345,15 @@ public class TutorialManager : MonoBehaviour
         if (currentZone == zone)
         {
             currentZone = null;
-
             if (slideCoroutine != null) StopCoroutine(slideCoroutine);
             slideCoroutine = StartCoroutine(SlideOutRoutine());
         }
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  Animation slide + bounce
-    // ════════════════════════════════════════════════════════════
-
     IEnumerator SlideInRoutine(string message)
     {
         isShowing = true;
+        canvasGroup.alpha = 1f;
         SetInteractable(true);
 
         float elapsed = 0f;
@@ -367,9 +362,7 @@ public class TutorialManager : MonoBehaviour
         while (elapsed < slideInDuration)
         {
             float t = elapsed / slideInDuration;
-
             Vector2 basePos = Vector2.Lerp(startPos, shownPosition, t);
-
             float dampingCurve = Mathf.Pow(1f - t, 1f - bounceDamping);
             float oscillation = Mathf.Sin(t * Mathf.PI * 2f * bounceCount);
             float bounceOffset = oscillation * dampingCurve * bounceAmplitude;
@@ -403,18 +396,15 @@ public class TutorialManager : MonoBehaviour
             float t = elapsed / slideOutDuration;
             float easedT = t * t;
             panelRect.anchoredPosition = Vector2.Lerp(startPos, hiddenPosition, easedT);
-
             elapsed += Time.deltaTime;
             yield return null;
         }
 
         panelRect.anchoredPosition = hiddenPosition;
+        canvasGroup.alpha = 0f;
         isShowing = false;
 
-        if (titleText != null) { titleText.text = ""; titleText.gameObject.SetActive(false); }
-        if (messageText != null) { messageText.text = ""; }
-        if (iconImage != null) { iconImage.sprite = null; iconImage.gameObject.SetActive(false); }
-        if (dismissHint != null) { dismissHint.text = ""; dismissHint.gameObject.SetActive(false); }
+        ClearContent();
 
         slideCoroutine = null;
     }
@@ -422,11 +412,13 @@ public class TutorialManager : MonoBehaviour
     IEnumerator TypewriterRoutine(string fullText)
     {
         messageText.text = "";
+
         foreach (char c in fullText)
         {
             messageText.text += c;
             yield return new WaitForSeconds(typewriterDelay);
         }
+
         typewriterCoroutine = null;
     }
 
@@ -435,8 +427,10 @@ public class TutorialManager : MonoBehaviour
         foreach (TutorialZone zone in zones)
         {
             if (zone.triggerObject == null) continue;
+
             Gizmos.color = new Color(0f, 1f, 1f, 0.3f);
             Gizmos.DrawWireSphere(zone.triggerObject.transform.position, zone.triggerRadius);
+
             Gizmos.color = Color.cyan;
             Gizmos.DrawSphere(zone.triggerObject.transform.position, 0.15f);
         }

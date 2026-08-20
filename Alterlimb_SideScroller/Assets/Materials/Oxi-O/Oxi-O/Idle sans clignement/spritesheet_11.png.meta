@@ -63,7 +63,7 @@ TextureImporter:
   compressionQuality: 50
   spriteMode: 2
   spriteExtrude: 1
-  spriteMeshType: 0
+  spriteMeshType: 1
   alignment: 0
   spritePivot: {x: 0.5, y: 0.5}
   spritePixelsToUnits: 60
@@ -250,7 +250,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: bc70b8acf15ef7840b7e42f288c60a1f
+    spriteID: 2ea4dac3ae2fa8f40bd0d03e02693758
     internalID: 0
     vertices: []
     indices: 
