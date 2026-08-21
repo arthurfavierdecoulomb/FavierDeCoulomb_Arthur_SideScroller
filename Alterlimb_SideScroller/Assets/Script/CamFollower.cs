@@ -1,6 +1,5 @@
 ﻿using UnityEngine;
 
-
 [RequireComponent(typeof(Camera))]
 public class CameraFollow : MonoBehaviour
 {
@@ -14,30 +13,33 @@ public class CameraFollow : MonoBehaviour
     [Header("Offset")]
     [SerializeField] Vector3 offset = new Vector3(0f, 1.5f, -10f);
 
-    [Header("Look Ahead (anticipation)")]
+    [Header("Look Ahead")]
     [SerializeField] float lookAheadDistance = 2f;
     [SerializeField] float lookAheadSpeed = 4f;
 
-    [Header("Dead Zone (zone sans mouvement cam)")]
+    [Header("Dead Zone")]
     [SerializeField] float deadZoneX = 0.5f;
     [SerializeField] float deadZoneY = 0.8f;
 
-    [Header("Camera Bounds (optionnel)")]
+    [Header("Camera Bounds")]
     [SerializeField] bool useBounds = false;
     [SerializeField] float minX, maxX, minY, maxY;
 
     [Header("Zoom")]
-    [Tooltip("Vitesse d'interpolation du zoom vers la valeur cible")]
     [SerializeField] float zoomSpeed = 3f;
 
-    // ── Runtime ──
+    public bool IsSuspended => suspended;
+    public float DefaultZoom => defaultZoom;
+    public Transform Target => target;
+
     float currentLookAhead;
     float targetLookAhead;
     float lastTargetX;
 
     Camera cam;
-    float defaultZoom;   // orthographic size par défaut, mémorisé au démarrage
-    float targetZoom;    // zoom actuellement demandé (par défaut ou par une zone)
+    float defaultZoom;
+    float targetZoom;
+    bool suspended;
 
     void Awake()
     {
@@ -48,12 +50,11 @@ public class CameraFollow : MonoBehaviour
 
     void LateUpdate()
     {
+        if (suspended) return;
         if (target == null) return;
 
-        // ── Position ──
         Vector3 targetPos = target.position + offset;
 
-        // Look ahead : anticipe la direction du perso
         float moveDirectionX = target.position.x - lastTargetX;
         if (Mathf.Abs(moveDirectionX) > 0.01f)
             targetLookAhead = Mathf.Sign(moveDirectionX) * lookAheadDistance;
@@ -61,16 +62,14 @@ public class CameraFollow : MonoBehaviour
         currentLookAhead = Mathf.Lerp(currentLookAhead, targetLookAhead,
                                        lookAheadSpeed * Time.deltaTime);
         lastTargetX = target.position.x;
-
         targetPos.x += currentLookAhead;
 
-        // Dead zone : la cam ne bouge que si le perso sort de la zone
         float diffX = targetPos.x - transform.position.x;
         float diffY = targetPos.y - transform.position.y;
+
         if (Mathf.Abs(diffX) < deadZoneX) targetPos.x = transform.position.x;
         if (Mathf.Abs(diffY) < deadZoneY) targetPos.y = transform.position.y;
 
-        // Smooth
         Vector3 smoothed = new Vector3
         (
             Mathf.Lerp(transform.position.x, targetPos.x, smoothSpeedX * Time.deltaTime),
@@ -78,7 +77,6 @@ public class CameraFollow : MonoBehaviour
             offset.z
         );
 
-        // Clamp dans les bounds si activé
         if (useBounds)
         {
             smoothed.x = Mathf.Clamp(smoothed.x, minX, maxX);
@@ -87,35 +85,54 @@ public class CameraFollow : MonoBehaviour
 
         transform.position = smoothed;
 
-        // ── Zoom : interpolation douce vers la valeur cible ──
         cam.orthographicSize = Mathf.Lerp(cam.orthographicSize, targetZoom,
                                            zoomSpeed * Time.deltaTime);
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  API publique — zoom
-    // ════════════════════════════════════════════════════════════
+    public void Suspend()
+    {
+        suspended = true;
+    }
 
-    /// <summary>
-    /// Demande à la caméra de zoomer vers une nouvelle valeur (orthographic size).
-    /// Appelé par les CameraZoomZone quand le joueur entre dedans.
-    /// Plus la valeur est petite, plus c'est zoomé. Plus elle est grande,
-    /// plus c'est dézoomé.
-    /// </summary>
+    public void Resume()
+    {
+        suspended = false;
+        currentLookAhead = 0f;
+        targetLookAhead = 0f;
+
+        if (target != null)
+            lastTargetX = target.position.x;
+    }
+
+    public void SnapToTarget()
+    {
+        if (target == null) return;
+
+        Vector3 snapped = target.position + offset;
+        snapped.z = offset.z;
+
+        if (useBounds)
+        {
+            snapped.x = Mathf.Clamp(snapped.x, minX, maxX);
+            snapped.y = Mathf.Clamp(snapped.y, minY, maxY);
+        }
+
+        transform.position = snapped;
+    }
+
+    public void SetTarget(Transform newTarget)
+    {
+        target = newTarget;
+        if (target != null) lastTargetX = target.position.x;
+    }
+
     public void SetTargetZoom(float newZoom)
     {
         targetZoom = newZoom;
     }
 
-    /// <summary>
-    /// Remet la cible de zoom à la valeur par défaut (celle au lancement).
-    /// Appelé par les CameraZoomZone quand le joueur en sort.
-    /// </summary>
     public void ResetZoom()
     {
         targetZoom = defaultZoom;
     }
-
-    /// <summary>Le zoom par défaut, mémorisé au lancement (utile pour les zones).</summary>
-    public float DefaultZoom => defaultZoom;
 }

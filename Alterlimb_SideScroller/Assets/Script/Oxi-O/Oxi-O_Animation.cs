@@ -12,7 +12,7 @@ public class OxiOAnimationDriver : MonoBehaviour
     [SerializeField] string idleBlinkState = "Oxi_idle_avec_blink";
     [SerializeField] string talkState = "Oxi_dialogue_sans_blink";
     [SerializeField] string talkBlinkState = "Oxi_dialogue_avec_blink";
-    [SerializeField] string transformationState = "Oxi_euphorie_phase_deux";
+    [SerializeField] string transformationState = "Oxi_euphorie_transformation";
     [SerializeField] string euphoriaIdleState = "Oxi_euphorie_idle";
 
     [Header("États tuyaux")]
@@ -60,6 +60,41 @@ public class OxiOAnimationDriver : MonoBehaviour
         ventIdleHash = Animator.StringToHash(ventIdleState);
         ventErrorBoostHash = Animator.StringToHash(ventErrorBoostState);
         ventBoostHash = Animator.StringToHash(ventBoostState);
+
+        ValidateStates();
+    }
+
+    void ValidateStates()
+    {
+        CheckState(oxiAnimator, idleHash, idleState);
+        CheckState(oxiAnimator, idleBlinkHash, idleBlinkState);
+        CheckState(oxiAnimator, talkHash, talkState);
+        CheckState(oxiAnimator, talkBlinkHash, talkBlinkState);
+        CheckState(oxiAnimator, transformationHash, transformationState);
+        CheckState(oxiAnimator, euphoriaIdleHash, euphoriaIdleState);
+
+        CheckState(ventAnimator, ventIdleHash, ventIdleState);
+        CheckState(ventAnimator, ventErrorBoostHash, ventErrorBoostState);
+        CheckState(ventAnimator, ventBoostHash, ventBoostState);
+    }
+
+    void CheckState(Animator animator, int hash, string stateName)
+    {
+        if (animator == null)
+        {
+            Debug.LogError($"[OxiOAnimationDriver] Animator non assigné pour l'état '{stateName}'.");
+            return;
+        }
+
+        if (animator.runtimeAnimatorController == null)
+        {
+            Debug.LogError($"[OxiOAnimationDriver] Aucun Animator Controller sur {animator.name}.");
+            return;
+        }
+
+        if (animator.HasState(0, hash)) return;
+
+        Debug.LogError($"[OxiOAnimationDriver] L'état '{stateName}' est introuvable dans l'Animator de {animator.name}. Vérifie l'orthographe exacte.");
     }
 
     void Start()

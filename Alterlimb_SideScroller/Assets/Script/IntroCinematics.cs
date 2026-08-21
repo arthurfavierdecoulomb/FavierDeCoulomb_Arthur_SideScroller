@@ -3,33 +3,13 @@ using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 
-/// <summary>
-/// Cinématique d'introduction du jeu (façon Undertale).
-/// 
-/// Défilement 100% AUTOMATIQUE — aucune touche. Enchaîne une liste d'écrans
-/// de texte. Pour chaque écran :
-///   1. L'écran apparaît en flicker.
-///   2. Le texte s'écrit avec un effet machine à écrire.
-///   3. L'écran reste affiché pendant son 'displayDuration' propre.
-///   4. L'écran disparaît en flicker.
-/// 
-/// Une fois tous les écrans passés, le menu apparaît (flicker).
-/// 
-/// MUSIQUE : deux AudioSource séparés.
-///   - musique de cinématique : joue pendant la cinématique, fondu de sortie
-///     quand le menu apparaît.
-///   - musique du menu : démarre quand le menu apparaît.
-///     (Son AudioSource doit avoir 'Play On Awake' DÉCOCHÉ.)
-/// </summary>
 public class IntroCinematic : MonoBehaviour
 {
     [System.Serializable]
     public class CinematicScreen
     {
         [TextArea(2, 5)]
-        [Tooltip("Le texte affiché sur cet écran")]
         public string text = "";
-        [Tooltip("Temps d'affichage de l'écran APRÈS que le texte soit entièrement tapé")]
         public float displayDuration = 3f;
     }
 
@@ -37,33 +17,35 @@ public class IntroCinematic : MonoBehaviour
     [SerializeField] List<CinematicScreen> screens = new List<CinematicScreen>();
 
     [Header("Références UI")]
-    [Tooltip("Le TextMeshPro où s'affiche le texte de la cinématique")]
     [SerializeField] TextMeshProUGUI cinematicText;
-    [Tooltip("FlickerEffect du panneau de cinématique (le bloc texte)")]
-    [SerializeField] FlickerEffect cinematicFlicker;
-    [Tooltip("FlickerEffect du panneau du MENU (affiché à la fin de la cinématique)")]
-    [SerializeField] FlickerEffect menuFlicker;
+    [SerializeField] FadeEffect cinematicFade;
+    [SerializeField] FadeEffect menuFade;
 
     [Header("Machine à écrire")]
     [SerializeField] float typewriterDelay = 0.045f;
 
     [Header("Timings")]
-    [Tooltip("Pause sur fond noir entre deux écrans")]
     [SerializeField] float blackHoldBetweenScreens = 0.4f;
-    [Tooltip("Pause sur fond noir avant l'apparition du menu")]
     [SerializeField] float blackHoldBeforeMenu = 0.6f;
 
+    [Header("Passer l'intro")]
+    [SerializeField] bool skipEnabled = true;
+    [SerializeField] FadeEffect skipHintFade;
+    [SerializeField] float skipHintDelay = 2f;
+    [SerializeField] bool skipOnAnyKey = true;
+    [SerializeField] KeyCode skipKey = KeyCode.Escape;
+
     [Header("Musique")]
-    [Tooltip("AudioSource dédié à la musique de la cinématique")]
     [SerializeField] AudioSource cinematicMusicSource;
-    [Tooltip("AudioSource dédié à la musique du menu (Play On Awake DÉCOCHÉ !)")]
     [SerializeField] AudioSource menuMusicSource;
-    [Tooltip("Durée du fondu de sortie de la musique de cinématique")]
     [SerializeField] float musicFadeOutDuration = 2.5f;
 
     [Header("Démarrage")]
-    [Tooltip("Si coché, la cinématique démarre automatiquement au lancement de la scène")]
     [SerializeField] bool playOnStart = true;
+
+    bool cinematicRunning;
+    bool endingStarted;
+    bool skipAvailable;
 
     void Start()
     {
@@ -71,53 +53,110 @@ public class IntroCinematic : MonoBehaviour
             StartCinematic();
     }
 
-    /// <summary>Lance la cinématique depuis le début.</summary>
+    void Update()
+    {
+        if (!cinematicRunning || !skipEnabled || !skipAvailable || endingStarted)
+            return;
+
+        if (SkipRequested())
+            SkipToMenu();
+    }
+
     public void StartCinematic()
     {
         StartCoroutine(CinematicSequence());
     }
 
+    public void SkipToMenu()
+    {
+        if (endingStarted)
+            return;
+
+        endingStarted = true;
+        StopAllCoroutines();
+        StartCoroutine(ShowMenuRoutine());
+    }
+
+    bool SkipRequested()
+    {
+        if (skipOnAnyKey && Input.anyKeyDown)
+            return true;
+
+        return Input.GetKeyDown(skipKey);
+    }
+
     IEnumerator CinematicSequence()
     {
-        // Le menu est caché pendant toute la cinématique
-        if (menuFlicker != null)
-            menuFlicker.gameObject.SetActive(false);
+        cinematicRunning = true;
+        endingStarted = false;
+        skipAvailable = false;
 
-        // ── Démarre la musique de la cinématique ──
+        if (menuFade != null)
+            menuFade.gameObject.SetActive(false);
+
+        if (skipHintFade != null)
+        {
+            skipHintFade.gameObject.SetActive(skipEnabled);
+            skipHintFade.HideInstantly();
+        }
+
         if (cinematicMusicSource != null && cinematicMusicSource.clip != null)
         {
             cinematicMusicSource.loop = true;
             cinematicMusicSource.Play();
         }
 
-        // ── Parcours de chaque écran ──
+        if (skipEnabled)
+            StartCoroutine(ShowSkipHintRoutine());
+
         foreach (CinematicScreen screen in screens)
         {
             if (cinematicText != null)
                 cinematicText.text = "";
 
-            // 1. Flicker in du panneau de cinématique
-            if (cinematicFlicker != null)
-                yield return StartCoroutine(cinematicFlicker.FlickerInRoutine());
+            if (cinematicFade != null)
+                yield return StartCoroutine(cinematicFade.FadeInRoutine());
 
-            // 2. Machine à écrire
             yield return StartCoroutine(TypewriterRoutine(screen.text));
 
-            // 3. L'écran reste affiché pendant son délai propre
             yield return new WaitForSeconds(screen.displayDuration);
 
-            // 4. Flicker out du panneau
-            if (cinematicFlicker != null)
-                yield return StartCoroutine(cinematicFlicker.FlickerOutRoutine());
+            if (cinematicFade != null)
+                yield return StartCoroutine(cinematicFade.FadeOutRoutine());
 
             yield return new WaitForSeconds(blackHoldBetweenScreens);
         }
 
-        // ── Fin de la cinématique ──
+        endingStarted = true;
+        yield return StartCoroutine(ShowMenuRoutine());
+    }
+
+    IEnumerator ShowSkipHintRoutine()
+    {
+        yield return new WaitForSeconds(skipHintDelay);
+
+        skipAvailable = true;
+
+        if (!endingStarted && skipHintFade != null)
+            yield return StartCoroutine(skipHintFade.FadeInRoutine());
+    }
+
+    IEnumerator ShowMenuRoutine()
+    {
+        cinematicRunning = false;
+
+        if (skipHintFade != null && skipHintFade.IsVisible)
+            skipHintFade.FadeOut();
+
+        if (cinematicFade != null && cinematicFade.IsVisible)
+            yield return StartCoroutine(cinematicFade.FadeOutRoutine());
+
+        if (cinematicText != null)
+            cinematicText.text = "";
+
         yield return new WaitForSeconds(blackHoldBeforeMenu);
 
-        // ── Bascule musique : fondu de sortie cinématique + démarrage menu ──
-        if (cinematicMusicSource != null)
+        if (cinematicMusicSource != null && cinematicMusicSource.isPlaying)
             StartCoroutine(FadeOutMusic(cinematicMusicSource, musicFadeOutDuration));
 
         if (menuMusicSource != null && menuMusicSource.clip != null)
@@ -126,15 +165,14 @@ public class IntroCinematic : MonoBehaviour
             menuMusicSource.Play();
         }
 
-        // ── Apparition du menu en flicker ──
-        if (menuFlicker != null)
+        if (menuFade != null)
         {
-            menuFlicker.gameObject.SetActive(true);
-            yield return StartCoroutine(menuFlicker.FlickerInRoutine());
+            menuFade.gameObject.SetActive(true);
+            menuFade.HideInstantly();
+            yield return StartCoroutine(menuFade.FadeInRoutine());
         }
     }
 
-    // ── Machine à écrire ──
     IEnumerator TypewriterRoutine(string fullText)
     {
         if (cinematicText != null)
@@ -144,11 +182,11 @@ public class IntroCinematic : MonoBehaviour
         {
             if (cinematicText != null)
                 cinematicText.text += c;
+
             yield return new WaitForSeconds(typewriterDelay);
         }
     }
 
-    /// <summary>Estompe progressivement une musique jusqu'au silence, puis l'arrête.</summary>
     IEnumerator FadeOutMusic(AudioSource source, float duration)
     {
         float startVolume = source.volume;
@@ -164,5 +202,6 @@ public class IntroCinematic : MonoBehaviour
 
         source.volume = 0f;
         source.Stop();
+        source.volume = startVolume;
     }
 }

@@ -45,6 +45,7 @@ public class BossDialogueManager : MonoBehaviour
 
     [Header("UI")]
     [SerializeField] GameObject dialoguePanel;
+    [SerializeField] GameObject dialogueBackground;
     [SerializeField] TextMeshProUGUI speakerNameText;
     [SerializeField] TextMeshProUGUI dialogueText;
     [SerializeField] GameObject azuPortraitRoot;
@@ -117,10 +118,11 @@ public class BossDialogueManager : MonoBehaviour
         shownPosition = panelRect.anchoredPosition;
         hiddenPosition = shownPosition + Vector2.up * hideOffsetY;
 
-        dialoguePanel.SetActive(true);
         panelRect.anchoredPosition = hiddenPosition;
         canvasGroup.alpha = 0f;
         SetInteractable(false);
+        if (dialogueBackground != null) dialogueBackground.SetActive(false);
+        dialoguePanel.SetActive(false);
 
         if (choicePanel != null) choicePanel.SetActive(false);
         if (continueHint != null) continueHint.SetActive(false);
@@ -226,7 +228,19 @@ public class BossDialogueManager : MonoBehaviour
 
     void PlayVoice(DialogueLine line)
     {
-        if (voiceSource == null || line.voice == null) return;
+        if (line.voice == null) return;
+
+        if (voiceSource == null)
+        {
+            Debug.LogWarning($"[BossDialogueManager] Le doublage '{line.voice.name}' ne peut pas être joué : le champ voiceSource est vide.");
+            return;
+        }
+
+        if (!voiceSource.gameObject.activeInHierarchy)
+        {
+            Debug.LogWarning($"[BossDialogueManager] Le doublage '{line.voice.name}' ne peut pas être joué : l'objet portant l'AudioSource est désactivé.");
+            return;
+        }
 
         voiceSource.Stop();
         voiceSource.clip = line.voice;
@@ -277,6 +291,8 @@ public class BossDialogueManager : MonoBehaviour
 
         while (!Input.GetKeyDown(advanceKey))
             yield return null;
+
+        yield return null;
     }
 
     IEnumerator ChoiceRoutine(DialogueSequence sequence)
@@ -319,6 +335,8 @@ public class BossDialogueManager : MonoBehaviour
 
     IEnumerator SlideInRoutine()
     {
+        dialoguePanel.SetActive(true);
+        if (dialogueBackground != null) dialogueBackground.SetActive(true);
         canvasGroup.alpha = 1f;
 
         float elapsed = 0f;
@@ -362,5 +380,8 @@ public class BossDialogueManager : MonoBehaviour
         if (speakerNameText != null) speakerNameText.text = "";
         if (azuPortraitRoot != null) azuPortraitRoot.SetActive(false);
         if (continueHint != null) continueHint.SetActive(false);
+        if (dialogueBackground != null) dialogueBackground.SetActive(false);
+
+        dialoguePanel.SetActive(false);
     }
 }

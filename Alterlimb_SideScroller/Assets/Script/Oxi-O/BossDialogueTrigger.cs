@@ -11,13 +11,14 @@ public class BossDialogueTrigger : MonoBehaviour
 
     [Header("Caméra")]
     [SerializeField] Camera targetCamera;
-    [SerializeField] MonoBehaviour cameraFollowScript;
+    [SerializeField] CameraFollow cameraFollow;
     [SerializeField] Transform cameraTarget;
     [SerializeField] float targetOrthographicSize = 12f;
     [SerializeField] float cameraMoveDuration = 1.5f;
     [SerializeField] AnimationCurve cameraCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
 
-    [Header("Retour caméra")]
+    [Header("Après le dialogue")]
+    [SerializeField] bool resumeFollowAfterDialogue = true;
     [SerializeField] bool restoreCameraAfterDialogue = false;
     [SerializeField] float cameraReturnDuration = 1f;
 
@@ -26,6 +27,9 @@ public class BossDialogueTrigger : MonoBehaviour
     void Awake()
     {
         if (targetCamera == null) targetCamera = Camera.main;
+        if (cameraFollow == null && targetCamera != null)
+            cameraFollow = targetCamera.GetComponent<CameraFollow>();
+
         GetComponent<Collider2D>().isTrigger = true;
     }
 
@@ -43,7 +47,10 @@ public class BossDialogueTrigger : MonoBehaviour
         Vector3 originalPosition = targetCamera.transform.position;
         float originalSize = targetCamera.orthographicSize;
 
-        if (cameraFollowScript != null) cameraFollowScript.enabled = false;
+        if (cameraFollow == null)
+            Debug.LogWarning("[BossDialogueTrigger] Aucun CameraFollow trouvé : la caméra risque d'être reprise pendant le dialogue.");
+        else
+            cameraFollow.Suspend();
 
         yield return StartCoroutine(MoveCamera(cameraTarget != null ? cameraTarget.position : originalPosition,
                                                targetOrthographicSize,
@@ -52,19 +59,26 @@ public class BossDialogueTrigger : MonoBehaviour
         if (BossDialogueManager.Instance == null)
         {
             Debug.LogWarning("[BossDialogueTrigger] Aucun BossDialogueManager dans la scène.");
+            if (cameraFollow != null) cameraFollow.Resume();
             yield break;
         }
 
         BossDialogueManager.Instance.PlaySequence(sequenceId);
-
         yield return null;
+
+        if (!BossDialogueManager.Instance.IsPlaying)
+            Debug.LogWarning($"[BossDialogueTrigger] La séquence '{sequenceId}' n'a pas démarré.");
+
         while (BossDialogueManager.Instance.IsPlaying)
             yield return null;
 
         if (restoreCameraAfterDialogue)
-        {
             yield return StartCoroutine(MoveCamera(originalPosition, originalSize, cameraReturnDuration));
-            if (cameraFollowScript != null) cameraFollowScript.enabled = true;
+
+        if (resumeFollowAfterDialogue && cameraFollow != null)
+        {
+            cameraFollow.ResetZoom();
+            cameraFollow.Resume();
         }
     }
 
@@ -85,6 +99,7 @@ public class BossDialogueTrigger : MonoBehaviour
         }
 
         float elapsed = 0f;
+
         while (elapsed < duration)
         {
             elapsed += Time.deltaTime;
