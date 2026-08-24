@@ -2,21 +2,7 @@
 using UnityEngine.SceneManagement;
 using TMPro;
 
-/// <summary>
-/// Écran de pause du jeu.
-/// 
-/// Déclenché par la touche Échap. Fige le jeu (Time.timeScale = 0) et affiche
-/// un panneau : logo + 3 boutons (Reprendre, Retour au menu, Quitter) + les
-/// statistiques de la partie (temps total et nombre de morts).
-/// 
-/// IMPORTANT : Time.timeScale = 0 fige TOUT le jeu (physique, animations,
-/// ennemis...). Il est remis à 1 quand on reprend ou qu'on quitte la scène.
-/// 
-/// Setup :
-///   - Un panneau UI "PausePanel" (logo + boutons + textes), caché au départ.
-///   - Ce script sur un GameObject de la scène.
-///   - Brancher les 3 boutons sur Reprendre() / RetourMenu() / Quitter().
-/// </summary>
+
 public class PauseMenu : MonoBehaviour
 {
     [Header("Touche de pause")]
@@ -34,11 +20,15 @@ public class PauseMenu : MonoBehaviour
     [Tooltip("Nom EXACT de la scène du menu principal (dans le Build Settings)")]
     [SerializeField] string menuSceneName = "Menu";
 
+    [Header("Animation")]
+    [SerializeField] PanelAnimator pauseAnimator;
+    [SerializeField] PanelAnimator settingsAnimator;
+
     bool isPaused;
 
     void Start()
     {
-        // Sécurité : le jeu démarre toujours non-pausé
+        
         if (pausePanel != null) pausePanel.SetActive(false);
         isPaused = false;
         Time.timeScale = 1f;
@@ -46,42 +36,33 @@ public class PauseMenu : MonoBehaviour
 
     void Update()
     {
-        if (Input.GetKeyDown(pauseKey))
+        if (!KeyBindings.GetDown(GameAction.Pause)) return;
+
+        if (settingsAnimator != null && settingsAnimator.IsOpen)
         {
-            if (isPaused) Reprendre();
-            else Pause();
+            settingsAnimator.Close();
+            return;
         }
+
+        if (pauseAnimator.IsOpen) Resume();
+        else Pause();
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  Pause / Reprise
-    // ════════════════════════════════════════════════════════════
-
-    /// <summary>Met le jeu en pause et affiche le panneau.</summary>
-    void Pause()
+    public void Pause()
     {
-        isPaused = true;
-        Time.timeScale = 0f;  // fige tout le jeu
-
-        if (pausePanel != null) pausePanel.SetActive(true);
-
-        RefreshStats();
+        Time.timeScale = 0f;
+        pauseAnimator.Open();
+        LevelMusicPlayer.Instance.MuffleMusic();
     }
 
-    /// <summary>
-    /// Reprend le jeu. Appelé par le bouton "Reprendre" et par la touche Échap.
-    /// </summary>
-    public void Reprendre()
+    public void Resume()
     {
-        isPaused = false;
-        Time.timeScale = 1f;  // redémarre le jeu
-
-        if (pausePanel != null) pausePanel.SetActive(false);
+        Time.timeScale = 1f;
+        pauseAnimator.Close();
+        LevelMusicPlayer.Instance.UnmuffleMusic();
     }
 
-    /// <summary>
-    /// Met à jour les textes de statistiques affichés sur le panneau.
-    /// </summary>
+
     void RefreshStats()
     {
         if (GameStats.Instance == null) return;
@@ -93,20 +74,16 @@ public class PauseMenu : MonoBehaviour
             deathText.text = GameStats.Instance.DeathCount.ToString();
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  Actions des boutons
-    // ════════════════════════════════════════════════════════════
 
-    /// <summary>Bouton "Retour au menu principal".</summary>
-    public void RetourMenu()
+
+
+    public void ReturnToMenu()
     {
-        // IMPORTANT : remettre timeScale à 1 avant de changer de scène,
-        // sinon la scène du menu démarrerait figée.
         Time.timeScale = 1f;
-        SceneManager.LoadScene(menuSceneName);
+        SceneManager.LoadScene("Menu");
     }
 
-    /// <summary>Bouton "Quitter le jeu".</summary>
+
     public void Quitter()
     {
         Time.timeScale = 1f;

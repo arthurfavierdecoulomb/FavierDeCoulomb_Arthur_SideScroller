@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -13,9 +11,6 @@ public class SettingsMenuUI : MonoBehaviour
     [SerializeField] Slider sfxSlider;
 
     [Header("Affichage en jeu")]
-    [SerializeField] TMP_Dropdown timerDropdown;
-    [SerializeField] TMP_Dropdown deathDropdown;
-    [SerializeField] TMP_Dropdown cornerDropdown;
     [SerializeField] Slider hudOpacitySlider;
 
     [Header("Divers")]
@@ -31,14 +26,6 @@ public class SettingsMenuUI : MonoBehaviour
         BindSlider(ambienceSlider, value => SettingsManager.Instance.SetAmbienceVolume(value));
         BindSlider(sfxSlider, value => SettingsManager.Instance.SetSfxVolume(value));
         BindSlider(hudOpacitySlider, value => SettingsManager.Instance.SetHudOpacity(value));
-
-        FillDropdown(timerDropdown, "Désactivé", "Niveau", "Total");
-        FillDropdown(deathDropdown, "Désactivé", "Niveau", "Total");
-        FillDropdown(cornerDropdown, "Haut gauche", "Haut droite", "Bas gauche", "Bas droite");
-
-        BindDropdown(timerDropdown, index => SettingsManager.Instance.SetTimerMode((TimerDisplayMode)index));
-        BindDropdown(deathDropdown, index => SettingsManager.Instance.SetDeathMode((DeathDisplayMode)index));
-        BindDropdown(cornerDropdown, index => SettingsManager.Instance.SetCorner((HudCorner)index));
 
         if (resetButton != null)
             resetButton.onClick.AddListener(OnResetClicked);
@@ -76,10 +63,6 @@ public class SettingsMenuUI : MonoBehaviour
         SetSliderValue(sfxSlider, SettingsManager.Instance.SfxVolume);
         SetSliderValue(hudOpacitySlider, SettingsManager.Instance.HudOpacity);
 
-        SetDropdownValue(timerDropdown, (int)SettingsManager.Instance.TimerMode);
-        SetDropdownValue(deathDropdown, (int)SettingsManager.Instance.DeathMode);
-        SetDropdownValue(cornerDropdown, (int)SettingsManager.Instance.Corner);
-
         initializing = false;
     }
 
@@ -98,33 +81,8 @@ public class SettingsMenuUI : MonoBehaviour
         });
     }
 
-    void BindDropdown(TMP_Dropdown dropdown, UnityEngine.Events.UnityAction<int> action)
-    {
-        if (dropdown == null) return;
-
-        dropdown.onValueChanged.AddListener(index =>
-        {
-            if (initializing) return;
-            if (SettingsManager.Instance == null) return;
-            action(index);
-        });
-    }
-
-    static void FillDropdown(TMP_Dropdown dropdown, params string[] labels)
-    {
-        if (dropdown == null) return;
-
-        dropdown.ClearOptions();
-        dropdown.AddOptions(new List<string>(labels));
-    }
-
     static void SetSliderValue(Slider slider, float value)
     {
         if (slider != null) slider.value = value;
-    }
-
-    static void SetDropdownValue(TMP_Dropdown dropdown, int index)
-    {
-        if (dropdown != null) dropdown.value = index;
     }
 }

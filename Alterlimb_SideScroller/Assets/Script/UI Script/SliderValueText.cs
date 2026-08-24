@@ -46,6 +46,7 @@ public class SliderValueText
         if (percent == lastPercent) return;
         lastPercent = percent;
 
-        label.text = percent + suffix;
+        label.text = percent.ToString("000") + suffix;
+        
     }
 }

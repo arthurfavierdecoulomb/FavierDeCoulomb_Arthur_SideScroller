@@ -67,6 +67,10 @@ public class SettingsManager : MonoBehaviour
             return;
         }
         Instance = this;
+
+        if (transform.parent != null)
+            transform.SetParent(null);
+
         DontDestroyOnLoad(gameObject);
         Load();
     }
@@ -165,8 +169,11 @@ public class SettingsManager : MonoBehaviour
         voiceVolume = PlayerPrefs.GetFloat(VoiceVolumeKey, defaultVoiceVolume);
         ambienceVolume = PlayerPrefs.GetFloat(AmbienceVolumeKey, defaultAmbienceVolume);
         sfxVolume = PlayerPrefs.GetFloat(SfxVolumeKey, defaultSfxVolume);
-        timerMode = (TimerDisplayMode)PlayerPrefs.GetInt(TimerModeKey, (int)TimerDisplayMode.Off);
-        deathMode = (DeathDisplayMode)PlayerPrefs.GetInt(DeathModeKey, (int)DeathDisplayMode.Off);
+        //timerMode = (TimerDisplayMode)PlayerPrefs.GetInt(TimerModeKey, (int)TimerDisplayMode.Off);
+        //deathMode = (DeathDisplayMode)PlayerPrefs.GetInt(DeathModeKey, (int)DeathDisplayMode.Off);
+        timerMode = (TimerDisplayMode)PlayerPrefs.GetInt(TimerModeKey, (int)TimerDisplayMode.Total);
+        deathMode = (DeathDisplayMode)PlayerPrefs.GetInt(DeathModeKey, (int)DeathDisplayMode.Total);
+        //petit test pour voir si ça fonctionne
         hudCorner = (HudCorner)PlayerPrefs.GetInt(HudCornerKey, (int)HudCorner.TopLeft);
         hudOpacity = PlayerPrefs.GetFloat(HudOpacityKey, defaultHudOpacity);
     }
