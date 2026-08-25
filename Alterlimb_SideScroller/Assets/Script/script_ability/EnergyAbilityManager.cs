@@ -98,8 +98,6 @@ public class AbilityEnergySystem : MonoBehaviour
 
         grapplingEnergy.Init();
         sawEnergy.Init();
-        dashEnergy.Init();
-        jumpEnergy.Init();
     }
 
     void Update()
@@ -182,14 +180,8 @@ public class AbilityEnergySystem : MonoBehaviour
                 legEnergyBar.fillAmount = 1f;
                 legAbilityText.text = "Jambes";
                 break;
-            case LegAbility.HighJump:
-                legEnergyBar.fillAmount = jumpEnergy.displayedEnergy / jumpEnergy.maxEnergy;
-                legAbilityText.text = "Grand Saut";
-                break;
-            case LegAbility.Dash:
-                legEnergyBar.fillAmount = dashEnergy.displayedEnergy / dashEnergy.maxEnergy;
-                legAbilityText.text = "Dash";
-                break;
+            
+        
         }
     }
 

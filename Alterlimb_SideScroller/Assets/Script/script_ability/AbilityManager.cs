@@ -3,23 +3,14 @@ using System;
 using System.Collections.Generic;
 
 public enum ArmAbility { Hand, Grapple, Saw }
-public enum LegAbility { NormalJump, HighJump, Dash }
+public enum LegAbility { NormalJump = 0, Dash = 2 }
 
 public class AbilityManager : MonoBehaviour
 {
-    // ════════════════════════════════════════════════════════════
-    //  Événements (écoutés par l'UI, l'audio, les FX, etc.)
-    // ════════════════════════════════════════════════════════════
-
-    /// <summary>Déclenché quand le bras actif change (après un cycle Q).</summary>
     public event Action<ArmAbility> OnArmChanged;
-
-    /// <summary>Déclenché quand un nouvel artefact de bras est débloqué (pickup).</summary>
     public event Action<ArmAbility> OnArmUnlocked;
-
-    // ════════════════════════════════════════════════════════════
-    //  Données
-    // ════════════════════════════════════════════════════════════
+    public event Action<LegAbility> OnLegChanged;
+    public event Action<LegAbility> OnLegUnlocked;
 
     List<ArmAbility> unlockedArms = new List<ArmAbility> { ArmAbility.Hand };
     List<LegAbility> unlockedLegs = new List<LegAbility> { LegAbility.NormalJump };
@@ -30,10 +21,9 @@ public class AbilityManager : MonoBehaviour
     public ArmAbility CurrentArm => unlockedArms[armIndex];
     public LegAbility CurrentLeg => unlockedLegs[legIndex];
 
-    /// <summary>Liste lecture seule des bras débloqués (pour l'UI).</summary>
     public IReadOnlyList<ArmAbility> UnlockedArms => unlockedArms;
+    public IReadOnlyList<LegAbility> UnlockedLegs => unlockedLegs;
 
-    // Refs
     GrapplingHook grappleScript;
     SawAbility sawScript;
     CharaController charaController;
@@ -46,11 +36,12 @@ public class AbilityManager : MonoBehaviour
 
         if (grappleScript) grappleScript.canUseGrapple = false;
         if (sawScript) sawScript.enabled = false;
+
+        ApplyLegAbility();
     }
 
     void Update()
     {
-        // Cycle bras avec Q (uniquement si plus d'un bras débloqué)
         if (Input.GetKeyDown(KeyCode.Q) && unlockedArms.Count > 1)
         {
             armIndex = (armIndex + 1) % unlockedArms.Count;
@@ -58,17 +49,13 @@ public class AbilityManager : MonoBehaviour
             OnArmChanged?.Invoke(CurrentArm);
         }
 
-        // Cycle jambes avec E
         if (Input.GetKeyDown(KeyCode.E) && unlockedLegs.Count > 1)
         {
             legIndex = (legIndex + 1) % unlockedLegs.Count;
             ApplyLegAbility();
+            OnLegChanged?.Invoke(CurrentLeg);
         }
     }
-
-    // ════════════════════════════════════════════════════════════
-    //  Application des capacités
-    // ════════════════════════════════════════════════════════════
 
     void ApplyArmAbility()
     {
@@ -96,45 +83,28 @@ public class AbilityManager : MonoBehaviour
 
     void ApplyLegAbility()
     {
-        switch (CurrentLeg)
-        {
-            case LegAbility.NormalJump:
-                charaController.SetJumpMode(JumpMode.Normal);
-                charaController.SetDashEnabled(false);
-                break;
-            case LegAbility.HighJump:
-                charaController.SetJumpMode(JumpMode.High);
-                charaController.SetDashEnabled(false);
-                break;
-            case LegAbility.Dash:
-                charaController.SetJumpMode(JumpMode.Normal);
-                charaController.SetDashEnabled(true);
-                break;
-        }
+        if (charaController == null) return;
+
+        charaController.SetDashEnabled(CurrentLeg == LegAbility.Dash);
 
         Debug.Log($"Jambes actives : {CurrentLeg}");
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  Déblocage des capacités (appelé par AbilityPickup)
-    // ════════════════════════════════════════════════════════════
-
     public void UnlockArm(ArmAbility ability)
     {
-        if (!unlockedArms.Contains(ability))
-        {
-            unlockedArms.Add(ability);
-            Debug.Log($"Capacité bras débloquée : {ability}");
-            OnArmUnlocked?.Invoke(ability);
-        }
+        if (unlockedArms.Contains(ability)) return;
+
+        unlockedArms.Add(ability);
+        Debug.Log($"Capacité bras débloquée : {ability}");
+        OnArmUnlocked?.Invoke(ability);
     }
 
     public void UnlockLeg(LegAbility ability)
     {
-        if (!unlockedLegs.Contains(ability))
-        {
-            unlockedLegs.Add(ability);
-            Debug.Log($"Capacité jambes débloquée : {ability}");
-        }
+        if (unlockedLegs.Contains(ability)) return;
+
+        unlockedLegs.Add(ability);
+        Debug.Log($"Capacité jambes débloquée : {ability}");
+        OnLegUnlocked?.Invoke(ability);
     }
 }

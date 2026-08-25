@@ -2,7 +2,7 @@ using UnityEngine;
 
 public class AbilityPickup : MonoBehaviour
 {
-    public enum PickupType { Grapple, Saw, HighJump, Dash }
+    public enum PickupType { Grapple, Saw }
 
     [SerializeField] PickupType abilityType;
 
@@ -20,14 +20,6 @@ public class AbilityPickup : MonoBehaviour
             case PickupType.Saw:
                 manager.UnlockArm(ArmAbility.Saw);
                 Debug.Log("Item ramassé : Scie (Bras)");
-                break;
-            case PickupType.HighJump:
-                manager.UnlockLeg(LegAbility.HighJump);
-                Debug.Log("Item ramassé : Grand Jump (Jambes)");
-                break;
-            case PickupType.Dash:
-                manager.UnlockLeg(LegAbility.Dash);
-                Debug.Log("Item ramassé : Dash (Jambes)");
                 break;
         }
 
