@@ -1,21 +1,7 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
+using UnityEngine;
 using UnityEngine.UI;
 
-/// <summary>
-/// Gère la vie du joueur. Supporte 3 modes d'application des dégâts :
-///   1. Appel direct via TakeDamage(amount) depuis n'importe quel script
-///   2. Collision physique avec un objet tagué (ennemi, projectile)
-///   3. Trigger avec un objet tagué (zone de dégâts, hazard)
-/// 
-/// Régénération : après un délai sans dégâts, la vie remonte progressivement.
-/// 
-/// Tags reconnus pour les dégâts :
-///   - "DroneEnemy" : dégâts du drone (collision physique)
-///   - "Bullet" : dégâts d'une bullet (collision OU trigger)
-///   - "DamageZone" : dégâts d'une zone (trigger uniquement)
-/// 
-/// Mort : appelle CharaController.Die() qui gère le respawn + animation BIOS.
-/// </summary>
 public class PlayerHealth : MonoBehaviour
 {
     [Header("Health Settings")]
@@ -24,10 +10,11 @@ public class PlayerHealth : MonoBehaviour
     [SerializeField] float bulletDamage = 10f;
     [SerializeField] float invincibilityDuration = 0.5f;
 
+    [Header("Damage Zone")]
+    [SerializeField] float damageZoneDamagePerSecond = 15f;
+
     [Header("Regeneration")]
-    [Tooltip("Délai en secondes sans dégâts avant que la régen commence")]
     [SerializeField] float regenDelay = 10f;
-    [Tooltip("Quantité de vie restaurée par seconde une fois la régen active")]
     [SerializeField] float regenRate = 5f;
 
     [Header("UI")]
@@ -35,13 +22,15 @@ public class PlayerHealth : MonoBehaviour
     [SerializeField] float barSmoothSpeed = 5f;
 
     [Header("Debug")]
-    [Tooltip("Affiche dans la Console chaque application de dégâts")]
     [SerializeField] bool debugMode = false;
 
     float currentHealth;
     float displayedHealth;
     float invincibilityTimer = 0f;
     float timeSinceLastDamage = 0f;
+    bool isDead = false;
+
+    readonly HashSet<GameObject> activeDamageZones = new HashSet<GameObject>();
 
     public float CurrentHealth => currentHealth;
     public float MaxHealth => maxHealth;
@@ -50,48 +39,51 @@ public class PlayerHealth : MonoBehaviour
     {
         currentHealth = maxHealth;
         displayedHealth = maxHealth;
-        timeSinceLastDamage = regenDelay; // Permet la régen immédiate au début (peu importe ici car full HP)
+        timeSinceLastDamage = regenDelay;
     }
 
     void Update()
     {
-        // Lissage de la barre de vie
         displayedHealth = Mathf.Lerp(displayedHealth, currentHealth, barSmoothSpeed * Time.deltaTime);
         if (healthBar != null)
             healthBar.fillAmount = displayedHealth / maxHealth;
 
-        // Décompte de l'invincibilité
         if (invincibilityTimer > 0f)
             invincibilityTimer -= Time.deltaTime;
 
-        // Régénération de vie
+        HandleDamageZones();
         HandleRegeneration();
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  Régénération
-    // ════════════════════════════════════════════════════════════
+    void HandleDamageZones()
+    {
+        if (isDead)
+        {
+            activeDamageZones.Clear();
+            return;
+        }
+
+        activeDamageZones.RemoveWhere(zone => zone == null || !zone.activeInHierarchy);
+        if (activeDamageZones.Count == 0) return;
+
+        ApplyContinuousDamage(damageZoneDamagePerSecond * Time.deltaTime);
+    }
 
     void HandleRegeneration()
     {
-        // Pas besoin de régen si full HP ou mort
         if (currentHealth >= maxHealth || currentHealth <= 0f) return;
 
         timeSinceLastDamage += Time.deltaTime;
-
-        // Attente du délai avant de commencer la régen
         if (timeSinceLastDamage < regenDelay) return;
 
         currentHealth += regenRate * Time.deltaTime;
         currentHealth = Mathf.Min(currentHealth, maxHealth);
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  API publique : appel direct par scripts (drone, etc.)
-    // ════════════════════════════════════════════════════════════
-
     public void TakeDamage(float amount)
     {
+        if (isDead) return;
+
         if (invincibilityTimer > 0f)
         {
             if (debugMode) Debug.Log($"[PlayerHealth] Dégâts ignorés (invincibilité) : {amount}");
@@ -101,17 +93,32 @@ public class PlayerHealth : MonoBehaviour
         currentHealth -= amount;
         currentHealth = Mathf.Max(currentHealth, 0f);
         invincibilityTimer = invincibilityDuration;
-        timeSinceLastDamage = 0f; // Reset du timer de régen
+        timeSinceLastDamage = 0f;
 
         if (debugMode) Debug.Log($"[PlayerHealth] Dégâts reçus : {amount}. Vie restante : {currentHealth}/{maxHealth}");
 
-        if (currentHealth <= 0f)
-            GetComponent<CharaController>()?.Die();
+        CheckDeath();
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  Reset (appelé par CharaController.Revive)
-    // ════════════════════════════════════════════════════════════
+    public void ApplyContinuousDamage(float amount)
+    {
+        if (isDead) return;
+
+        currentHealth -= amount;
+        currentHealth = Mathf.Max(currentHealth, 0f);
+        timeSinceLastDamage = 0f;
+
+        CheckDeath();
+    }
+
+    void CheckDeath()
+    {
+        if (currentHealth > 0f) return;
+
+        isDead = true;
+        activeDamageZones.Clear();
+        GetComponent<CharaController>()?.Die();
+    }
 
     public void ResetHealth()
     {
@@ -119,31 +126,31 @@ public class PlayerHealth : MonoBehaviour
         displayedHealth = maxHealth;
         invincibilityTimer = 0f;
         timeSinceLastDamage = regenDelay;
+        isDead = false;
+        activeDamageZones.Clear();
     }
-
-    // ════════════════════════════════════════════════════════════
-    //  Détection collision physique (drone qui touche le perso, bullet en collision)
-    // ════════════════════════════════════════════════════════════
 
     void OnCollisionEnter2D(Collision2D col)
     {
-        HandleDamageFromObject(col.gameObject);
+        HandleContactEnter(col.gameObject);
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  Détection trigger (bullet en trigger, zones de dégâts)
-    // ════════════════════════════════════════════════════════════
+    void OnCollisionExit2D(Collision2D col)
+    {
+        HandleContactExit(col.gameObject);
+    }
 
     void OnTriggerEnter2D(Collider2D col)
     {
-        HandleDamageFromObject(col.gameObject);
+        HandleContactEnter(col.gameObject);
     }
 
-    /// <summary>
-    /// Méthode unique de gestion des tags : marche à la fois pour collision ET trigger.
-    /// Comme ça, peu importe si la bullet est en trigger ou non, elle est détectée.
-    /// </summary>
-    void HandleDamageFromObject(GameObject obj)
+    void OnTriggerExit2D(Collider2D col)
+    {
+        HandleContactExit(col.gameObject);
+    }
+
+    void HandleContactEnter(GameObject obj)
     {
         if (obj.CompareTag("DroneEnemy"))
         {
@@ -154,13 +161,20 @@ public class PlayerHealth : MonoBehaviour
         {
             TakeDamage(bulletDamage);
             if (debugMode) Debug.Log($"[PlayerHealth] Touché par Bullet : {obj.name}");
-            
             Destroy(obj);
         }
         else if (obj.CompareTag("DamageZone"))
         {
-            TakeDamage(droneDamage);
-            if (debugMode) Debug.Log($"[PlayerHealth] Dans une DamageZone : {obj.name}");
+            activeDamageZones.Add(obj);
+            if (debugMode) Debug.Log($"[PlayerHealth] Entrée dans DamageZone : {obj.name}");
         }
+    }
+
+    void HandleContactExit(GameObject obj)
+    {
+        if (!obj.CompareTag("DamageZone")) return;
+
+        activeDamageZones.Remove(obj);
+        if (debugMode) Debug.Log($"[PlayerHealth] Sortie de DamageZone : {obj.name}");
     }
 }
