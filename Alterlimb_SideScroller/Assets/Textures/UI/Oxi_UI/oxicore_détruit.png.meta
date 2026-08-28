@@ -1,0 +1,355 @@
+fileFormatVersion: 2
+guid: d9aa3191a341cd245b8c86f21bea2dcc
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -99408173728512734
+    second: "oxicore_d\xE9truit_0"
+  - first:
+      213: 4956687776928343939
+    second: "oxicore_d\xE9truit_1"
+  - first:
+      213: -2576512182377494638
+    second: "oxicore_d\xE9truit_2"
+  - first:
+      213: -7451945501871533863
+    second: "oxicore_d\xE9truit_3"
+  - first:
+      213: 1755755313638543024
+    second: "oxicore_d\xE9truit_4"
+  - first:
+      213: 4402563192491636244
+    second: "oxicore_d\xE9truit_5"
+  - first:
+      213: -1132490887072245941
+    second: "oxicore_d\xE9truit_6"
+  - first:
+      213: -58854287616024915
+    second: "oxicore_d\xE9truit_7"
+  - first:
+      213: -8236353960392068581
+    second: "oxicore_d\xE9truit_8"
+  - first:
+      213: 5572534209841826684
+    second: "oxicore_d\xE9truit_9"
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 4096
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: "oxicore_d\xE9truit_0"
+      rect:
+        serializedVersion: 2
+        x: 1036
+        y: 1000
+        width: 122
+        height: 101
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 225442deac4de9ef0800000000000000
+      internalID: -99408173728512734
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "oxicore_d\xE9truit_1"
+      rect:
+        serializedVersion: 2
+        x: 1192
+        y: 1000
+        width: 152
+        height: 35
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 387a55e7541b9c440800000000000000
+      internalID: 4956687776928343939
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "oxicore_d\xE9truit_2"
+      rect:
+        serializedVersion: 2
+        x: 1093
+        y: 946
+        width: 41
+        height: 44
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2974ce132d36e3cd0800000000000000
+      internalID: -2576512182377494638
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "oxicore_d\xE9truit_3"
+      rect:
+        serializedVersion: 2
+        x: 1135
+        y: 946
+        width: 17
+        height: 44
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9d090635c0f559890800000000000000
+      internalID: -7451945501871533863
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "oxicore_d\xE9truit_4"
+      rect:
+        serializedVersion: 2
+        x: 1183
+        y: 946
+        width: 38
+        height: 47
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0be0ee5c722bd5810800000000000000
+      internalID: 1755755313638543024
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "oxicore_d\xE9truit_5"
+      rect:
+        serializedVersion: 2
+        x: 1228
+        y: 901
+        width: 56
+        height: 89
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4167ca5d5eb091d30800000000000000
+      internalID: 4402563192491636244
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "oxicore_d\xE9truit_6"
+      rect:
+        serializedVersion: 2
+        x: 1093
+        y: 901
+        width: 17
+        height: 41
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b4711b4d9859840f0800000000000000
+      internalID: -1132490887072245941
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "oxicore_d\xE9truit_7"
+      rect:
+        serializedVersion: 2
+        x: 1025
+        y: 786
+        width: 326
+        height: 320
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: dae53255658ee2ff0800000000000000
+      internalID: -58854287616024915
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "oxicore_d\xE9truit_8"
+      rect:
+        serializedVersion: 2
+        x: 1159
+        y: 895
+        width: 29
+        height: 50
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b12f27a06b792bd80800000000000000
+      internalID: -8236353960392068581
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 4919b09990a5e0d4191720f203d16f4a
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      "oxicore_d\xE9truit_0": -99408173728512734
+      "oxicore_d\xE9truit_1": 4956687776928343939
+      "oxicore_d\xE9truit_2": -2576512182377494638
+      "oxicore_d\xE9truit_3": -7451945501871533863
+      "oxicore_d\xE9truit_4": 1755755313638543024
+      "oxicore_d\xE9truit_5": 4402563192491636244
+      "oxicore_d\xE9truit_6": -1132490887072245941
+      "oxicore_d\xE9truit_7": -58854287616024915
+      "oxicore_d\xE9truit_8": -8236353960392068581
+      "oxicore_d\xE9truit_9": 5572534209841826684
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
