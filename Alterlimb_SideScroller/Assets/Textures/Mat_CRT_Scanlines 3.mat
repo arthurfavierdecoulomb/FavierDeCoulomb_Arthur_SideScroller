@@ -9,7 +9,7 @@ Material:
   m_PrefabAsset: {fileID: 0}
   m_Name: Mat_CRT_Scanlines 3
   m_Shader: {fileID: 4800000, guid: 2dd1b14f72a9db94db67da59661793e5, type: 3}
-  m_Parent: {fileID: 2100000, guid: 8f54ae14cce869745bbc776e59ba4086, type: 2}
+  m_Parent: {fileID: 2100000, guid: dfffefc3bd2a08044a157875155246b9, type: 2}
   m_ModifiedSerializedProperties: 16
   m_ValidKeywords: []
   m_InvalidKeywords: []

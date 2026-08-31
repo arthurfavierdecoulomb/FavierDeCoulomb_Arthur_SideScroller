@@ -17,12 +17,15 @@ public class AbilityManager : MonoBehaviour
 
     int armIndex = 0;
     int legIndex = 0;
+    bool combatLocked = false;
 
     public ArmAbility CurrentArm => unlockedArms[armIndex];
     public LegAbility CurrentLeg => unlockedLegs[legIndex];
-
     public IReadOnlyList<ArmAbility> UnlockedArms => unlockedArms;
     public IReadOnlyList<LegAbility> UnlockedLegs => unlockedLegs;
+    public bool CombatLocked => combatLocked;
+    public bool IsSawEquipped => !combatLocked && CurrentArm == ArmAbility.Saw;
+    public bool IsGrappleEquipped => !combatLocked && CurrentArm == ArmAbility.Grapple;
 
     GrapplingHook grappleScript;
     SawAbility sawScript;
@@ -42,7 +45,7 @@ public class AbilityManager : MonoBehaviour
 
     void Update()
     {
-        if (Input.GetKeyDown(KeyCode.Q) && unlockedArms.Count > 1)
+        if (!combatLocked && Input.GetKeyDown(KeyCode.Q) && unlockedArms.Count > 1)
         {
             armIndex = (armIndex + 1) % unlockedArms.Count;
             ApplyArmAbility();
@@ -64,7 +67,14 @@ public class AbilityManager : MonoBehaviour
             grappleScript.canUseGrapple = false;
             grappleScript.ReleaseGrapple();
         }
+
         if (sawScript) sawScript.enabled = false;
+
+        if (combatLocked)
+        {
+            Debug.Log("Bras verrouillés (combat)");
+            return;
+        }
 
         switch (CurrentArm)
         {
@@ -86,8 +96,38 @@ public class AbilityManager : MonoBehaviour
         if (charaController == null) return;
 
         charaController.SetDashEnabled(CurrentLeg == LegAbility.Dash);
-
         Debug.Log($"Jambes actives : {CurrentLeg}");
+    }
+
+    public void SetCombatLock(bool locked)
+    {
+        if (combatLocked == locked) return;
+
+        combatLocked = locked;
+
+        if (locked)
+        {
+            int handIndex = unlockedArms.IndexOf(ArmAbility.Hand);
+            if (handIndex >= 0) armIndex = handIndex;
+        }
+
+        ApplyArmAbility();
+        OnArmChanged?.Invoke(CurrentArm);
+    }
+
+    public void EquipArm(ArmAbility ability)
+    {
+        int index = unlockedArms.IndexOf(ability);
+        if (index < 0) return;
+
+        armIndex = index;
+        ApplyArmAbility();
+        OnArmChanged?.Invoke(CurrentArm);
+    }
+
+    public bool IsArmUnlocked(ArmAbility ability)
+    {
+        return unlockedArms.Contains(ability);
     }
 
     public void UnlockArm(ArmAbility ability)

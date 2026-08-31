@@ -18,16 +18,13 @@ public class Stomper : MonoBehaviour
 
     [Header("Rails")]
     [SerializeField] private bool railsExtendByScale = false;
-    [SerializeField] private float railsHiddenLocalY = 0f;
-    [SerializeField] private float railsDeployedLocalY = -4.5f;
-    [SerializeField] private float railsHiddenScaleY = 0.15f;
-    [SerializeField] private float railsDeployedScaleY = 1f;
+    [SerializeField] private float railsDeployDistance = 4.5f;
+    [SerializeField] private float railsDeployScaleMultiplier = 6f;
     [SerializeField] private float railsDeploySpeed = 22f;
     [SerializeField] private float railsRetractSpeed = 10f;
 
     [Header("Écraseur")]
-    [SerializeField] private float crusherHiddenLocalY = 0f;
-    [SerializeField] private float crusherSlamLocalY = -4.2f;
+    [SerializeField] private float crusherSlamDistance = 4.2f;
     [SerializeField] private float slamSpeed = 70f;
     [SerializeField] private float crusherRetractSpeed = 9f;
 
@@ -42,6 +39,23 @@ public class Stomper : MonoBehaviour
     [SerializeField] private float pauseBeforeCrusherRetract = 0.15f;
     [SerializeField] private float pauseAfterSlam = 0.25f;
 
+    [Header("Apparition")]
+    [SerializeField] private bool hideWhenIdle = true;
+    [SerializeField] private float appearFlickerDuration = 0.45f;
+    [SerializeField] private float disappearFlickerDuration = 0.3f;
+    [SerializeField] private float flickerIntervalMin = 0.025f;
+    [SerializeField] private float flickerIntervalMax = 0.09f;
+
+    [Header("Impact")]
+    [SerializeField] private bool shakeOnImpact = true;
+    [SerializeField] private float impactShakeDuration = 0.4f;
+    [SerializeField] private float impactShakeMagnitude = 0.45f;
+    [SerializeField] private float impactPunchMagnitude = 0.6f;
+    [SerializeField] private float impactHitStop = 0.06f;
+
+    [Header("Diagnostic")]
+    [SerializeField] private bool logSetupWarnings = true;
+
     [Header("Événements")]
     public UnityEvent onWarningStart;
     public UnityEvent onSlamStart;
@@ -52,13 +66,28 @@ public class Stomper : MonoBehaviour
     public float CurrentX => transform.position.x;
 
     private Vector3 restPosition;
+    private float railsRestLocalY;
+    private float railsDeployedLocalY;
+    private float railsRestScaleY;
+    private float railsDeployedScaleY;
+    private float crusherRestLocalY;
+    private float crusherSlamLocalY;
+    private SpriteRenderer[] visuals;
+    private bool isVisible = true;
+    private float hoverY;
+    private bool hasHoverPoint;
+    private float limitMinX;
+    private float limitMaxX;
+    private bool hasLimits;
 
     private void Awake()
     {
         restPosition = transform.position;
+        visuals = GetComponentsInChildren<SpriteRenderer>(true);
 
-        ApplyRailsRetracted();
-        SetLocalY(crusher, crusherHiddenLocalY);
+        CacheRails();
+        CacheCrusher();
+        CacheMarkers();
 
         if (crusherKillCollider != null)
             crusherKillCollider.enabled = false;
@@ -68,21 +97,88 @@ public class Stomper : MonoBehaviour
 
         if (screen != null)
             screen.SetState(StomperScreen.ScreenState.Off);
+
+        if (hideWhenIdle)
+            SetVisualsVisible(false);
+
+        LogSetup();
+    }
+
+    private void CacheRails()
+    {
+        if (rails == null)
+            return;
+
+        railsRestLocalY = rails.localPosition.y;
+        railsDeployedLocalY = railsRestLocalY - railsDeployDistance;
+
+        railsRestScaleY = rails.localScale.y;
+        railsDeployedScaleY = railsRestScaleY * railsDeployScaleMultiplier;
+    }
+
+    private void CacheCrusher()
+    {
+        if (crusher == null)
+            return;
+
+        crusherRestLocalY = crusher.localPosition.y;
+        crusherSlamLocalY = crusherRestLocalY - crusherSlamDistance;
+    }
+
+    private void CacheMarkers()
+    {
+        hasHoverPoint = hoverPoint != null;
+
+        if (hasHoverPoint)
+            hoverY = hoverPoint.position.y;
+
+        hasLimits = leftLimit != null && rightLimit != null;
+
+        if (hasLimits)
+        {
+            limitMinX = Mathf.Min(leftLimit.position.x, rightLimit.position.x);
+            limitMaxX = Mathf.Max(leftLimit.position.x, rightLimit.position.x);
+        }
+    }
+
+    private void LogSetup()
+    {
+        if (!logSetupWarnings)
+            return;
+
+        if (rails == null)
+            Debug.LogWarning($"[Stomper] '{name}' : le champ Rails est vide, les rails ne se déploieront pas.", this);
+
+        if (crusher == null)
+            Debug.LogWarning($"[Stomper] '{name}' : le champ Crusher est vide, rien n'écrasera le joueur.", this);
+
+        if (crusherKillCollider == null)
+            Debug.LogWarning($"[Stomper] '{name}' : aucun Crusher Kill Collider assigné, l'écrasement ne tuera pas.", this);
+
+        if (hoverPoint == null)
+            Debug.LogWarning($"[Stomper] '{name}' : aucun Hover Point assigné, le stomper ne descendra pas.", this);
+        else if (hoverPoint.IsChildOf(transform))
+            Debug.LogWarning($"[Stomper] '{name}' : le Hover Point est un enfant du stomper. Sors-le de la hiérarchie, sinon il se déplace avec la machine.", this);
+
+        if (leftLimit != null && leftLimit.IsChildOf(transform))
+            Debug.LogWarning($"[Stomper] '{name}' : le Left Limit est un enfant du stomper, le bornage sera faux.", this);
+
+        if (rightLimit != null && rightLimit.IsChildOf(transform))
+            Debug.LogWarning($"[Stomper] '{name}' : le Right Limit est un enfant du stomper, le bornage sera faux.", this);
+
+        if (leftLimit == null || rightLimit == null)
+            Debug.LogWarning($"[Stomper] '{name}' : limites gauche/droite incomplètes, le déplacement ne sera pas borné.", this);
+
+        if (screen == null)
+            Debug.LogWarning($"[Stomper] '{name}' : aucun StomperScreen assigné, pas d'avertissement à l'écran.", this);
     }
 
     public float ClampToLimits(float x)
     {
-        float min = leftLimit != null ? leftLimit.position.x : x;
-        float max = rightLimit != null ? rightLimit.position.x : x;
+        if (!hasLimits)
+            return x;
 
-        if (min > max)
-        {
-            float swap = min;
-            min = max;
-            max = swap;
-        }
-
-        return Mathf.Clamp(x, min, max);
+        return Mathf.Clamp(x, limitMinX, limitMaxX);
     }
 
     public IEnumerator Strike(float targetX, float warnOverride = -1f)
@@ -96,7 +192,16 @@ public class Stomper : MonoBehaviour
 
         if (!IsDeployed)
         {
-            yield return MoveHorizontally(clampedX, StomperScreen.ScreenState.DirectionDown);
+            if (hideWhenIdle && !isVisible)
+            {
+                transform.position = new Vector3(clampedX, restPosition.y, transform.position.z);
+                yield return Appear();
+            }
+            else
+            {
+                yield return MoveHorizontally(clampedX, StomperScreen.ScreenState.DirectionDown);
+            }
+
             yield return Descend();
             yield return DeployRails();
         }
@@ -129,15 +234,64 @@ public class Stomper : MonoBehaviour
 
         while (Mathf.Abs(transform.position.y - restPosition.y) > 0.01f)
         {
-            transform.position = Vector3.MoveTowards(transform.position, new Vector3(transform.position.x, restPosition.y, transform.position.z), riseSpeed * Time.deltaTime);
+            Vector3 destination = new Vector3(transform.position.x, restPosition.y, transform.position.z);
+            transform.position = Vector3.MoveTowards(transform.position, destination, riseSpeed * Time.deltaTime);
             yield return null;
         }
 
         if (screen != null)
             screen.SetState(StomperScreen.ScreenState.Off);
 
+        if (hideWhenIdle)
+            yield return Disappear();
+
         IsDeployed = false;
         IsBusy = false;
+    }
+
+    private IEnumerator Appear()
+    {
+        if (screen != null)
+            screen.SetState(StomperScreen.ScreenState.DirectionDown);
+
+        yield return FlickerVisuals(appearFlickerDuration);
+        SetVisualsVisible(true);
+    }
+
+    private IEnumerator Disappear()
+    {
+        yield return FlickerVisuals(disappearFlickerDuration);
+        SetVisualsVisible(false);
+    }
+
+    private IEnumerator FlickerVisuals(float duration)
+    {
+        float elapsed = 0f;
+        bool visible = isVisible;
+
+        while (elapsed < duration)
+        {
+            visible = !visible;
+            SetVisualsVisible(visible);
+
+            float wait = Random.Range(flickerIntervalMin, flickerIntervalMax);
+            wait = Mathf.Min(wait, duration - elapsed);
+
+            yield return new WaitForSeconds(wait);
+            elapsed += wait;
+        }
+    }
+
+    private void SetVisualsVisible(bool visible)
+    {
+        isVisible = visible;
+
+        if (visuals == null)
+            return;
+
+        for (int i = 0; i < visuals.Length; i++)
+            if (visuals[i] != null)
+                visuals[i].enabled = visible;
     }
 
     private IEnumerator MoveHorizontally(float targetX, StomperScreen.ScreenState state)
@@ -168,18 +322,25 @@ public class Stomper : MonoBehaviour
 
     private IEnumerator Descend()
     {
-        if (hoverPoint == null)
+        if (!hasHoverPoint)
             yield break;
 
         if (screen != null)
             screen.SetState(StomperScreen.ScreenState.DirectionDown);
 
-        while (Mathf.Abs(transform.position.y - hoverPoint.position.y) > 0.01f)
+        float elapsed = 0f;
+        float timeout = Mathf.Abs(restPosition.y - hoverY) / Mathf.Max(0.1f, descendSpeed) + 2f;
+
+        while (Mathf.Abs(transform.position.y - hoverY) > 0.01f && elapsed < timeout)
         {
-            Vector3 destination = new Vector3(transform.position.x, hoverPoint.position.y, transform.position.z);
+            Vector3 destination = new Vector3(transform.position.x, hoverY, transform.position.z);
             transform.position = Vector3.MoveTowards(transform.position, destination, descendSpeed * Time.deltaTime);
+
+            elapsed += Time.deltaTime;
             yield return null;
         }
+
+        transform.position = new Vector3(transform.position.x, hoverY, transform.position.z);
     }
 
     private IEnumerator DeployRails()
@@ -198,20 +359,12 @@ public class Stomper : MonoBehaviour
     private IEnumerator RetractRails()
     {
         if (railsExtendByScale)
-            yield return ScaleLocalY(rails, railsHiddenScaleY, railsRetractSpeed);
+            yield return ScaleLocalY(rails, railsRestScaleY, railsRetractSpeed);
         else
-            yield return MoveLocalY(rails, railsHiddenLocalY, railsRetractSpeed);
+            yield return MoveLocalY(rails, railsRestLocalY, railsRetractSpeed);
 
         if (railsKillCollider != null)
             railsKillCollider.enabled = false;
-    }
-
-    private void ApplyRailsRetracted()
-    {
-        if (railsExtendByScale)
-            SetLocalScaleY(rails, railsHiddenScaleY);
-        else
-            SetLocalY(rails, railsHiddenLocalY);
     }
 
     private IEnumerator WarningPhase(float duration)
@@ -236,6 +389,12 @@ public class Stomper : MonoBehaviour
 
         yield return MoveLocalY(crusher, crusherSlamLocalY, slamSpeed);
 
+        if (shakeOnImpact && CameraShake.Instance != null)
+        {
+            CameraShake.Instance.Punch(Vector2.down, impactPunchMagnitude, impactShakeDuration, impactShakeMagnitude);
+            CameraShake.HitStop(impactHitStop);
+        }
+
         onImpact?.Invoke();
 
         yield return new WaitForSeconds(slamHoldDuration);
@@ -243,7 +402,7 @@ public class Stomper : MonoBehaviour
 
     private IEnumerator RetractCrusher()
     {
-        yield return MoveLocalY(crusher, crusherHiddenLocalY, crusherRetractSpeed);
+        yield return MoveLocalY(crusher, crusherRestLocalY, crusherRetractSpeed);
 
         if (crusherKillCollider != null)
             crusherKillCollider.enabled = false;
@@ -279,16 +438,6 @@ public class Stomper : MonoBehaviour
         SetLocalScaleY(target, scaleY);
     }
 
-    private void SetLocalScaleY(Transform target, float scaleY)
-    {
-        if (target == null)
-            return;
-
-        Vector3 scale = target.localScale;
-        scale.y = scaleY;
-        target.localScale = scale;
-    }
-
     private void SetLocalY(Transform target, float localY)
     {
         if (target == null)
@@ -299,13 +448,28 @@ public class Stomper : MonoBehaviour
         target.localPosition = position;
     }
 
+    private void SetLocalScaleY(Transform target, float scaleY)
+    {
+        if (target == null)
+            return;
+
+        Vector3 scale = target.localScale;
+        scale.y = scaleY;
+        target.localScale = scale;
+    }
+
     public void ForceReset()
     {
         StopAllCoroutines();
 
         transform.position = restPosition;
-        ApplyRailsRetracted();
-        SetLocalY(crusher, crusherHiddenLocalY);
+
+        if (railsExtendByScale)
+            SetLocalScaleY(rails, railsRestScaleY);
+        else
+            SetLocalY(rails, railsRestLocalY);
+
+        SetLocalY(crusher, crusherRestLocalY);
 
         if (crusherKillCollider != null)
             crusherKillCollider.enabled = false;
@@ -315,6 +479,8 @@ public class Stomper : MonoBehaviour
 
         if (screen != null)
             screen.SetState(StomperScreen.ScreenState.Off);
+
+        SetVisualsVisible(!hideWhenIdle);
 
         IsBusy = false;
         IsDeployed = false;
