@@ -1,17 +1,31 @@
 using System;
+using System.Collections;
 using UnityEngine;
+using UnityEngine.Events;
 
 public class OxiOCore : MonoBehaviour
 {
-    [Header("Découpe")]
+    public enum CutDetection
+    {
+        SawCollider,
+        PlayerProximity
+    }
+
+    [Header("Détection de la scie")]
+    [SerializeField] private CutDetection cutDetection = CutDetection.PlayerProximity;
     [SerializeField] private string sawTag = "saw_blade";
-    [SerializeField] private float sawDuration = 2.5f;
-    [SerializeField] private float progressDecayPerSecond = 0.3f;
+    [SerializeField] private float cutRadius = 2f;
     [SerializeField] private bool requireSawEquipped = true;
     [SerializeField] private float contactGraceTime = 0.12f;
 
-    [Header("Fenêtre")]
+    [Header("Découpe")]
+    [SerializeField] private float sawDuration = 2.5f;
+    [SerializeField] private float progressDecayPerSecond = 0.3f;
     [SerializeField] private bool keepProgressBetweenWindows = true;
+
+    [Header("Joueur")]
+    [SerializeField] private Transform player;
+    [SerializeField] private string playerTag = "Player";
 
     [Header("Capacités")]
     [SerializeField] private AbilityManager abilityManager;
@@ -21,19 +35,51 @@ public class OxiOCore : MonoBehaviour
     [Header("Ancre de grappin")]
     [SerializeField] private GameObject grappleAnchor;
 
+    [Header("Noyaux de la phase")]
+    [SerializeField] private int cutsPerPhase = 2;
+
+    [Header("Animation")]
+    [SerializeField] private OxiOAnimation animationDriver;
+    [SerializeField] private int slicedPhaseIndex = 1;
+    [SerializeField] private bool playSlicedOnEveryCut = true;
+    [SerializeField] private bool explosionFromAnimationEvent = true;
+    [SerializeField] private float explosionFallbackDelay = 2.5f;
+
     [Header("Feedback")]
-    [SerializeField] private SpriteRenderer coreRenderer;
-    [SerializeField] private Color lockedColor = new Color(0.55f, 0.55f, 0.55f, 1f);
-    [SerializeField] private Color vulnerableColor = new Color(1f, 0.35f, 0.1f, 1f);
-    [SerializeField] private Color cuttingColor = new Color(1f, 0.95f, 0.4f, 1f);
+    [SerializeField] private GameObject lockedVisual;
+    [SerializeField] private GameObject vulnerableVisual;
+    [SerializeField] private GameObject cuttingVisual;
+    [SerializeField] private GameObject removedVisual;
     [SerializeField] private ParticleSystem sparks;
     [SerializeField] private Collider2D cutTrigger;
+
+    [Header("Explosion du noyau")]
+    [SerializeField] private ParticleSystem explosion;
+    [SerializeField] private float knockbackForce = 18f;
+    [SerializeField] private float minUpwardRatio = 0.4f;
+    [SerializeField] private float explosionShakeDuration = 0.7f;
+    [SerializeField] private float explosionShakeMagnitude = 0.8f;
+    [SerializeField] private float explosionHitStop = 0.12f;
+
+    [Header("Diagnostic")]
+    [SerializeField] private bool logDiagnostics = true;
+    [SerializeField] private float diagnosticInterval = 1f;
+
+    [Header("Événements")]
+    public UnityEvent onWindowOpenedEvent;
+    public UnityEvent onWindowClosedEvent;
+    public UnityEvent onCuttingStartedEvent;
+    public UnityEvent onCuttingInterruptedEvent;
+    public UnityEvent onCoreRemovedEvent;
+    public UnityEvent onCoreExplosionEvent;
+    public UnityEvent onPhaseDepletedEvent;
 
     public event Action OnWindowOpened;
     public event Action OnWindowClosed;
     public event Action OnCuttingStarted;
     public event Action OnCuttingInterrupted;
     public event Action OnCoreRemoved;
+    public event Action OnPhaseDepleted;
     public event Action<float> OnProgressChanged;
 
     public bool IsVulnerable { get; private set; }
@@ -44,12 +90,18 @@ public class OxiOCore : MonoBehaviour
     private float progress;
     private float lastContactTime = -999f;
     private bool wasCutting;
+    private bool explosionDone;
+    private float lastDiagnosticTime;
+    private int cutsDoneThisPhase;
 
-    [Obsolete]
+    public int CutsDoneThisPhase => cutsDoneThisPhase;
+    public int CutsRemainingThisPhase => Mathf.Max(0, cutsPerPhase - cutsDoneThisPhase);
+    public bool PhaseDepleted => cutsDoneThisPhase >= cutsPerPhase;
+
     private void Awake()
     {
         if (abilityManager == null)
-            abilityManager = FindObjectOfType<AbilityManager>();
+            abilityManager = FindAbilityManager();
 
         if (cutTrigger != null)
             cutTrigger.enabled = false;
@@ -57,8 +109,35 @@ public class OxiOCore : MonoBehaviour
         if (grappleAnchor != null)
             grappleAnchor.SetActive(false);
 
-        ApplyColor(lockedColor);
+        ShowVisual(lockedVisual);
         StopSparks();
+
+        if (!logDiagnostics)
+            return;
+
+        if (abilityManager == null)
+            Debug.LogError($"[OxiOCore] '{name}' : aucun AbilityManager trouvé. Assigne-le à la main, sinon la scie ne sera jamais reconnue.", this);
+
+        if (animationDriver == null)
+            Debug.LogWarning($"[OxiOCore] '{name}' : aucun Animation Driver assigné, mode_economie et phase_X_sliced ne joueront pas.", this);
+
+        if (ResolvePlayer() == null)
+            Debug.LogError($"[OxiOCore] '{name}' : aucun objet trouvé avec le tag '{playerTag}'.", this);
+    }
+
+    private AbilityManager FindAbilityManager()
+    {
+        GameObject found = GameObject.FindGameObjectWithTag(playerTag);
+
+        if (found != null)
+        {
+            AbilityManager manager = found.GetComponentInChildren<AbilityManager>();
+
+            if (manager != null)
+                return manager;
+        }
+
+        return null;
     }
 
     public void OpenWindow()
@@ -91,8 +170,16 @@ public class OxiOCore : MonoBehaviour
                 abilityManager.EquipArm(ArmAbility.Grapple);
         }
 
-        ApplyColor(vulnerableColor);
+        ShowVisual(vulnerableVisual);
+
+        if (animationDriver != null)
+            animationDriver.EnterEconomyMode();
+
+        if (logDiagnostics)
+            Debug.Log($"[OxiOCore] '{name}' : fenêtre OUVERTE. Driver={(animationDriver != null ? "ok" : "MANQUANT")}, AbilityManager={(abilityManager != null ? "ok" : "MANQUANT")}", this);
+
         OnWindowOpened?.Invoke();
+        onWindowOpenedEvent?.Invoke();
     }
 
     public void CloseWindow()
@@ -112,16 +199,65 @@ public class OxiOCore : MonoBehaviour
         if (abilityManager != null)
             abilityManager.SetCombatLock(true);
 
-        ApplyColor(lockedColor);
+        ShowVisual(IsRemoved ? removedVisual : lockedVisual);
         StopSparks();
 
+        if (animationDriver != null && !IsRemoved)
+            animationDriver.ExitEconomyMode();
+
         OnWindowClosed?.Invoke();
+        onWindowClosedEvent?.Invoke();
+    }
+
+    public void BeginPhase(int phaseIndex, int cuts)
+    {
+        slicedPhaseIndex = Mathf.Max(1, phaseIndex);
+        cutsPerPhase = Mathf.Max(1, cuts);
+        cutsDoneThisPhase = 0;
+
+        IsVulnerable = false;
+        IsRemoved = false;
+        wasCutting = false;
+        explosionDone = false;
+        lastContactTime = -999f;
+
+        SetProgress(0f);
+        ShowVisual(lockedVisual);
+        StopSparks();
+
+        if (cutTrigger != null)
+            cutTrigger.enabled = false;
+
+        if (grappleAnchor != null)
+            grappleAnchor.SetActive(false);
+    }
+
+    public void ResetForRetry(bool resetProgress)
+    {
+        IsVulnerable = false;
+        wasCutting = false;
+        lastContactTime = -999f;
+
+        if (resetProgress)
+            SetProgress(0f);
+
+        if (cutTrigger != null)
+            cutTrigger.enabled = false;
+
+        if (grappleAnchor != null)
+            grappleAnchor.SetActive(false);
+
+        StopSparks();
+        ShowVisual(IsRemoved ? removedVisual : lockedVisual);
     }
 
     private void Update()
     {
         if (!IsVulnerable || IsRemoved)
             return;
+
+        if (cutDetection == CutDetection.PlayerProximity)
+            CheckProximityCut();
 
         bool inContact = Time.time - lastContactTime <= contactGraceTime;
 
@@ -131,31 +267,55 @@ public class OxiOCore : MonoBehaviour
             {
                 wasCutting = true;
                 PlaySparks();
-                ApplyColor(cuttingColor);
+                ShowVisual(cuttingVisual);
                 OnCuttingStarted?.Invoke();
+                onCuttingStartedEvent?.Invoke();
             }
         }
         else if (wasCutting)
         {
             wasCutting = false;
             StopSparks();
-            ApplyColor(vulnerableColor);
+            ShowVisual(vulnerableVisual);
             OnCuttingInterrupted?.Invoke();
+            onCuttingInterruptedEvent?.Invoke();
         }
 
         if (!inContact && progress > 0f)
             SetProgress(Mathf.Max(0f, progress - progressDecayPerSecond * Time.deltaTime));
     }
 
+    private void CheckProximityCut()
+    {
+        Transform target = ResolvePlayer();
+        bool sawReady = IsSawReady();
+        float distance = target != null ? Vector2.Distance(transform.position, target.position) : -1f;
+
+        if (!sawReady || target == null || distance > cutRadius)
+        {
+            LogCutBlocked(sawReady, target, distance);
+            return;
+        }
+
+        lastContactTime = Time.time;
+        SetProgress(progress + Time.deltaTime);
+
+        if (progress >= sawDuration)
+            RemoveCore();
+    }
+
     private void OnTriggerStay2D(Collider2D other)
     {
+        if (cutDetection != CutDetection.SawCollider)
+            return;
+
         if (!IsVulnerable || IsRemoved)
             return;
 
         if (!other.CompareTag(sawTag))
             return;
 
-        if (requireSawEquipped && (abilityManager == null || !abilityManager.IsSawEquipped))
+        if (!IsSawReady())
             return;
 
         lastContactTime = Time.time;
@@ -165,12 +325,159 @@ public class OxiOCore : MonoBehaviour
             RemoveCore();
     }
 
+    private void LogCutBlocked(bool sawReady, Transform target, float distance)
+    {
+        if (!logDiagnostics || Time.time - lastDiagnosticTime < diagnosticInterval)
+            return;
+
+        lastDiagnosticTime = Time.time;
+
+        if (target == null)
+        {
+            Debug.LogWarning($"[OxiOCore] '{name}' : joueur introuvable (tag '{playerTag}').", this);
+            return;
+        }
+
+        if (!sawReady)
+        {
+            string reason = abilityManager == null
+                ? "AbilityManager manquant"
+                : abilityManager.CombatLocked
+                    ? "capacités verrouillées (SetCombatLock est resté à true)"
+                    : $"bras actif = {abilityManager.CurrentArm}, il faut Saw";
+
+            Debug.LogWarning($"[OxiOCore] '{name}' : découpe bloquée — {reason}.", this);
+            return;
+        }
+
+        Debug.LogWarning($"[OxiOCore] '{name}' : découpe bloquée — joueur à {distance:F2} unités, Cut Radius = {cutRadius}. Rapproche le noyau ou augmente le rayon.", this);
+    }
+
+    private bool IsSawReady()
+    {
+        if (!requireSawEquipped)
+            return true;
+
+        return abilityManager != null && abilityManager.IsSawEquipped;
+    }
+
+    private Transform ResolvePlayer()
+    {
+        if (player != null)
+            return player;
+
+        GameObject found = GameObject.FindGameObjectWithTag(playerTag);
+
+        if (found != null)
+            player = found.transform;
+
+        return player;
+    }
+
     private void RemoveCore()
     {
-        IsRemoved = true;
-        SetProgress(sawDuration);
+        cutsDoneThisPhase++;
+        explosionDone = false;
+
+        bool depleted = PhaseDepleted;
+        IsRemoved = depleted;
+
+        SetProgress(0f);
         CloseWindow();
+
+        if (depleted)
+            ShowVisual(removedVisual);
+
+        bool playSliced = animationDriver != null && (playSlicedOnEveryCut || depleted);
+
+        if (playSliced)
+        {
+            animationDriver.PlaySliced(slicedPhaseIndex);
+
+            if (explosionFromAnimationEvent)
+                StartCoroutine(ExplosionFallbackRoutine());
+            else
+                TriggerCoreExplosion();
+        }
+        else
+        {
+            TriggerCoreExplosion();
+        }
+
+        if (logDiagnostics)
+            Debug.Log($"[OxiOCore] Noyau arraché ({cutsDoneThisPhase}/{cutsPerPhase} pour la phase {slicedPhaseIndex}).", this);
+
         OnCoreRemoved?.Invoke();
+        onCoreRemovedEvent?.Invoke();
+
+        if (depleted)
+        {
+            OnPhaseDepleted?.Invoke();
+            onPhaseDepletedEvent?.Invoke();
+        }
+    }
+
+    public void TriggerCoreExplosion()
+    {
+        if (explosionDone)
+            return;
+
+        explosionDone = true;
+
+        if (explosion != null)
+            explosion.Play();
+
+        if (CameraShake.Instance != null)
+        {
+            CameraShake.Instance.Shake(explosionShakeDuration, explosionShakeMagnitude);
+            CameraShake.HitStop(explosionHitStop);
+        }
+
+        StartCoroutine(KnockbackRoutine());
+        onCoreExplosionEvent?.Invoke();
+    }
+
+    private IEnumerator ExplosionFallbackRoutine()
+    {
+        yield return new WaitForSeconds(explosionFallbackDelay);
+
+        if (!explosionDone)
+        {
+            Debug.LogWarning($"[OxiOCore] '{name}' : aucun Animation Event reçu, explosion déclenchée par sécurité.", this);
+            TriggerCoreExplosion();
+        }
+    }
+
+    private IEnumerator KnockbackRoutine()
+    {
+        Transform target = ResolvePlayer();
+
+        if (target == null)
+            yield break;
+
+        GrapplingHook hook = target.GetComponentInChildren<GrapplingHook>();
+
+        if (hook != null)
+            hook.ReleaseGrapple();
+
+        yield return null;
+
+        Rigidbody2D body = target.GetComponentInChildren<Rigidbody2D>();
+
+        if (body == null)
+            yield break;
+
+        Vector2 direction = (Vector2)target.position - (Vector2)transform.position;
+
+        if (direction.sqrMagnitude < 0.01f)
+            direction = Vector2.up;
+
+        direction.Normalize();
+        direction.y = Mathf.Max(direction.y, minUpwardRatio);
+        direction.Normalize();
+
+        body.linearVelocity = Vector2.zero;
+        body.AddForce(direction * knockbackForce, ForceMode2D.Impulse);
     }
 
     private void SetProgress(float value)
@@ -179,10 +486,18 @@ public class OxiOCore : MonoBehaviour
         OnProgressChanged?.Invoke(NormalizedProgress);
     }
 
-    private void ApplyColor(Color color)
+    private void ShowVisual(GameObject target)
     {
-        if (coreRenderer != null)
-            coreRenderer.color = color;
+        SetActiveSafe(lockedVisual, target == lockedVisual);
+        SetActiveSafe(vulnerableVisual, target == vulnerableVisual);
+        SetActiveSafe(cuttingVisual, target == cuttingVisual);
+        SetActiveSafe(removedVisual, target == removedVisual);
+    }
+
+    private void SetActiveSafe(GameObject target, bool active)
+    {
+        if (target != null && target.activeSelf != active)
+            target.SetActive(active);
     }
 
     private void PlaySparks()
@@ -195,5 +510,14 @@ public class OxiOCore : MonoBehaviour
     {
         if (sparks != null && sparks.isPlaying)
             sparks.Stop();
+    }
+
+    private void OnDrawGizmosSelected()
+    {
+        if (cutDetection != CutDetection.PlayerProximity)
+            return;
+
+        Gizmos.color = new Color(1f, 0.6f, 0.1f, 0.6f);
+        Gizmos.DrawWireSphere(transform.position, cutRadius);
     }
 }

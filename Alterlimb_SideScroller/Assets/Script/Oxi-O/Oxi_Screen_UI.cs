@@ -58,6 +58,23 @@ public class OxiOScreenUI : MonoBehaviour
     [SerializeField] private float coreLightFlickerDuration = 0.3f;
     [SerializeField] private float coreDestroyFlickerDuration = 1.1f;
 
+    [Header("Mode Oxi'Eco")]
+    [SerializeField] private GameObject coresRoot;
+    [SerializeField] private bool hideCoresDuringEco = true;
+    [SerializeField] private float coresReturnFlickerDuration = 0.35f;
+    [SerializeField] private GameObject ecoRoot;
+    [SerializeField] private GameObject ecoHeaderRoot;
+    [SerializeField] private GameObject ecoCounterRoot;
+    [SerializeField] private Image ecoCounterImage;
+    [SerializeField] private Sprite[] ecoCountdownSprites;
+    [SerializeField] private bool spritesOrderedDescending = false;
+    [SerializeField] private GameObject ecoFinishedRoot;
+    [SerializeField] private float ecoHeaderFlickerDuration = 0.4f;
+    [SerializeField] private float ecoCounterFlickerDuration = 0.3f;
+    [SerializeField] private float ecoFinishedFlickerDuration = 0.5f;
+    [SerializeField] private float ecoFinishedHoldDuration = 1.3f;
+    [SerializeField] private bool logEcoDiagnostics = true;
+
     [Header("Flicker")]
     [SerializeField] private float flickerIntervalMin = 0.025f;
     [SerializeField] private float flickerIntervalMax = 0.11f;
@@ -69,6 +86,7 @@ public class OxiOScreenUI : MonoBehaviour
     public UnityEvent onIntroFinished;
     public UnityEvent onCoreDestroyed;
     public UnityEvent onAllCoresDestroyed;
+    public UnityEvent onEcoCountdownFinished;
 
     public bool IsVisible { get; private set; }
     public bool IsAnimating { get; private set; }
@@ -81,6 +99,7 @@ public class OxiOScreenUI : MonoBehaviour
     private float swayTime;
     private CoreState[] states;
     private Coroutine currentRoutine;
+    private Coroutine ecoRoutine;
     private bool hiddenByDialogue;
 
     private void Awake()
@@ -109,6 +128,9 @@ public class OxiOScreenUI : MonoBehaviour
 
         if (titleRoot != null)
             titleRoot.SetActive(false);
+
+        HideEcoBlocks();
+        LogEcoSetup();
 
         for (int i = 0; i < states.Length; i++)
         {
@@ -180,6 +202,164 @@ public class OxiOScreenUI : MonoBehaviour
 
         StopCurrentRoutine();
         currentRoutine = StartCoroutine(RetractRoutine());
+    }
+
+    private void LogEcoSetup()
+    {
+        if (!logEcoDiagnostics)
+            return;
+
+        if (ecoHeaderRoot == null)
+            Debug.LogWarning($"[OxiOScreenUI] '{name}' : Eco Header Root non assigné.", this);
+
+        if (ecoCounterRoot == null)
+            Debug.LogWarning($"[OxiOScreenUI] '{name}' : Eco Counter Root non assigné.", this);
+
+        if (ecoCounterImage == null)
+            Debug.LogError($"[OxiOScreenUI] '{name}' : Eco Counter Image non assignée, le décompte ne changera jamais de sprite.", this);
+
+        if (ecoFinishedRoot == null)
+            Debug.LogWarning($"[OxiOScreenUI] '{name}' : Eco Finished Root non assigné.", this);
+
+        if (ecoCountdownSprites == null || ecoCountdownSprites.Length == 0)
+            Debug.LogError($"[OxiOScreenUI] '{name}' : aucun sprite de décompte assigné.", this);
+        else if (ecoCountdownSprites.Length < 31)
+            Debug.LogWarning($"[OxiOScreenUI] '{name}' : seulement {ecoCountdownSprites.Length} sprites de décompte, il en faut 31 pour couvrir 00 à 30.", this);
+
+        if (ecoRoot != null && ecoHeaderRoot != null && !ecoHeaderRoot.transform.IsChildOf(ecoRoot.transform) && ecoHeaderRoot != ecoRoot)
+            Debug.LogWarning($"[OxiOScreenUI] '{name}' : Eco Header Root n'est pas un enfant de Eco Root.", this);
+    }
+
+    public void StartEcoCountdown(float duration)
+    {
+        if (logEcoDiagnostics)
+            Debug.Log($"[OxiOScreenUI] Décompte Oxi'Eco lancé pour {duration}s.", this);
+
+        StopEcoRoutine();
+        ecoRoutine = StartCoroutine(EcoCountdownRoutine(duration));
+    }
+
+    public void ShowEcoFinished()
+    {
+        StopEcoRoutine();
+        ecoRoutine = StartCoroutine(EcoFinishedRoutine());
+    }
+
+    public void CancelEcoCountdown()
+    {
+        StopEcoRoutine();
+        HideEcoBlocks();
+
+        if (hideCoresDuringEco)
+            SetActiveSafe(coresRoot, true);
+    }
+
+    private IEnumerator EcoCountdownRoutine(float duration)
+    {
+        SetActiveSafe(ecoFinishedRoot, false);
+        SetActiveSafe(ecoCounterRoot, false);
+        SetActiveSafe(ecoHeaderRoot, false);
+        SetActiveSafe(ecoRoot, true);
+
+        if (hideCoresDuringEco)
+            SetActiveSafe(coresRoot, false);
+
+        if (ecoHeaderRoot != null)
+            yield return FlickerIn(ecoHeaderRoot, ecoHeaderFlickerDuration);
+
+        ApplyCountdownSprite(Mathf.CeilToInt(duration));
+
+        if (ecoCounterRoot != null)
+            yield return FlickerIn(ecoCounterRoot, ecoCounterFlickerDuration);
+
+        float remaining = duration;
+        int lastShown = -1;
+
+        while (remaining > 0f)
+        {
+            int seconds = Mathf.CeilToInt(remaining);
+
+            if (seconds != lastShown)
+            {
+                lastShown = seconds;
+                ApplyCountdownSprite(seconds);
+            }
+
+            remaining -= Time.deltaTime;
+            yield return null;
+        }
+
+        ApplyCountdownSprite(0);
+        ecoRoutine = null;
+        onEcoCountdownFinished?.Invoke();
+    }
+
+    private IEnumerator EcoFinishedRoutine()
+    {
+        SetActiveSafe(ecoHeaderRoot, false);
+        SetActiveSafe(ecoCounterRoot, false);
+
+        if (ecoFinishedRoot != null && ecoRoot != null && ecoFinishedRoot.transform.IsChildOf(ecoRoot.transform))
+            SetActiveSafe(ecoRoot, true);
+        else
+            SetActiveSafe(ecoRoot, false);
+
+        if (ecoFinishedRoot != null)
+        {
+            yield return FlickerIn(ecoFinishedRoot, ecoFinishedFlickerDuration);
+            yield return new WaitForSeconds(ecoFinishedHoldDuration);
+        }
+
+        HideEcoBlocks();
+        yield return RestoreCores();
+
+        ecoRoutine = null;
+    }
+
+    private IEnumerator RestoreCores()
+    {
+        if (!hideCoresDuringEco || coresRoot == null || coresRoot.activeSelf)
+            yield break;
+
+        yield return FlickerIn(coresRoot, coresReturnFlickerDuration);
+    }
+
+    private void ApplyCountdownSprite(int secondsRemaining)
+    {
+        if (ecoCounterImage == null || ecoCountdownSprites == null || ecoCountdownSprites.Length == 0)
+            return;
+
+        int index = spritesOrderedDescending
+            ? ecoCountdownSprites.Length - 1 - secondsRemaining
+            : secondsRemaining;
+
+        index = Mathf.Clamp(index, 0, ecoCountdownSprites.Length - 1);
+
+        if (ecoCountdownSprites[index] != null)
+            ecoCounterImage.sprite = ecoCountdownSprites[index];
+    }
+
+    private void HideEcoBlocks()
+    {
+        SetActiveSafe(ecoHeaderRoot, false);
+        SetActiveSafe(ecoCounterRoot, false);
+        SetActiveSafe(ecoFinishedRoot, false);
+        SetActiveSafe(ecoRoot, false);
+    }
+
+    private void SetActiveSafe(GameObject target, bool active)
+    {
+        if (target != null && target.activeSelf != active)
+            target.SetActive(active);
+    }
+
+    private void StopEcoRoutine()
+    {
+        if (ecoRoutine == null)
+            return;
+
+        StopCoroutine(ecoRoutine);
+        ecoRoutine = null;
     }
 
     public void SetCoreState(int index, CoreState state)

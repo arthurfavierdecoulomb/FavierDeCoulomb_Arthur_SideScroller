@@ -1,7 +1,7 @@
 using UnityEngine;
 using System.Collections;
 
-public class OxiOAnimationDriver : MonoBehaviour
+public class OxiOAnimation : MonoBehaviour
 {
     [Header("Animators")]
     [SerializeField] Animator oxiAnimator;
@@ -15,6 +15,11 @@ public class OxiOAnimationDriver : MonoBehaviour
     [SerializeField] string transformationState = "Oxi_euphorie_transformation";
     [SerializeField] string euphoriaIdleState = "Oxi_euphorie_idle";
 
+    [Header("États combat")]
+    [SerializeField] string economyModeState = "mode_economie";
+    [SerializeField] string[] slicedStates = { "phase_1_sliced", "phase_2_sliced" };
+    [SerializeField] bool returnToIdleAfterSliced = true;
+
     [Header("États tuyaux")]
     [SerializeField] string ventIdleState = "Tuyaux_vent_idle";
     [SerializeField] string ventErrorBoostState = "Tuyaux_vent_erreur_puis_boost";
@@ -26,9 +31,13 @@ public class OxiOAnimationDriver : MonoBehaviour
     [SerializeField] float blinkDelayMax = 6f;
 
     public event System.Action OnTransformationComplete;
+    public event System.Action OnSlicedComplete;
 
     public bool IsEuphoric => isEuphoric;
     public bool IsTalking => isTalking;
+    public bool IsEconomyMode => isEconomyMode;
+    public bool IsSlicing => isSlicing;
+    public bool IsBusyWithCombatAnimation => isEconomyMode || isSlicing;
 
     int idleHash;
     int idleBlinkHash;
@@ -36,7 +45,8 @@ public class OxiOAnimationDriver : MonoBehaviour
     int talkBlinkHash;
     int transformationHash;
     int euphoriaIdleHash;
-
+    int economyModeHash;
+    int[] slicedHashes;
     int ventIdleHash;
     int ventErrorBoostHash;
     int ventBoostHash;
@@ -45,6 +55,8 @@ public class OxiOAnimationDriver : MonoBehaviour
     bool isEuphoric;
     bool isBlinking;
     bool isTransforming;
+    bool isEconomyMode;
+    bool isSlicing;
 
     Coroutine blinkRoutine;
 
@@ -56,6 +68,11 @@ public class OxiOAnimationDriver : MonoBehaviour
         talkBlinkHash = Animator.StringToHash(talkBlinkState);
         transformationHash = Animator.StringToHash(transformationState);
         euphoriaIdleHash = Animator.StringToHash(euphoriaIdleState);
+        economyModeHash = Animator.StringToHash(economyModeState);
+
+        slicedHashes = new int[slicedStates.Length];
+        for (int i = 0; i < slicedStates.Length; i++)
+            slicedHashes[i] = Animator.StringToHash(slicedStates[i]);
 
         ventIdleHash = Animator.StringToHash(ventIdleState);
         ventErrorBoostHash = Animator.StringToHash(ventErrorBoostState);
@@ -72,6 +89,10 @@ public class OxiOAnimationDriver : MonoBehaviour
         CheckState(oxiAnimator, talkBlinkHash, talkBlinkState);
         CheckState(oxiAnimator, transformationHash, transformationState);
         CheckState(oxiAnimator, euphoriaIdleHash, euphoriaIdleState);
+        CheckState(oxiAnimator, economyModeHash, economyModeState);
+
+        for (int i = 0; i < slicedHashes.Length; i++)
+            CheckState(oxiAnimator, slicedHashes[i], slicedStates[i]);
 
         CheckState(ventAnimator, ventIdleHash, ventIdleState);
         CheckState(ventAnimator, ventErrorBoostHash, ventErrorBoostState);
@@ -82,19 +103,19 @@ public class OxiOAnimationDriver : MonoBehaviour
     {
         if (animator == null)
         {
-            Debug.LogError($"[OxiOAnimationDriver] Animator non assigné pour l'état '{stateName}'.");
+            Debug.LogError($"[OxiOAnimationDriver] Animator non assigné pour l'état '{stateName}' troue du cul vas...");
             return;
         }
 
         if (animator.runtimeAnimatorController == null)
         {
-            Debug.LogError($"[OxiOAnimationDriver] Aucun Animator Controller sur {animator.name}.");
+            Debug.LogError($"[OxiOAnimationDriver] ça merde grave à Animator Controller sur {animator.name}.");
             return;
         }
 
         if (animator.HasState(0, hash)) return;
 
-        Debug.LogError($"[OxiOAnimationDriver] L'état '{stateName}' est introuvable dans l'Animator de {animator.name}. Vérifie l'orthographe exacte.");
+        Debug.LogError($"[OxiOAnimationDriver] ça merde au niveau de '{stateName}' il est introuvable dans l'Animator de {animator.name}");
     }
 
     void Start()
@@ -109,6 +130,7 @@ public class OxiOAnimationDriver : MonoBehaviour
     public void StartTalking()
     {
         if (isEuphoric || isTransforming) return;
+        if (isEconomyMode || isSlicing) return;
         if (isTalking) return;
 
         isTalking = true;
@@ -120,7 +142,71 @@ public class OxiOAnimationDriver : MonoBehaviour
         if (!isTalking) return;
 
         isTalking = false;
-        if (!isBlinking && !isEuphoric && !isTransforming) PlayPreservingCycle(idleHash);
+        if (!isBlinking && !isEuphoric && !isTransforming && !isEconomyMode && !isSlicing)
+            PlayPreservingCycle(idleHash);
+    }
+
+    public void EnterEconomyMode()
+    {
+        if (isSlicing || oxiAnimator == null) return;
+
+        isEconomyMode = true;
+        isTalking = false;
+        isBlinking = false;
+
+        oxiAnimator.Play(economyModeHash, 0, 0f);
+    }
+
+    public void ExitEconomyMode()
+    {
+        if (!isEconomyMode) return;
+
+        isEconomyMode = false;
+
+        if (!isSlicing && !isEuphoric && !isTransforming && oxiAnimator != null)
+            oxiAnimator.Play(idleHash, 0, 0f);
+    }
+
+    public void PlaySliced(int phaseIndex)
+    {
+        if (isSlicing || oxiAnimator == null) return;
+
+        StartCoroutine(SlicedRoutine(phaseIndex));
+    }
+
+    IEnumerator SlicedRoutine(int phaseIndex)
+    {
+        isSlicing = true;
+        isEconomyMode = false;
+        isTalking = false;
+        isBlinking = false;
+
+        int index = Mathf.Clamp(phaseIndex - 1, 0, slicedHashes.Length - 1);
+        oxiAnimator.Play(slicedHashes[index], 0, 0f);
+
+        yield return null;
+        yield return WaitForStateEnd(oxiAnimator);
+
+        if (returnToIdleAfterSliced && !isEuphoric && !isTransforming)
+            oxiAnimator.Play(idleHash, 0, 0f);
+
+        isSlicing = false;
+        OnSlicedComplete?.Invoke();
+    }
+
+    public float GetSlicedDuration(int phaseIndex)
+    {
+        if (oxiAnimator == null || oxiAnimator.runtimeAnimatorController == null)
+            return 0f;
+
+        int index = Mathf.Clamp(phaseIndex - 1, 0, slicedStates.Length - 1);
+        string target = slicedStates[index];
+
+        foreach (AnimationClip clip in oxiAnimator.runtimeAnimatorController.animationClips)
+            if (clip.name == target)
+                return clip.length;
+
+        return 0f;
     }
 
     public void TransformToEuphoria()
@@ -134,6 +220,7 @@ public class OxiOAnimationDriver : MonoBehaviour
         isTransforming = true;
         isTalking = false;
         isBlinking = false;
+        isEconomyMode = false;
 
         if (blinkRoutine != null)
         {
@@ -145,6 +232,7 @@ public class OxiOAnimationDriver : MonoBehaviour
             StartCoroutine(VentBoostRoutine());
 
         oxiAnimator.Play(transformationHash, 0, 0f);
+
         yield return null;
         yield return WaitForStateEnd(oxiAnimator);
 
@@ -152,7 +240,6 @@ public class OxiOAnimationDriver : MonoBehaviour
 
         isEuphoric = true;
         isTransforming = false;
-
         OnTransformationComplete?.Invoke();
     }
 
@@ -171,6 +258,7 @@ public class OxiOAnimationDriver : MonoBehaviour
             yield return new WaitForSeconds(Random.Range(blinkDelayMin, blinkDelayMax));
 
             if (isEuphoric || isTransforming || isBlinking) continue;
+            if (isEconomyMode || isSlicing) continue;
 
             yield return StartCoroutine(BlinkRoutine());
         }
@@ -182,17 +270,18 @@ public class OxiOAnimationDriver : MonoBehaviour
 
         yield return WaitForCycleStart();
 
-        if (isEuphoric || isTransforming)
+        if (isEuphoric || isTransforming || isEconomyMode || isSlicing)
         {
             isBlinking = false;
             yield break;
         }
 
         oxiAnimator.Play(isTalking ? talkBlinkHash : idleBlinkHash, 0, 0f);
+
         yield return null;
         yield return WaitForStateEnd(oxiAnimator);
 
-        if (!isEuphoric && !isTransforming)
+        if (!isEuphoric && !isTransforming && !isEconomyMode && !isSlicing)
             oxiAnimator.Play(isTalking ? talkHash : idleHash, 0, 0f);
 
         isBlinking = false;

@@ -64,7 +64,7 @@ public class BossDialogueManager : MonoBehaviour
     [SerializeField] string oxiName = "Oxi-O";
 
     [Header("Références")]
-    [SerializeField] OxiOAnimationDriver oxiAnimation;
+    [SerializeField] OxiOAnimation oxiAnimation;
     [SerializeField] MonoBehaviour playerController;
 
     [Header("Doublage")]

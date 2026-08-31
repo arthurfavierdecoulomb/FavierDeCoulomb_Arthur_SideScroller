@@ -1,0 +1,1050 @@
+fileFormatVersion: 2
+guid: 9bc97ac3cc92bbd42bf90cb60d3800b2
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -3333963215581665678
+    second: "text_eco_termin\xE9_0"
+  - first:
+      213: -4445734923321985349
+    second: "text_eco_termin\xE9_1"
+  - first:
+      213: 3205187192003006270
+    second: "text_eco_termin\xE9_2"
+  - first:
+      213: 7049458047427469907
+    second: "text_eco_termin\xE9_3"
+  - first:
+      213: 6426036985298123022
+    second: "text_eco_termin\xE9_4"
+  - first:
+      213: -9028171261208068107
+    second: "text_eco_termin\xE9_5"
+  - first:
+      213: 6083536451667844158
+    second: "text_eco_termin\xE9_6"
+  - first:
+      213: -7939151668903888551
+    second: "text_eco_termin\xE9_7"
+  - first:
+      213: -5140210007415062824
+    second: "text_eco_termin\xE9_8"
+  - first:
+      213: 1839811092396977286
+    second: "text_eco_termin\xE9_9"
+  - first:
+      213: -4205854553930764040
+    second: "text_eco_termin\xE9_10"
+  - first:
+      213: 5413540418687937488
+    second: "text_eco_termin\xE9_11"
+  - first:
+      213: 3631359076185323885
+    second: "text_eco_termin\xE9_12"
+  - first:
+      213: -8103204416964695280
+    second: "text_eco_termin\xE9_13"
+  - first:
+      213: 6538768634839692522
+    second: "text_eco_termin\xE9_14"
+  - first:
+      213: -840748291976274837
+    second: "text_eco_termin\xE9_15"
+  - first:
+      213: -4721399160958396660
+    second: "text_eco_termin\xE9_16"
+  - first:
+      213: -4146152540083999344
+    second: "text_eco_termin\xE9_17"
+  - first:
+      213: -5555811406950268213
+    second: "text_eco_termin\xE9_18"
+  - first:
+      213: 6933097185303222338
+    second: "text_eco_termin\xE9_19"
+  - first:
+      213: -3304443682486903405
+    second: "text_eco_termin\xE9_20"
+  - first:
+      213: 5677226353914631409
+    second: "text_eco_termin\xE9_21"
+  - first:
+      213: -5222604662000698727
+    second: "text_eco_termin\xE9_22"
+  - first:
+      213: -7517827023266551013
+    second: "text_eco_termin\xE9_23"
+  - first:
+      213: -5212596073416547140
+    second: "text_eco_termin\xE9_24"
+  - first:
+      213: 2508325083172295611
+    second: "text_eco_termin\xE9_25"
+  - first:
+      213: -8416683466752884119
+    second: "text_eco_termin\xE9_26"
+  - first:
+      213: -4550563356298792234
+    second: "text_eco_termin\xE9_27"
+  - first:
+      213: -1143554304873430622
+    second: "text_eco_termin\xE9_28"
+  - first:
+      213: -2847281315161603652
+    second: "text_eco_termin\xE9_29"
+  - first:
+      213: -7277553551690173724
+    second: "text_eco_termin\xE9_30"
+  - first:
+      213: 5972577402912724661
+    second: "text_eco_termin\xE9_31"
+  - first:
+      213: -1602428960738902656
+    second: "text_eco_termin\xE9_32"
+  - first:
+      213: -2230983711494558676
+    second: "text_eco_termin\xE9_33"
+  - first:
+      213: 1940560960011469106
+    second: "text_eco_termin\xE9_34"
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 4096
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: "text_eco_termin\xE9_0"
+      rect:
+        serializedVersion: 2
+        x: 1054
+        y: 1021
+        width: 44
+        height: 74
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 27629099e126bb1d0800000000000000
+      internalID: -3333963215581665678
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "text_eco_termin\xE9_1"
+      rect:
+        serializedVersion: 2
+        x: 1108
+        y: 1021
+        width: 47
+        height: 74
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bb638d944a39d42c0800000000000000
+      internalID: -4445734923321985349
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "text_eco_termin\xE9_2"
+      rect:
+        serializedVersion: 2
+        x: 1162
+        y: 1021
+        width: 47
+        height: 74
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e3f88f1f4cc1b7c20800000000000000
+      internalID: 3205187192003006270
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "text_eco_termin\xE9_3"
+      rect:
+        serializedVersion: 2
+        x: 1219
+        y: 1021
+        width: 44
+        height: 74
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 352eee79eb4b4d160800000000000000
+      internalID: 7049458047427469907
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "text_eco_termin\xE9_4"
+      rect:
+        serializedVersion: 2
+        x: 1300
+        y: 1021
+        width: 47
+        height: 74
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e09773e679edd2950800000000000000
+      internalID: 6426036985298123022
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "text_eco_termin\xE9_5"
+      rect:
+        serializedVersion: 2
+        x: 1357
+        y: 1021
+        width: 44
+        height: 74
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5ff7d4c321e75b280800000000000000
+      internalID: -9028171261208068107
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "text_eco_termin\xE9_6"
+      rect:
+        serializedVersion: 2
+        x: 1417
+        y: 1021
+        width: 11
+        height: 74
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e3c5dcbbb201d6450800000000000000
+      internalID: 6083536451667844158
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "text_eco_termin\xE9_7"
+      rect:
+        serializedVersion: 2
+        x: 1441
+        y: 1075
+        width: 11
+        height: 20
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 959b80dde9772d190800000000000000
+      internalID: -7939151668903888551
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "text_eco_termin\xE9_8"
+      rect:
+        serializedVersion: 2
+        x: 1462
+        y: 1021
+        width: 44
+        height: 74
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8defd157b3e4aa8b0800000000000000
+      internalID: -5140210007415062824
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "text_eco_termin\xE9_9"
+      rect:
+        serializedVersion: 2
+        x: 1516
+        y: 1021
+        width: 44
+        height: 74
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 68c2528d072588910800000000000000
+      internalID: 1839811092396977286
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "text_eco_termin\xE9_10"
+      rect:
+        serializedVersion: 2
+        x: 1573
+        y: 1021
+        width: 44
+        height: 74
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8f07ff7119dc1a5c0800000000000000
+      internalID: -4205854553930764040
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "text_eco_termin\xE9_11"
+      rect:
+        serializedVersion: 2
+        x: 1606
+        y: 991
+        width: 74
+        height: 20
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0db2d112452c02b40800000000000000
+      internalID: 5413540418687937488
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "text_eco_termin\xE9_12"
+      rect:
+        serializedVersion: 2
+        x: 805
+        y: 853
+        width: 122
+        height: 113
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d69baeb07dd256230800000000000000
+      internalID: 3631359076185323885
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "text_eco_termin\xE9_13"
+      rect:
+        serializedVersion: 2
+        x: 958
+        y: 961
+        width: 89
+        height: 17
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 01b6170f382ab8f80800000000000000
+      internalID: -8103204416964695280
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "text_eco_termin\xE9_14"
+      rect:
+        serializedVersion: 2
+        x: 1072
+        y: 904
+        width: 92
+        height: 74
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ae4f514fd6f5eba50800000000000000
+      internalID: 6538768634839692522
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "text_eco_termin\xE9_15"
+      rect:
+        serializedVersion: 2
+        x: 1189
+        y: 826
+        width: 92
+        height: 152
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b6cdc3702ef0554f0800000000000000
+      internalID: -840748291976274837
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "text_eco_termin\xE9_16"
+      rect:
+        serializedVersion: 2
+        x: 1306
+        y: 904
+        width: 92
+        height: 74
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c075f386a783a7eb0800000000000000
+      internalID: -4721399160958396660
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "text_eco_termin\xE9_17"
+      rect:
+        serializedVersion: 2
+        x: 1432
+        y: 904
+        width: 20
+        height: 74
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 09da5b76b38e576c0800000000000000
+      internalID: -4146152540083999344
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "text_eco_termin\xE9_18"
+      rect:
+        serializedVersion: 2
+        x: 1483
+        y: 904
+        width: 20
+        height: 74
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bc28aa916fac5e2b0800000000000000
+      internalID: -5555811406950268213
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "text_eco_termin\xE9_19"
+      rect:
+        serializedVersion: 2
+        x: 1504
+        y: 910
+        width: 53
+        height: 53
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 248524b282f473060800000000000000
+      internalID: 6933097185303222338
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "text_eco_termin\xE9_20"
+      rect:
+        serializedVersion: 2
+        x: 1558
+        y: 904
+        width: 20
+        height: 74
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 39d951d7af14422d0800000000000000
+      internalID: -3304443682486903405
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "text_eco_termin\xE9_21"
+      rect:
+        serializedVersion: 2
+        x: 1600
+        y: 904
+        width: 20
+        height: 71
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1f451962a4f89ce40800000000000000
+      internalID: 5677226353914631409
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "text_eco_termin\xE9_22"
+      rect:
+        serializedVersion: 2
+        x: 1606
+        y: 961
+        width: 86
+        height: 17
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 99a362ffab49587b0800000000000000
+      internalID: -5222604662000698727
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "text_eco_termin\xE9_23"
+      rect:
+        serializedVersion: 2
+        x: 1747
+        y: 853
+        width: 125
+        height: 113
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b1b6d5b47205ba790800000000000000
+      internalID: -7517827023266551013
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "text_eco_termin\xE9_24"
+      rect:
+        serializedVersion: 2
+        x: 994
+        y: 895
+        width: 17
+        height: 65
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cb4296e1d7329a7b0800000000000000
+      internalID: -5212596073416547140
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "text_eco_termin\xE9_25"
+      rect:
+        serializedVersion: 2
+        x: 1072
+        y: 829
+        width: 83
+        height: 83
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bb3dfab9f5c5fc220800000000000000
+      internalID: 2508325083172295611
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "text_eco_termin\xE9_26"
+      rect:
+        serializedVersion: 2
+        x: 1306
+        y: 826
+        width: 20
+        height: 74
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9628a410bfee13b80800000000000000
+      internalID: -8416683466752884119
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "text_eco_termin\xE9_27"
+      rect:
+        serializedVersion: 2
+        x: 1381
+        y: 826
+        width: 17
+        height: 74
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6d2b6e3ccb629d0c0800000000000000
+      internalID: -4550563356298792234
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "text_eco_termin\xE9_28"
+      rect:
+        serializedVersion: 2
+        x: 1432
+        y: 826
+        width: 20
+        height: 74
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2a186a42b674120f0800000000000000
+      internalID: -1143554304873430622
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "text_eco_termin\xE9_29"
+      rect:
+        serializedVersion: 2
+        x: 1483
+        y: 826
+        width: 20
+        height: 74
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cb18f2ababc6c78d0800000000000000
+      internalID: -2847281315161603652
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "text_eco_termin\xE9_30"
+      rect:
+        serializedVersion: 2
+        x: 1558
+        y: 826
+        width: 20
+        height: 74
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4e2ff955a9fe00b90800000000000000
+      internalID: -7277553551690173724
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "text_eco_termin\xE9_31"
+      rect:
+        serializedVersion: 2
+        x: 1600
+        y: 826
+        width: 92
+        height: 74
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5b6532ef08bd2e250800000000000000
+      internalID: 5972577402912724661
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "text_eco_termin\xE9_32"
+      rect:
+        serializedVersion: 2
+        x: 1612
+        y: 892
+        width: 74
+        height: 20
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 08dfb59a95703c9e0800000000000000
+      internalID: -1602428960738902656
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "text_eco_termin\xE9_33"
+      rect:
+        serializedVersion: 2
+        x: 994
+        y: 826
+        width: 17
+        height: 65
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c2c2fa87224f901e0800000000000000
+      internalID: -2230983711494558676
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "text_eco_termin\xE9_34"
+      rect:
+        serializedVersion: 2
+        x: 1078
+        y: 826
+        width: 86
+        height: 17
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 231897e59e14eea10800000000000000
+      internalID: 1940560960011469106
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "text_eco_termin\xE9_35"
+      rect:
+        serializedVersion: 2
+        x: 720
+        y: 793
+        width: 1214
+        height: 333
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ae1808f4aa6679b4ca278d31f5c55f87
+      internalID: -460590997
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: db76f8b9e722297428e17745e2e035c3
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      "text_eco_termin\xE9_0": -3333963215581665678
+      "text_eco_termin\xE9_1": -4445734923321985349
+      "text_eco_termin\xE9_10": -4205854553930764040
+      "text_eco_termin\xE9_11": 5413540418687937488
+      "text_eco_termin\xE9_12": 3631359076185323885
+      "text_eco_termin\xE9_13": -8103204416964695280
+      "text_eco_termin\xE9_14": 6538768634839692522
+      "text_eco_termin\xE9_15": -840748291976274837
+      "text_eco_termin\xE9_16": -4721399160958396660
+      "text_eco_termin\xE9_17": -4146152540083999344
+      "text_eco_termin\xE9_18": -5555811406950268213
+      "text_eco_termin\xE9_19": 6933097185303222338
+      "text_eco_termin\xE9_2": 3205187192003006270
+      "text_eco_termin\xE9_20": -3304443682486903405
+      "text_eco_termin\xE9_21": 5677226353914631409
+      "text_eco_termin\xE9_22": -5222604662000698727
+      "text_eco_termin\xE9_23": -7517827023266551013
+      "text_eco_termin\xE9_24": -5212596073416547140
+      "text_eco_termin\xE9_25": 2508325083172295611
+      "text_eco_termin\xE9_26": -8416683466752884119
+      "text_eco_termin\xE9_27": -4550563356298792234
+      "text_eco_termin\xE9_28": -1143554304873430622
+      "text_eco_termin\xE9_29": -2847281315161603652
+      "text_eco_termin\xE9_3": 7049458047427469907
+      "text_eco_termin\xE9_30": -7277553551690173724
+      "text_eco_termin\xE9_31": 5972577402912724661
+      "text_eco_termin\xE9_32": -1602428960738902656
+      "text_eco_termin\xE9_33": -2230983711494558676
+      "text_eco_termin\xE9_34": 1940560960011469106
+      "text_eco_termin\xE9_35": -460590997
+      "text_eco_termin\xE9_4": 6426036985298123022
+      "text_eco_termin\xE9_5": -9028171261208068107
+      "text_eco_termin\xE9_6": 6083536451667844158
+      "text_eco_termin\xE9_7": -7939151668903888551
+      "text_eco_termin\xE9_8": -5140210007415062824
+      "text_eco_termin\xE9_9": 1839811092396977286
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

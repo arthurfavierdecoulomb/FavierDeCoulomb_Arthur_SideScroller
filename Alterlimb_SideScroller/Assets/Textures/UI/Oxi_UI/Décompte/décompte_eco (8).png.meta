@@ -1,0 +1,1287 @@
+fileFormatVersion: 2
+guid: 8e287256be6291b4ca3c2fd54df14617
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -2049102402378133346
+    second: "d\xE9compte_eco (8)_0"
+  - first:
+      213: 45799660955861657
+    second: "d\xE9compte_eco (8)_1"
+  - first:
+      213: 3701493863232092116
+    second: "d\xE9compte_eco (8)_2"
+  - first:
+      213: -159437122473580405
+    second: "d\xE9compte_eco (8)_3"
+  - first:
+      213: -7583289575980652606
+    second: "d\xE9compte_eco (8)_4"
+  - first:
+      213: 735527641777156602
+    second: "d\xE9compte_eco (8)_5"
+  - first:
+      213: 3418752639295242973
+    second: "d\xE9compte_eco (8)_6"
+  - first:
+      213: -6257278592675065443
+    second: "d\xE9compte_eco (8)_7"
+  - first:
+      213: 8878526150656920622
+    second: "d\xE9compte_eco (8)_8"
+  - first:
+      213: 7713142910115813095
+    second: "d\xE9compte_eco (8)_9"
+  - first:
+      213: -3341022878442605932
+    second: "d\xE9compte_eco (8)_10"
+  - first:
+      213: 1831112573219472266
+    second: "d\xE9compte_eco (8)_11"
+  - first:
+      213: 5834194164515628351
+    second: "d\xE9compte_eco (8)_12"
+  - first:
+      213: -4135793539314168042
+    second: "d\xE9compte_eco (8)_13"
+  - first:
+      213: -5670731102488229700
+    second: "d\xE9compte_eco (8)_14"
+  - first:
+      213: 5089768680911669302
+    second: "d\xE9compte_eco (8)_15"
+  - first:
+      213: -3913304936891567875
+    second: "d\xE9compte_eco (8)_16"
+  - first:
+      213: 1300962252044242775
+    second: "d\xE9compte_eco (8)_17"
+  - first:
+      213: 3591915381600845712
+    second: "d\xE9compte_eco (8)_18"
+  - first:
+      213: -2484993744185773331
+    second: "d\xE9compte_eco (8)_19"
+  - first:
+      213: 641762883472577074
+    second: "d\xE9compte_eco (8)_20"
+  - first:
+      213: 2851301876720476429
+    second: "d\xE9compte_eco (8)_21"
+  - first:
+      213: 719425239915765288
+    second: "d\xE9compte_eco (8)_22"
+  - first:
+      213: -2280542170331708084
+    second: "d\xE9compte_eco (8)_23"
+  - first:
+      213: -7982523843282818113
+    second: "d\xE9compte_eco (8)_24"
+  - first:
+      213: 2582446077389637325
+    second: "d\xE9compte_eco (8)_25"
+  - first:
+      213: -3094012510959997966
+    second: "d\xE9compte_eco (8)_26"
+  - first:
+      213: 6849721194381321342
+    second: "d\xE9compte_eco (8)_27"
+  - first:
+      213: 4956385461945242486
+    second: "d\xE9compte_eco (8)_28"
+  - first:
+      213: -7735210385624897997
+    second: "d\xE9compte_eco (8)_29"
+  - first:
+      213: 6993098993884031835
+    second: "d\xE9compte_eco (8)_30"
+  - first:
+      213: 9014666632531109365
+    second: "d\xE9compte_eco (8)_31"
+  - first:
+      213: 4686117862497011400
+    second: "d\xE9compte_eco (8)_32"
+  - first:
+      213: 3279445457331793627
+    second: "d\xE9compte_eco (8)_33"
+  - first:
+      213: -3576734494923484478
+    second: "d\xE9compte_eco (8)_34"
+  - first:
+      213: -1172462831291189555
+    second: "d\xE9compte_eco (8)_35"
+  - first:
+      213: 977804161097014057
+    second: "d\xE9compte_eco (8)_36"
+  - first:
+      213: 491242733733012107
+    second: "d\xE9compte_eco (8)_37"
+  - first:
+      213: -6365110920543025652
+    second: "d\xE9compte_eco (8)_38"
+  - first:
+      213: 3809322342130753788
+    second: "d\xE9compte_eco (8)_39"
+  - first:
+      213: 5869925163173175722
+    second: "d\xE9compte_eco (8)_40"
+  - first:
+      213: 4460188476381121190
+    second: "d\xE9compte_eco (8)_41"
+  - first:
+      213: -4264315342717025761
+    second: "d\xE9compte_eco (8)_42"
+  - first:
+      213: 2224346212011193479
+    second: "d\xE9compte_eco (8)_43"
+  - first:
+      213: -4371631277487473761
+    second: "d\xE9compte_eco (8)_44"
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 4096
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_0"
+      rect:
+        serializedVersion: 2
+        x: 777
+        y: 756
+        width: 1062
+        height: 262
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e901addb8302093e0800000000000000
+      internalID: -2049102402378133346
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_1"
+      rect:
+        serializedVersion: 2
+        x: 991
+        y: 916
+        width: 80
+        height: 65
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9928b1a8c86b2a000800000000000000
+      internalID: 45799660955861657
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_2"
+      rect:
+        serializedVersion: 2
+        x: 1195
+        y: 922
+        width: 86
+        height: 71
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4d7bc38ae095e5330800000000000000
+      internalID: 3701493863232092116
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_3"
+      rect:
+        serializedVersion: 2
+        x: 1303
+        y: 922
+        width: 17
+        height: 65
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b88a3f628c099cdf0800000000000000
+      internalID: -159437122473580405
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_4"
+      rect:
+        serializedVersion: 2
+        x: 1306
+        y: 922
+        width: 83
+        height: 71
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2c720c20f4eb2c690800000000000000
+      internalID: -7583289575980652606
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_5"
+      rect:
+        serializedVersion: 2
+        x: 1534
+        y: 856
+        width: 80
+        height: 131
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: af1bb924e7e153a00800000000000000
+      internalID: 735527641777156602
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_6"
+      rect:
+        serializedVersion: 2
+        x: 1633
+        y: 925
+        width: 17
+        height: 62
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: dd24f108969d17f20800000000000000
+      internalID: 3418752639295242973
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_7"
+      rect:
+        serializedVersion: 2
+        x: 1642
+        y: 859
+        width: 71
+        height: 125
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d9152feb54ea929a0800000000000000
+      internalID: -6257278592675065443
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_8"
+      rect:
+        serializedVersion: 2
+        x: 892
+        y: 850
+        width: 80
+        height: 65
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e2c0cea5e7cd63b70800000000000000
+      internalID: 8878526150656920622
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_9"
+      rect:
+        serializedVersion: 2
+        x: 991
+        y: 850
+        width: 80
+        height: 65
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7e6964b5c969a0b60800000000000000
+      internalID: 7713142910115813095
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_10"
+      rect:
+        serializedVersion: 2
+        x: 1195
+        y: 850
+        width: 86
+        height: 68
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 492b9ffb46d42a1d0800000000000000
+      internalID: -3341022878442605932
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_11"
+      rect:
+        serializedVersion: 2
+        x: 1303
+        y: 850
+        width: 86
+        height: 68
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a838f760f2b696910800000000000000
+      internalID: 1831112573219472266
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_12"
+      rect:
+        serializedVersion: 2
+        x: 859
+        y: 784
+        width: 29
+        height: 44
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f356c968ea837f050800000000000000
+      internalID: 5834194164515628351
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_13"
+      rect:
+        serializedVersion: 2
+        x: 892
+        y: 784
+        width: 29
+        height: 44
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 61fc2d830b5ba96c0800000000000000
+      internalID: -4135793539314168042
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_14"
+      rect:
+        serializedVersion: 2
+        x: 925
+        y: 784
+        width: 29
+        height: 44
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cb80e6b6b148d41b0800000000000000
+      internalID: -5670731102488229700
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_15"
+      rect:
+        serializedVersion: 2
+        x: 958
+        y: 784
+        width: 26
+        height: 44
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 63806a606ad72a640800000000000000
+      internalID: 5089768680911669302
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_16"
+      rect:
+        serializedVersion: 2
+        x: 988
+        y: 784
+        width: 29
+        height: 44
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: df0bbcab4e521b9c0800000000000000
+      internalID: -3913304936891567875
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_17"
+      rect:
+        serializedVersion: 2
+        x: 1021
+        y: 808
+        width: 17
+        height: 20
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 75f0a438642fd0210800000000000000
+      internalID: 1300962252044242775
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_18"
+      rect:
+        serializedVersion: 2
+        x: 1042
+        y: 784
+        width: 29
+        height: 44
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 09f749f320c09d130800000000000000
+      internalID: 3591915381600845712
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_19"
+      rect:
+        serializedVersion: 2
+        x: 1075
+        y: 784
+        width: 17
+        height: 44
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: de23db01b57838dd0800000000000000
+      internalID: -2484993744185773331
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_20"
+      rect:
+        serializedVersion: 2
+        x: 1162
+        y: 781
+        width: 29
+        height: 47
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 232d96b31fff7e800800000000000000
+      internalID: 641762883472577074
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_21"
+      rect:
+        serializedVersion: 2
+        x: 1198
+        y: 778
+        width: 8
+        height: 50
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d01245533fbd19720800000000000000
+      internalID: 2851301876720476429
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_22"
+      rect:
+        serializedVersion: 2
+        x: 1216
+        y: 778
+        width: 29
+        height: 47
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 82e11aba179ebf900800000000000000
+      internalID: 719425239915765288
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_23"
+      rect:
+        serializedVersion: 2
+        x: 1249
+        y: 802
+        width: 8
+        height: 26
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c45841a9af2e950e0800000000000000
+      internalID: -2280542170331708084
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_24"
+      rect:
+        serializedVersion: 2
+        x: 1249
+        y: 778
+        width: 32
+        height: 47
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fbbaa069bd0683190800000000000000
+      internalID: -7982523843282818113
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_25"
+      rect:
+        serializedVersion: 2
+        x: 1285
+        y: 778
+        width: 29
+        height: 50
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: dc609666601b6d320800000000000000
+      internalID: 2582446077389637325
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_26"
+      rect:
+        serializedVersion: 2
+        x: 1318
+        y: 778
+        width: 32
+        height: 50
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2fb6d99930cdf05d0800000000000000
+      internalID: -3094012510959997966
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_27"
+      rect:
+        serializedVersion: 2
+        x: 1354
+        y: 778
+        width: 17
+        height: 50
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e74209982291f0f50800000000000000
+      internalID: 6849721194381321342
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_28"
+      rect:
+        serializedVersion: 2
+        x: 1378
+        y: 778
+        width: 29
+        height: 50
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 673182d415e98c440800000000000000
+      internalID: 4956385461945242486
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_29"
+      rect:
+        serializedVersion: 2
+        x: 1411
+        y: 778
+        width: 17
+        height: 50
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3366aed132307a490800000000000000
+      internalID: -7735210385624897997
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_30"
+      rect:
+        serializedVersion: 2
+        x: 1477
+        y: 784
+        width: 26
+        height: 44
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b5b6991eb7a7c0160800000000000000
+      internalID: 6993098993884031835
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_31"
+      rect:
+        serializedVersion: 2
+        x: 1507
+        y: 784
+        width: 29
+        height: 44
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5f565906a878a1d70800000000000000
+      internalID: 9014666632531109365
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_32"
+      rect:
+        serializedVersion: 2
+        x: 1540
+        y: 805
+        width: 29
+        height: 23
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8c64fb92e5f680140800000000000000
+      internalID: 4686117862497011400
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_33"
+      rect:
+        serializedVersion: 2
+        x: 1573
+        y: 805
+        width: 29
+        height: 23
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bdea788a44ee28d20800000000000000
+      internalID: 3279445457331793627
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_34"
+      rect:
+        serializedVersion: 2
+        x: 1606
+        y: 784
+        width: 29
+        height: 44
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2c2133e5de2ec5ec0800000000000000
+      internalID: -3576734494923484478
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_35"
+      rect:
+        serializedVersion: 2
+        x: 1639
+        y: 784
+        width: 26
+        height: 44
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: dc63a8454439abfe0800000000000000
+      internalID: -1172462831291189555
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_36"
+      rect:
+        serializedVersion: 2
+        x: 1669
+        y: 784
+        width: 29
+        height: 44
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 92b161234bbd19d00800000000000000
+      internalID: 977804161097014057
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_37"
+      rect:
+        serializedVersion: 2
+        x: 1702
+        y: 805
+        width: 17
+        height: 23
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b82e5a2e9ae31d600800000000000000
+      internalID: 491242733733012107
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_38"
+      rect:
+        serializedVersion: 2
+        x: 1723
+        y: 784
+        width: 29
+        height: 44
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c06c21177559aa7a0800000000000000
+      internalID: -6365110920543025652
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_39"
+      rect:
+        serializedVersion: 2
+        x: 1756
+        y: 805
+        width: 17
+        height: 23
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cf0a9adcc7e6dd430800000000000000
+      internalID: 3809322342130753788
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_40"
+      rect:
+        serializedVersion: 2
+        x: 1021
+        y: 784
+        width: 17
+        height: 23
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: aa16011f5d9267150800000000000000
+      internalID: 5869925163173175722
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_41"
+      rect:
+        serializedVersion: 2
+        x: 1540
+        y: 784
+        width: 26
+        height: 20
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6aaccf5c9c5c5ed30800000000000000
+      internalID: 4460188476381121190
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_42"
+      rect:
+        serializedVersion: 2
+        x: 1573
+        y: 784
+        width: 29
+        height: 20
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f128a130acb12d4c0800000000000000
+      internalID: -4264315342717025761
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_43"
+      rect:
+        serializedVersion: 2
+        x: 1702
+        y: 784
+        width: 14
+        height: 20
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 784b96048177ede10800000000000000
+      internalID: 2224346212011193479
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (8)_44"
+      rect:
+        serializedVersion: 2
+        x: 1759
+        y: 784
+        width: 14
+        height: 20
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f9b3f58d388d453c0800000000000000
+      internalID: -4371631277487473761
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 74244b4088d118347a652280d678cb04
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      "d\xE9compte_eco (8)_0": -2049102402378133346
+      "d\xE9compte_eco (8)_1": 45799660955861657
+      "d\xE9compte_eco (8)_10": -3341022878442605932
+      "d\xE9compte_eco (8)_11": 1831112573219472266
+      "d\xE9compte_eco (8)_12": 5834194164515628351
+      "d\xE9compte_eco (8)_13": -4135793539314168042
+      "d\xE9compte_eco (8)_14": -5670731102488229700
+      "d\xE9compte_eco (8)_15": 5089768680911669302
+      "d\xE9compte_eco (8)_16": -3913304936891567875
+      "d\xE9compte_eco (8)_17": 1300962252044242775
+      "d\xE9compte_eco (8)_18": 3591915381600845712
+      "d\xE9compte_eco (8)_19": -2484993744185773331
+      "d\xE9compte_eco (8)_2": 3701493863232092116
+      "d\xE9compte_eco (8)_20": 641762883472577074
+      "d\xE9compte_eco (8)_21": 2851301876720476429
+      "d\xE9compte_eco (8)_22": 719425239915765288
+      "d\xE9compte_eco (8)_23": -2280542170331708084
+      "d\xE9compte_eco (8)_24": -7982523843282818113
+      "d\xE9compte_eco (8)_25": 2582446077389637325
+      "d\xE9compte_eco (8)_26": -3094012510959997966
+      "d\xE9compte_eco (8)_27": 6849721194381321342
+      "d\xE9compte_eco (8)_28": 4956385461945242486
+      "d\xE9compte_eco (8)_29": -7735210385624897997
+      "d\xE9compte_eco (8)_3": -159437122473580405
+      "d\xE9compte_eco (8)_30": 6993098993884031835
+      "d\xE9compte_eco (8)_31": 9014666632531109365
+      "d\xE9compte_eco (8)_32": 4686117862497011400
+      "d\xE9compte_eco (8)_33": 3279445457331793627
+      "d\xE9compte_eco (8)_34": -3576734494923484478
+      "d\xE9compte_eco (8)_35": -1172462831291189555
+      "d\xE9compte_eco (8)_36": 977804161097014057
+      "d\xE9compte_eco (8)_37": 491242733733012107
+      "d\xE9compte_eco (8)_38": -6365110920543025652
+      "d\xE9compte_eco (8)_39": 3809322342130753788
+      "d\xE9compte_eco (8)_4": -7583289575980652606
+      "d\xE9compte_eco (8)_40": 5869925163173175722
+      "d\xE9compte_eco (8)_41": 4460188476381121190
+      "d\xE9compte_eco (8)_42": -4264315342717025761
+      "d\xE9compte_eco (8)_43": 2224346212011193479
+      "d\xE9compte_eco (8)_44": -4371631277487473761
+      "d\xE9compte_eco (8)_5": 735527641777156602
+      "d\xE9compte_eco (8)_6": 3418752639295242973
+      "d\xE9compte_eco (8)_7": -6257278592675065443
+      "d\xE9compte_eco (8)_8": 8878526150656920622
+      "d\xE9compte_eco (8)_9": 7713142910115813095
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

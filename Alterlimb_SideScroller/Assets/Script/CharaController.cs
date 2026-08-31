@@ -61,6 +61,14 @@ public class CharaController : MonoBehaviour
 
     bool dashEnabled = false;
 
+    public static event System.Action OnPlayerDied;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    static void ResetStatics()
+    {
+        OnPlayerDied = null;
+    }
+
     void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
@@ -307,6 +315,9 @@ public class CharaController : MonoBehaviour
         dashRequested = false;
         rb.linearVelocity = Vector2.zero;
         rb.gravityScale = 0f;
+
+        OnPlayerDied?.Invoke();
+
         SpawnManager.Instance.Respawn(this);
     }
 
@@ -322,5 +333,11 @@ public class CharaController : MonoBehaviour
         jumpBufferCounter = 0f;
         jumpLockoutCounter = 0f;
         GetComponent<PlayerHealth>()?.ResetHealth();
+    }
+
+    void OnDisable()
+    {
+        if (rb != null)
+            rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
     }
 }

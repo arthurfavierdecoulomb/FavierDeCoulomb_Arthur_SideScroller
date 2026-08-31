@@ -1,0 +1,280 @@
+fileFormatVersion: 2
+guid: eea342fac5ebad347a23cee879eef011
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -3483834215264598503
+    second: "d\xE9compte_eco (26)_0"
+  - first:
+      213: 3727136626228463359
+    second: "d\xE9compte_eco (26)_1"
+  - first:
+      213: -8395742179332364418
+    second: "d\xE9compte_eco (26)_2"
+  - first:
+      213: 8781297225936508155
+    second: "d\xE9compte_eco (26)_3"
+  - first:
+      213: 6556724013072696830
+    second: "d\xE9compte_eco (26)_4"
+  - first:
+      213: -3339646939978206522
+    second: "d\xE9compte_eco (26)_5"
+  - first:
+      213: -4497084493446619681
+    second: "d\xE9compte_eco (26)_6"
+  - first:
+      213: -6820277380784838642
+    second: "d\xE9compte_eco (26)_7"
+  - first:
+      213: -5054676950075063740
+    second: "d\xE9compte_eco (26)_8"
+  - first:
+      213: 8904653250673997248
+    second: "d\xE9compte_eco (26)_9"
+  - first:
+      213: 3186976142015260826
+    second: "d\xE9compte_eco (26)_10"
+  - first:
+      213: 8731784432925916170
+    second: "d\xE9compte_eco (26)_11"
+  - first:
+      213: -4396774011887218994
+    second: "d\xE9compte_eco (26)_12"
+  - first:
+      213: 2663155228639977356
+    second: "d\xE9compte_eco (26)_13"
+  - first:
+      213: 5829343834683594740
+    second: "d\xE9compte_eco (26)_14"
+  - first:
+      213: -5755836264561988792
+    second: "d\xE9compte_eco (26)_15"
+  - first:
+      213: -7816709894488579930
+    second: "d\xE9compte_eco (26)_16"
+  - first:
+      213: 2461338454455558011
+    second: "d\xE9compte_eco (26)_17"
+  - first:
+      213: 6993947872091133311
+    second: "d\xE9compte_eco (26)_18"
+  - first:
+      213: -7694908618291895992
+    second: "d\xE9compte_eco (26)_19"
+  - first:
+      213: -99894223132277031
+    second: "d\xE9compte_eco (26)_20"
+  - first:
+      213: 3061667653303422677
+    second: "d\xE9compte_eco (26)_21"
+  - first:
+      213: 6012586518264743126
+    second: "d\xE9compte_eco (26)_22"
+  - first:
+      213: -5302201836182599859
+    second: "d\xE9compte_eco (26)_23"
+  - first:
+      213: -7756984531106944296
+    second: "d\xE9compte_eco (26)_24"
+  - first:
+      213: -4217102244117806671
+    second: "d\xE9compte_eco (26)_25"
+  - first:
+      213: -5435185821924922735
+    second: "d\xE9compte_eco (26)_26"
+  - first:
+      213: 8626517280517695816
+    second: "d\xE9compte_eco (26)_27"
+  - first:
+      213: -6467104826409167925
+    second: "d\xE9compte_eco (26)_28"
+  - first:
+      213: -9043028625820983430
+    second: "d\xE9compte_eco (26)_29"
+  - first:
+      213: -3537347712333287673
+    second: "d\xE9compte_eco (26)_30"
+  - first:
+      213: 8966524649308204699
+    second: "d\xE9compte_eco (26)_31"
+  - first:
+      213: -7260568311491028365
+    second: "d\xE9compte_eco (26)_32"
+  - first:
+      213: -8223247568072775745
+    second: "d\xE9compte_eco (26)_33"
+  - first:
+      213: 656063370101604755
+    second: "d\xE9compte_eco (26)_34"
+  - first:
+      213: 377564340960221984
+    second: "d\xE9compte_eco (26)_35"
+  - first:
+      213: 3651127598413351132
+    second: "d\xE9compte_eco (26)_36"
+  - first:
+      213: -6972450983900989496
+    second: "d\xE9compte_eco (26)_37"
+  - first:
+      213: 7715794196070956222
+    second: "d\xE9compte_eco (26)_38"
+  - first:
+      213: 7955421466696010885
+    second: "d\xE9compte_eco (26)_39"
+  - first:
+      213: -7782930580730630883
+    second: "d\xE9compte_eco (26)_40"
+  - first:
+      213: 7733279262191483818
+    second: "d\xE9compte_eco (26)_41"
+  - first:
+      213: 5186846507487534258
+    second: "d\xE9compte_eco (26)_42"
+  - first:
+      213: -7081450705656005385
+    second: "d\xE9compte_eco (26)_43"
+  - first:
+      213: -4028202305625486673
+    second: "d\xE9compte_eco (26)_44"
+  - first:
+      213: 2479422417414300939
+    second: "d\xE9compte_eco (26)_45"
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 4096
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: "d\xE9compte_eco (26)_0"
+      rect:
+        serializedVersion: 2
+        x: 777
+        y: 756
+        width: 1062
+        height: 262
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9164dc64d3fe6afc0800000000000000
+      internalID: -3483834215264598503
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: cdde7b3f7e4bda14cbbea450c4aaf3b1
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries:
+      - key: SpriteEditor.SliceSettings
+        value: '{"sliceOnImport":false,"gridCellCount":{"x":30.0,"y":1.0},"gridSpriteSize":{"x":1062.0,"y":262.0},"gridSpriteOffset":{"x":777.0,"y":768.0},"gridSpritePadding":{"x":75.0,"y":0.0},"pivot":{"x":0.5,"y":0.5},"pivotPixels":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":0,"pivotUnitMode":0,"slicingType":1,"keepEmptyRects":false,"isAlternate":false}'
+    nameFileIdTable:
+      "d\xE9compte_eco (26)_0": -3483834215264598503
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

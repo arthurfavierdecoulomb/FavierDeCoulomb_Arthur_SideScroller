@@ -25,6 +25,7 @@ public class OxiOBossDirector : MonoBehaviour
         public List<AttackStep> steps = new List<AttackStep>();
         public float weight = 1f;
         public int minPhase = 1;
+        public int maxPhase = 99;
     }
 
     [Header("Mode")]
@@ -49,11 +50,22 @@ public class OxiOBossDirector : MonoBehaviour
     [SerializeField] private float delayMultiplierPerFailedWindow = 0.88f;
     [SerializeField] private float minDelayBetweenAttacks = 0.4f;
 
+    [Header("Pression pendant la fenêtre")]
+    [SerializeField] private int attacksDuringWindowMinPhase = 99;
+    [SerializeField] private float windowPressureDelayMultiplier = 1f;
+
+    [Header("Accélération par phase")]
+    [SerializeField] private float[] phaseDelayMultipliers = { 1f, 0.8f, 0.65f, 0.5f };
+
     [Header("Vulnérabilité")]
     [SerializeField] private OxiOCore core;
+    [SerializeField] private int cutsPerPhase = 2;
     [SerializeField] private AbilityManager abilityManager;
     [SerializeField] private float overheatDuration = 8f;
     [SerializeField] private bool extendWindowWhileCutting = true;
+
+    [Header("Écran suspendu")]
+    [SerializeField] private OxiOScreenUI screenUI;
 
     [Header("Confinement")]
     [SerializeField] private LaserBeam[] containmentLasers = new LaserBeam[0];
@@ -64,12 +76,19 @@ public class OxiOBossDirector : MonoBehaviour
     [Header("Démarrage")]
     [SerializeField] private bool startFightOnEnable = false;
 
+    [Header("Mort du joueur")]
+    [SerializeField] private bool stopOnPlayerDeath = true;
+    [SerializeField] private bool restartOnPlayerRespawn = true;
+    [SerializeField] private bool resetCoreProgressOnDeath = true;
+    [SerializeField] private float restartDelayAfterRespawn = 1.5f;
+
     [Header("Événements")]
     public UnityEvent onFightStart;
     public UnityEvent onOverheatStart;
     public UnityEvent onWindowFailed;
     public UnityEvent onCoreRemoved;
     public UnityEvent onPhaseEnd;
+    public UnityEvent onFightRestarted;
 
     private int currentPhase = 1;
     private int failedWindows;
@@ -77,15 +96,50 @@ public class OxiOBossDirector : MonoBehaviour
     private OxiOAttack lastAttack;
     private AttackPattern lastPattern;
     private Coroutine fightRoutine;
-    private bool coreRemoved;
+    private bool phaseComplete;
+    private bool cutThisWindow;
+    private bool fightEngaged;
+    private bool windowPressureActive;
 
     public bool IsFighting => fightRoutine != null;
     public int CurrentPhase => currentPhase;
 
     private void OnEnable()
     {
+        SpawnManager.OnPlayerRespawn += HandlePlayerRespawn;
+        CharaController.OnPlayerDied += HandlePlayerDied;
+
         if (startFightOnEnable)
             StartFight();
+    }
+
+    private void HandlePlayerDied()
+    {
+        if (!stopOnPlayerDeath || !fightEngaged || phaseComplete)
+            return;
+
+        StopFight();
+    }
+
+    private void HandlePlayerRespawn()
+    {
+        if (!restartOnPlayerRespawn || !fightEngaged || phaseComplete)
+            return;
+
+        StopFight();
+
+        if (core != null)
+            core.ResetForRetry(resetCoreProgressOnDeath);
+
+        StartCoroutine(RestartAfterRespawn());
+    }
+
+    private IEnumerator RestartAfterRespawn()
+    {
+        yield return new WaitForSeconds(restartDelayAfterRespawn);
+
+        onFightRestarted?.Invoke();
+        StartFight();
     }
 
     public void StartFight()
@@ -93,17 +147,28 @@ public class OxiOBossDirector : MonoBehaviour
         if (fightRoutine != null)
             return;
 
-        currentDelayBetweenAttacks = delayBetweenAttacks;
+        currentDelayBetweenAttacks = delayBetweenAttacks * PhaseDelayMultiplier();
         failedWindows = 0;
-        coreRemoved = false;
+        phaseComplete = false;
+        cutThisWindow = false;
+        fightEngaged = true;
+
+        if (core != null && core.CutsRemainingThisPhase == 0)
+            core.BeginPhase(currentPhase, cutsPerPhase);
 
         if (abilityManager == null)
-            abilityManager = FindAnyObjectByType<AbilityManager>();
+            abilityManager = FindObjectOfType<AbilityManager>();
 
         if (core != null)
         {
-            core.OnCoreRemoved -= HandleCoreRemoved;
-            core.OnCoreRemoved += HandleCoreRemoved;
+            core.OnCoreRemoved -= HandleCoreCut;
+            core.OnCoreRemoved += HandleCoreCut;
+            core.OnPhaseDepleted -= HandlePhaseDepleted;
+            core.OnPhaseDepleted += HandlePhaseDepleted;
+        }
+        else
+        {
+            Debug.LogError($"[OxiOBossDirector] '{name}' : le champ Core est vide. Aucune fenêtre de vulnérabilité ne s'ouvrira jamais.", this);
         }
 
         if (abilityManager != null)
@@ -136,7 +201,8 @@ public class OxiOBossDirector : MonoBehaviour
         if (core != null)
         {
             core.CloseWindow();
-            core.OnCoreRemoved -= HandleCoreRemoved;
+            core.OnCoreRemoved -= HandleCoreCut;
+            core.OnPhaseDepleted -= HandlePhaseDepleted;
         }
 
         if (abilityManager != null)
@@ -150,32 +216,46 @@ public class OxiOBossDirector : MonoBehaviour
     public void SetPhase(int phase)
     {
         currentPhase = Mathf.Max(1, phase);
+        currentDelayBetweenAttacks = delayBetweenAttacks * PhaseDelayMultiplier();
+
+        if (core != null)
+            core.BeginPhase(currentPhase, cutsPerPhase);
+    }
+
+    private float PhaseDelayMultiplier()
+    {
+        if (phaseDelayMultipliers == null || phaseDelayMultipliers.Length == 0)
+            return 1f;
+
+        int index = Mathf.Clamp(currentPhase - 1, 0, phaseDelayMultipliers.Length - 1);
+        return Mathf.Max(0.05f, phaseDelayMultipliers[index]);
     }
 
     private IEnumerator FightLoop()
     {
         yield return new WaitForSeconds(delayBeforeFirstAttack);
 
-        while (!coreRemoved)
+        while (!phaseComplete)
         {
             if (patternMode == PatternMode.AuthoredPatterns)
                 yield return RunAuthoredPattern();
             else
                 yield return RunRandomPattern();
 
-            if (coreRemoved)
+            if (phaseComplete)
                 break;
 
             yield return new WaitForSeconds(delayBeforeOverheat);
             yield return RunVulnerabilityWindow();
 
-            if (coreRemoved)
+            if (phaseComplete)
                 break;
 
             yield return new WaitForSeconds(delayAfterWindow);
         }
 
         fightRoutine = null;
+        fightEngaged = false;
         onPhaseEnd?.Invoke();
     }
 
@@ -193,7 +273,7 @@ public class OxiOBossDirector : MonoBehaviour
 
         for (int i = 0; i < pattern.steps.Count; i++)
         {
-            if (coreRemoved)
+            if (phaseComplete)
                 yield break;
 
             AttackStep step = pattern.steps[i];
@@ -224,7 +304,7 @@ public class OxiOBossDirector : MonoBehaviour
             StartCoroutine(RunSingleAttack(attack, running));
         }
 
-        while (running[0] > 0 && !coreRemoved)
+        while (running[0] > 0 && !phaseComplete)
             yield return null;
     }
 
@@ -241,7 +321,7 @@ public class OxiOBossDirector : MonoBehaviour
     {
         for (int i = 0; i < attacksPerPattern; i++)
         {
-            if (coreRemoved)
+            if (phaseComplete)
                 yield break;
 
             OxiOAttack attack = PickAttack();
@@ -266,6 +346,8 @@ public class OxiOBossDirector : MonoBehaviour
         if (core == null)
             yield break;
 
+        Debug.Log($"[OxiOBossDirector] Surchauffe : ouverture de la fenêtre pour {overheatDuration}s.", this);
+
         foreach (LaserBeam laser in containmentLasers)
         {
             if (laser == null)
@@ -275,12 +357,23 @@ public class OxiOBossDirector : MonoBehaviour
             laser.FlickerWhileOn(laserFlickerOnWindowOpen);
         }
 
+        cutThisWindow = false;
         core.OpenWindow();
+
+        if (currentPhase >= attacksDuringWindowMinPhase)
+        {
+            windowPressureActive = true;
+            StartCoroutine(WindowPressureRoutine());
+        }
+
+        if (screenUI != null)
+            screenUI.StartEcoCountdown(overheatDuration);
+
         onOverheatStart?.Invoke();
 
         float remaining = overheatDuration;
 
-        while (remaining > 0f && !coreRemoved)
+        while (remaining > 0f && !cutThisWindow && !phaseComplete)
         {
             remaining -= Time.deltaTime;
 
@@ -290,9 +383,15 @@ public class OxiOBossDirector : MonoBehaviour
             yield return null;
         }
 
-        if (!coreRemoved)
+        windowPressureActive = false;
+
+        if (!cutThisWindow)
         {
             core.CloseWindow();
+
+            if (screenUI != null)
+                screenUI.ShowEcoFinished();
+
             failedWindows++;
             currentDelayBetweenAttacks = Mathf.Max(minDelayBetweenAttacks, currentDelayBetweenAttacks * delayMultiplierPerFailedWindow);
             onWindowFailed?.Invoke();
@@ -301,6 +400,28 @@ public class OxiOBossDirector : MonoBehaviour
         foreach (LaserBeam laser in containmentLasers)
             if (laser != null)
                 laser.SetIntensityMultiplier(laserIntensityNormal);
+    }
+
+    private IEnumerator WindowPressureRoutine()
+    {
+        while (windowPressureActive && !phaseComplete)
+        {
+            OxiOAttack attack = PickAttack();
+
+            if (attack == null)
+            {
+                yield return new WaitForSeconds(0.5f);
+                continue;
+            }
+
+            lastAttack = attack;
+            yield return attack.Execute(currentPhase);
+
+            if (!windowPressureActive || phaseComplete)
+                yield break;
+
+            yield return new WaitForSeconds(currentDelayBetweenAttacks * windowPressureDelayMultiplier);
+        }
     }
 
     private AttackPattern PickPattern()
@@ -313,7 +434,7 @@ public class OxiOBossDirector : MonoBehaviour
             if (pattern == null || pattern.steps.Count == 0)
                 continue;
 
-            if (currentPhase < pattern.minPhase)
+            if (currentPhase < pattern.minPhase || currentPhase > pattern.maxPhase)
                 continue;
 
             if (avoidSamePatternTwice && pattern == lastPattern && patterns.Count > 1)
@@ -395,9 +516,13 @@ public class OxiOBossDirector : MonoBehaviour
         }
     }
 
-    private void HandleCoreRemoved()
+    private void HandleCoreCut()
     {
-        coreRemoved = true;
+        cutThisWindow = true;
+        windowPressureActive = false;
+
+        if (screenUI != null)
+            screenUI.CancelEcoCountdown();
 
         foreach (LaserBeam laser in containmentLasers)
             if (laser != null)
@@ -406,9 +531,21 @@ public class OxiOBossDirector : MonoBehaviour
         onCoreRemoved?.Invoke();
     }
 
+    private void HandlePhaseDepleted()
+    {
+        phaseComplete = true;
+        windowPressureActive = false;
+    }
+
     private void OnDisable()
     {
+        SpawnManager.OnPlayerRespawn -= HandlePlayerRespawn;
+        CharaController.OnPlayerDied -= HandlePlayerDied;
+
         if (core != null)
-            core.OnCoreRemoved -= HandleCoreRemoved;
+        {
+            core.OnCoreRemoved -= HandleCoreCut;
+            core.OnPhaseDepleted -= HandlePhaseDepleted;
+        }
     }
 }

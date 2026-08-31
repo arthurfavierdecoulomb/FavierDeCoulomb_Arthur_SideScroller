@@ -7,6 +7,7 @@ public abstract class OxiOAttack : MonoBehaviour
     [SerializeField] private float weight = 1f;
     [SerializeField] private float cooldown = 4f;
     [SerializeField] private int minPhase = 1;
+    [SerializeField] private int maxPhase = 99;
 
     private float lastUsedTime = -999f;
 
@@ -14,7 +15,9 @@ public abstract class OxiOAttack : MonoBehaviour
 
     public bool IsAvailable(int currentPhase)
     {
-        return currentPhase >= minPhase && Time.time - lastUsedTime >= cooldown;
+        return currentPhase >= minPhase
+            && currentPhase <= maxPhase
+            && Time.time - lastUsedTime >= cooldown;
     }
 
     public IEnumerator Execute(int currentPhase)
