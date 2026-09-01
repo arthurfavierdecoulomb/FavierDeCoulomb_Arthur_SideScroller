@@ -26,6 +26,9 @@ public class BossMusicSequencer : MonoBehaviour
     [SerializeField] float scheduleAheadTime = 1f;
     [SerializeField] float startDelay = 0.1f;
 
+    [Header("Anti-doublon")]
+    [SerializeField] bool ignoreIfSameSegmentAlreadyPlaying = true;
+
     [Header("Transition immédiate")]
     [SerializeField] float crossfadeDuration = 0.6f;
 
@@ -35,21 +38,34 @@ public class BossMusicSequencer : MonoBehaviour
     [SerializeField] float muffleDuration = 0.4f;
     [SerializeField] float unmuffleDuration = 0.6f;
 
+    [Header("Ralentissement")]
+    [SerializeField] bool pitchDownOnMuffle = true;
+    [Range(0.1f, 1f)]
+    [SerializeField] float muffledPitch = 0.55f;
+    [SerializeField] float pitchDownDuration = 0.9f;
+    [SerializeField] float pitchUpDuration = 0.5f;
+    [SerializeField] bool suspendSchedulingWhileMuffled = true;
+
     public event System.Action<string> OnSegmentStarted;
 
     public string CurrentSegmentId => currentIndex >= 0 && currentIndex < segments.Count ? segments[currentIndex].id : "";
     public bool IsPlaying => isPlaying;
+    public bool IsMuffled => muffleFactor < 0.999f;
 
     AudioSource[] sources = new AudioSource[2];
     int sourceIndex;
     int currentIndex = -1;
     int queuedIndex = -1;
-
     double nextEventTime;
     bool isPlaying;
+    bool schedulingSuspended;
+
     Coroutine fadeRoutine;
     Coroutine muffleRoutine;
+    Coroutine pitchRoutine;
+
     float muffleFactor = 1f;
+    float pitchFactor = 1f;
 
     void Awake()
     {
@@ -58,6 +74,7 @@ public class BossMusicSequencer : MonoBehaviour
             Destroy(gameObject);
             return;
         }
+
         Instance = this;
 
         for (int i = 0; i < sources.Length; i++)
@@ -66,6 +83,7 @@ public class BossMusicSequencer : MonoBehaviour
             sources[i].playOnAwake = false;
             sources[i].loop = false;
             sources[i].volume = CurrentVolume();
+            sources[i].pitch = CurrentPitch();
         }
     }
 
@@ -77,7 +95,7 @@ public class BossMusicSequencer : MonoBehaviour
 
     void Update()
     {
-        if (!isPlaying) return;
+        if (!isPlaying || schedulingSuspended) return;
 
         if (AudioSettings.dspTime > nextEventTime - scheduleAheadTime)
             ScheduleNext();
@@ -88,16 +106,19 @@ public class BossMusicSequencer : MonoBehaviour
         int index = IndexOf(id);
         if (index < 0) return;
 
+        if (ignoreIfSameSegmentAlreadyPlaying && isPlaying && currentIndex == index)
+            return;
+
         StopImmediate();
 
         currentIndex = index;
         sourceIndex = 0;
         queuedIndex = -1;
-
         nextEventTime = AudioSettings.dspTime + startDelay;
 
         sources[0].clip = segments[index].clip;
         sources[0].volume = CurrentVolume();
+        sources[0].pitch = CurrentPitch();
         sources[0].PlayScheduled(nextEventTime);
 
         nextEventTime += ClipDuration(segments[index].clip);
@@ -110,6 +131,9 @@ public class BossMusicSequencer : MonoBehaviour
     {
         int index = IndexOf(id);
         if (index < 0) return;
+
+        if (isPlaying && currentIndex == index && queuedIndex < 0)
+            return;
 
         if (!isPlaying)
         {
@@ -125,7 +149,33 @@ public class BossMusicSequencer : MonoBehaviour
         int index = IndexOf(id);
         if (index < 0) return;
 
+        if (ignoreIfSameSegmentAlreadyPlaying && isPlaying && currentIndex == index)
+            return;
+
         StartCoroutine(CrossfadeRoutine(index));
+    }
+
+    public void ForcePlay(string id)
+    {
+        int index = IndexOf(id);
+        if (index < 0) return;
+
+        StopImmediate();
+
+        currentIndex = index;
+        sourceIndex = 0;
+        queuedIndex = -1;
+        nextEventTime = AudioSettings.dspTime + startDelay;
+
+        sources[0].clip = segments[index].clip;
+        sources[0].volume = CurrentVolume();
+        sources[0].pitch = CurrentPitch();
+        sources[0].PlayScheduled(nextEventTime);
+
+        nextEventTime += ClipDuration(segments[index].clip);
+        isPlaying = true;
+
+        OnSegmentStarted?.Invoke(segments[index].id);
     }
 
     public void AdvanceToNext()
@@ -143,19 +193,62 @@ public class BossMusicSequencer : MonoBehaviour
     public void SetVolume(float value)
     {
         volume = Mathf.Clamp01(value);
-        ApplyVolume();
+        ApplyAudio();
     }
 
     public void MuffleMusic()
     {
         if (muffleRoutine != null) StopCoroutine(muffleRoutine);
         muffleRoutine = StartCoroutine(MuffleRoutine(muffledFactor, muffleDuration));
+
+        if (!pitchDownOnMuffle)
+            return;
+
+        if (suspendSchedulingWhileMuffled)
+            schedulingSuspended = true;
+
+        if (pitchRoutine != null) StopCoroutine(pitchRoutine);
+        pitchRoutine = StartCoroutine(PitchRoutine(muffledPitch, pitchDownDuration, false));
+    }
+
+    public void MuffleMusic(float volumeFactor, float pitch, float duration)
+    {
+        if (muffleRoutine != null) StopCoroutine(muffleRoutine);
+        muffleRoutine = StartCoroutine(MuffleRoutine(Mathf.Clamp01(volumeFactor), Mathf.Max(0.01f, duration)));
+        if (suspendSchedulingWhileMuffled)
+            schedulingSuspended = true;
+        if (pitchRoutine != null) StopCoroutine(pitchRoutine);
+        pitchRoutine = StartCoroutine(PitchRoutine(Mathf.Clamp(pitch, 0.05f, 3f), Mathf.Max(0.01f, duration), false));
     }
 
     public void UnmuffleMusic()
     {
         if (muffleRoutine != null) StopCoroutine(muffleRoutine);
         muffleRoutine = StartCoroutine(MuffleRoutine(1f, unmuffleDuration));
+
+        if (!pitchDownOnMuffle)
+            return;
+
+        if (pitchRoutine != null) StopCoroutine(pitchRoutine);
+        pitchRoutine = StartCoroutine(PitchRoutine(1f, pitchUpDuration, true));
+    }
+
+    public void SetPitchImmediate(float value)
+    {
+        if (pitchRoutine != null) StopCoroutine(pitchRoutine);
+
+        pitchFactor = Mathf.Clamp(value, 0.05f, 3f);
+        ApplyAudio();
+
+        if (Mathf.Approximately(pitchFactor, 1f))
+        {
+            ResyncSchedule();
+            schedulingSuspended = false;
+        }
+        else if (suspendSchedulingWhileMuffled)
+        {
+            schedulingSuspended = true;
+        }
     }
 
     IEnumerator MuffleRoutine(float target, float duration)
@@ -167,21 +260,63 @@ public class BossMusicSequencer : MonoBehaviour
         {
             elapsed += Time.unscaledDeltaTime;
             muffleFactor = Mathf.Lerp(start, target, Mathf.Clamp01(elapsed / duration));
-            ApplyVolume();
+            ApplyAudio();
             yield return null;
         }
 
         muffleFactor = target;
-        ApplyVolume();
+        ApplyAudio();
         muffleRoutine = null;
     }
 
-    float CurrentVolume() => volume * muffleFactor;
+    IEnumerator PitchRoutine(float target, float duration, bool resyncAtEnd)
+    {
+        float start = pitchFactor;
+        float elapsed = 0f;
 
-    void ApplyVolume()
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            pitchFactor = Mathf.Lerp(start, target, Mathf.Clamp01(elapsed / duration));
+            ApplyAudio();
+            yield return null;
+        }
+
+        pitchFactor = target;
+        ApplyAudio();
+
+        if (resyncAtEnd)
+        {
+            ResyncSchedule();
+            schedulingSuspended = false;
+        }
+
+        pitchRoutine = null;
+    }
+
+    void ResyncSchedule()
+    {
+        AudioSource source = sources[sourceIndex];
+
+        if (source == null || source.clip == null || !source.isPlaying)
+            return;
+
+        double remaining = source.clip.length - source.time;
+        nextEventTime = AudioSettings.dspTime + System.Math.Max(0.05d, remaining);
+    }
+
+    float CurrentVolume() => volume * muffleFactor;
+    float CurrentPitch() => pitchFactor;
+
+    void ApplyAudio()
     {
         for (int i = 0; i < sources.Length; i++)
-            if (sources[i] != null) sources[i].volume = CurrentVolume();
+        {
+            if (sources[i] == null) continue;
+
+            sources[i].volume = CurrentVolume();
+            sources[i].pitch = CurrentPitch();
+        }
     }
 
     void ScheduleNext()
@@ -208,10 +343,10 @@ public class BossMusicSequencer : MonoBehaviour
         }
 
         sourceIndex = 1 - sourceIndex;
-
         AudioSource source = sources[sourceIndex];
         source.clip = segments[next].clip;
         source.volume = CurrentVolume();
+        source.pitch = CurrentPitch();
         source.PlayScheduled(nextEventTime);
 
         nextEventTime += ClipDuration(segments[next].clip);
@@ -232,6 +367,7 @@ public class BossMusicSequencer : MonoBehaviour
 
         newSource.clip = segments[index].clip;
         newSource.volume = 0f;
+        newSource.pitch = CurrentPitch();
         newSource.Play();
 
         currentIndex = index;
@@ -267,14 +403,16 @@ public class BossMusicSequencer : MonoBehaviour
         {
             elapsed += Time.unscaledDeltaTime;
             muffleFactor = startFactor * (1f - Mathf.Clamp01(elapsed / duration));
-            ApplyVolume();
+            ApplyAudio();
             yield return null;
         }
 
         StopImmediate();
 
         muffleFactor = 1f;
-        ApplyVolume();
+        pitchFactor = 1f;
+        schedulingSuspended = false;
+        ApplyAudio();
 
         fadeRoutine = null;
     }

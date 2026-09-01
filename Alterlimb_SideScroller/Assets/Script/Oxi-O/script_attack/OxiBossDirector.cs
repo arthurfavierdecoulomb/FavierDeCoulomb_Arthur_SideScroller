@@ -67,11 +67,23 @@ public class OxiOBossDirector : MonoBehaviour
     [Header("Écran suspendu")]
     [SerializeField] private OxiOScreenUI screenUI;
 
+    [Header("Caméra")]
+    [SerializeField] private CameraFocus cameraFocus;
+    [SerializeField] private string coreCutFocusId = "oxio";
+    [SerializeField] private bool cinematicOnCoreCut = true;
+    [SerializeField] private OxiOAnimation oxiAnimation;
+    [SerializeField] private float coreCutCameraDelay = 0.15f;
+    [SerializeField] private float coreCutHoldAfterAnimation = 0.6f;
+    [SerializeField] private float coreCutMaxDuration = 8f;
+
     [Header("Confinement")]
     [SerializeField] private LaserBeam[] containmentLasers = new LaserBeam[0];
     [SerializeField] private float laserIntensityNormal = 1f;
     [SerializeField] private float laserIntensityOverheat = 0.3f;
     [SerializeField] private int laserFlickerOnWindowOpen = 3;
+
+    [Header("Diagnostic")]
+    [SerializeField] private bool logCinematicWarnings = true;
 
     [Header("Démarrage")]
     [SerializeField] private bool startFightOnEnable = false;
@@ -98,6 +110,7 @@ public class OxiOBossDirector : MonoBehaviour
     private Coroutine fightRoutine;
     private bool phaseComplete;
     private bool cutThisWindow;
+    private bool cinematicActive;
     private bool fightEngaged;
     private bool windowPressureActive;
 
@@ -197,6 +210,7 @@ public class OxiOBossDirector : MonoBehaviour
 
         StopAllCoroutines();
         InterruptAllAttacks();
+        cinematicActive = false;
 
         if (core != null)
         {
@@ -250,6 +264,9 @@ public class OxiOBossDirector : MonoBehaviour
 
             if (phaseComplete)
                 break;
+
+            while (cinematicActive)
+                yield return null;
 
             yield return new WaitForSeconds(delayAfterWindow);
         }
@@ -529,12 +546,64 @@ public class OxiOBossDirector : MonoBehaviour
                 laser.SetIntensityMultiplier(laserIntensityNormal);
 
         onCoreRemoved?.Invoke();
+
+        bool lastCutOfPhase = core != null && core.PhaseDepleted;
+
+        if (cinematicOnCoreCut && !lastCutOfPhase)
+            StartCoroutine(CoreCutCinematicRoutine());
+    }
+
+    private IEnumerator CoreCutCinematicRoutine()
+    {
+        cinematicActive = true;
+
+        InterruptAllAttacks();
+
+        if (coreCutCameraDelay > 0f)
+            yield return new WaitForSeconds(coreCutCameraDelay);
+
+        if (cameraFocus != null)
+            cameraFocus.FocusOn(coreCutFocusId);
+        else if (logCinematicWarnings)
+            Debug.LogWarning($"[OxiOBossDirector] '{name}' : Camera Focus non assigné, la caméra ne montrera pas Oxi-O pendant l'arrachage du noyau.", this);
+
+        float elapsed = 0f;
+
+        if (oxiAnimation != null)
+        {
+            while (!oxiAnimation.IsSlicing && elapsed < 1f)
+            {
+                elapsed += Time.deltaTime;
+                yield return null;
+            }
+
+            elapsed = 0f;
+
+            while (oxiAnimation.IsSlicing && elapsed < coreCutMaxDuration)
+            {
+                elapsed += Time.deltaTime;
+                yield return null;
+            }
+        }
+        else
+        {
+            yield return new WaitForSeconds(Mathf.Min(2f, coreCutMaxDuration));
+        }
+
+        if (coreCutHoldAfterAnimation > 0f)
+            yield return new WaitForSeconds(coreCutHoldAfterAnimation);
+
+        if (cameraFocus != null)
+            cameraFocus.ReleaseFocus();
+
+        cinematicActive = false;
     }
 
     private void HandlePhaseDepleted()
     {
         phaseComplete = true;
         windowPressureActive = false;
+        cinematicActive = false;
     }
 
     private void OnDisable()

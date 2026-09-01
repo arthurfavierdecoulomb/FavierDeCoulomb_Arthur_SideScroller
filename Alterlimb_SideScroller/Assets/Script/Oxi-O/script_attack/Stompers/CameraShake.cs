@@ -33,6 +33,10 @@ public class CameraShake : MonoBehaviour
     private Vector3 appliedOffset;
     private float appliedRotation;
     private bool offsetApplied;
+    private bool hitStopActive;
+    private Coroutine hitStopRoutine;
+
+    public static bool HitStopActive => Instance != null && Instance.hitStopActive;
 
     private void Awake()
     {
@@ -55,6 +59,9 @@ public class CameraShake : MonoBehaviour
     private void LateUpdate()
     {
         if (duration <= 0f)
+            return;
+
+        if (Time.timeScale == 0f && !hitStopActive)
             return;
 
         elapsed += Time.unscaledDeltaTime;
@@ -150,19 +157,47 @@ public class CameraShake : MonoBehaviour
         if (Instance == null || seconds <= 0f)
             return;
 
-        Instance.StartCoroutine(Instance.HitStopRoutine(seconds));
+        if (Instance.hitStopRoutine != null)
+            return;
+
+        Instance.hitStopRoutine = Instance.StartCoroutine(Instance.HitStopRoutine(seconds));
     }
+
+    public static void CancelHitStop()
+    {
+        if (Instance == null || !Instance.hitStopActive)
+            return;
+
+        if (Instance.hitStopRoutine != null)
+        {
+            Instance.StopCoroutine(Instance.hitStopRoutine);
+            Instance.hitStopRoutine = null;
+        }
+
+        Instance.hitStopActive = false;
+        Time.timeScale = Instance.hitStopPreviousScale;
+    }
+
+    private float hitStopPreviousScale = 1f;
 
     private IEnumerator HitStopRoutine(float seconds)
     {
         if (Time.timeScale == 0f)
+        {
+            hitStopRoutine = null;
             yield break;
+        }
 
-        float previous = Time.timeScale;
+        hitStopPreviousScale = Time.timeScale;
+        hitStopActive = true;
         Time.timeScale = 0f;
 
         yield return new WaitForSecondsRealtime(seconds);
 
-        Time.timeScale = previous;
+        if (hitStopActive)
+            Time.timeScale = hitStopPreviousScale;
+
+        hitStopActive = false;
+        hitStopRoutine = null;
     }
 }

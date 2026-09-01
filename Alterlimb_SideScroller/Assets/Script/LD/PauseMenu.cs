@@ -10,6 +10,9 @@ public class PauseMenu : MonoBehaviour
     [Header("Navigation")]
     [SerializeField] string menuSceneName = "Menu";
 
+    [Header("Verrou")]
+    [SerializeField] bool respectPauseLock = true;
+
     void Start()
     {
         Time.timeScale = 1f;
@@ -31,6 +34,14 @@ public class PauseMenu : MonoBehaviour
 
     public void Pause()
     {
+        if (respectPauseLock && PauseLock.IsLocked) return;
+        if (pauseAnimator.IsOpen) return;
+
+        CameraShake.CancelHitStop();
+
+        if (PauseAudioManager.Instance != null)
+            PauseAudioManager.Instance.EnterPause();
+
         Time.timeScale = 0f;
         pauseAnimator.Open();
 
@@ -45,6 +56,9 @@ public class PauseMenu : MonoBehaviour
 
         if (PauseMusicPlayer.Instance != null)
             PauseMusicPlayer.Instance.ExitPause();
+
+        if (PauseAudioManager.Instance != null)
+            PauseAudioManager.Instance.ExitPause();
     }
 
     public void ReturnToMenu()
@@ -56,7 +70,6 @@ public class PauseMenu : MonoBehaviour
     public void Quitter()
     {
         LeaveLevel();
-
 #if UNITY_EDITOR
         UnityEditor.EditorApplication.isPlaying = false;
 #else
@@ -67,6 +80,11 @@ public class PauseMenu : MonoBehaviour
     void LeaveLevel()
     {
         Time.timeScale = 1f;
+
+        if (PauseAudioManager.Instance != null)
+            PauseAudioManager.Instance.ExitPause();
+
+        PauseLock.UnlockAll();
 
         if (PauseMusicPlayer.Instance != null)
             PauseMusicPlayer.Instance.StopImmediate();

@@ -17,6 +17,8 @@ public class OxiOAnimation : MonoBehaviour
 
     [Header("États combat")]
     [SerializeField] string economyModeState = "mode_economie";
+    
+    [SerializeField] string economyModeEuphoriaState = "";
     [SerializeField] string[] slicedStates = { "phase_1_sliced", "phase_2_sliced" };
     [SerializeField] bool returnToIdleAfterSliced = true;
 
@@ -46,6 +48,7 @@ public class OxiOAnimation : MonoBehaviour
     int transformationHash;
     int euphoriaIdleHash;
     int economyModeHash;
+    int economyModeEuphoriaHash;
     int[] slicedHashes;
     int ventIdleHash;
     int ventErrorBoostHash;
@@ -69,6 +72,9 @@ public class OxiOAnimation : MonoBehaviour
         transformationHash = Animator.StringToHash(transformationState);
         euphoriaIdleHash = Animator.StringToHash(euphoriaIdleState);
         economyModeHash = Animator.StringToHash(economyModeState);
+        economyModeEuphoriaHash = string.IsNullOrEmpty(economyModeEuphoriaState)
+            ? economyModeHash
+            : Animator.StringToHash(economyModeEuphoriaState);
 
         slicedHashes = new int[slicedStates.Length];
         for (int i = 0; i < slicedStates.Length; i++)
@@ -90,6 +96,9 @@ public class OxiOAnimation : MonoBehaviour
         CheckState(oxiAnimator, transformationHash, transformationState);
         CheckState(oxiAnimator, euphoriaIdleHash, euphoriaIdleState);
         CheckState(oxiAnimator, economyModeHash, economyModeState);
+
+        if (!string.IsNullOrEmpty(economyModeEuphoriaState))
+            CheckState(oxiAnimator, economyModeEuphoriaHash, economyModeEuphoriaState);
 
         for (int i = 0; i < slicedHashes.Length; i++)
             CheckState(oxiAnimator, slicedHashes[i], slicedStates[i]);
@@ -129,11 +138,15 @@ public class OxiOAnimation : MonoBehaviour
 
     public void StartTalking()
     {
-        if (isEuphoric || isTransforming) return;
+        if (isTransforming) return;
         if (isEconomyMode || isSlicing) return;
         if (isTalking) return;
 
         isTalking = true;
+
+        // En euphorie on garde l'idle euphorique : pas d'état de dialogue dédié.
+        if (isEuphoric) return;
+
         if (!isBlinking) PlayPreservingCycle(talkHash);
     }
 
@@ -142,7 +155,10 @@ public class OxiOAnimation : MonoBehaviour
         if (!isTalking) return;
 
         isTalking = false;
-        if (!isBlinking && !isEuphoric && !isTransforming && !isEconomyMode && !isSlicing)
+
+        if (isEuphoric) return;
+
+        if (!isBlinking && !isTransforming && !isEconomyMode && !isSlicing)
             PlayPreservingCycle(idleHash);
     }
 
@@ -154,7 +170,7 @@ public class OxiOAnimation : MonoBehaviour
         isTalking = false;
         isBlinking = false;
 
-        oxiAnimator.Play(economyModeHash, 0, 0f);
+        oxiAnimator.Play(isEuphoric ? economyModeEuphoriaHash : economyModeHash, 0, 0f);
     }
 
     public void ExitEconomyMode()
@@ -163,8 +179,8 @@ public class OxiOAnimation : MonoBehaviour
 
         isEconomyMode = false;
 
-        if (!isSlicing && !isEuphoric && !isTransforming && oxiAnimator != null)
-            oxiAnimator.Play(idleHash, 0, 0f);
+        if (!isSlicing && !isTransforming && oxiAnimator != null)
+            oxiAnimator.Play(RestHash(), 0, 0f);
     }
 
     public void PlaySliced(int phaseIndex)
@@ -187,8 +203,8 @@ public class OxiOAnimation : MonoBehaviour
         yield return null;
         yield return WaitForStateEnd(oxiAnimator);
 
-        if (returnToIdleAfterSliced && !isEuphoric && !isTransforming)
-            oxiAnimator.Play(idleHash, 0, 0f);
+        if (returnToIdleAfterSliced && !isTransforming)
+            oxiAnimator.Play(RestHash(), 0, 0f);
 
         isSlicing = false;
         OnSlicedComplete?.Invoke();
@@ -285,6 +301,11 @@ public class OxiOAnimation : MonoBehaviour
             oxiAnimator.Play(isTalking ? talkHash : idleHash, 0, 0f);
 
         isBlinking = false;
+    }
+
+    int RestHash()
+    {
+        return isEuphoric ? euphoriaIdleHash : idleHash;
     }
 
     void PlayPreservingCycle(int stateHash)

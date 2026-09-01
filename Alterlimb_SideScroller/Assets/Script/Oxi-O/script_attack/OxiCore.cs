@@ -55,11 +55,14 @@ public class OxiOCore : MonoBehaviour
 
     [Header("Explosion du noyau")]
     [SerializeField] private ParticleSystem explosion;
-    [SerializeField] private float knockbackForce = 18f;
+    [Tooltip("Vitesse exacte donnée à Azu au moment de l'explosion (unités/seconde). Ne dépend pas de sa masse.")]
+    [SerializeField] private float knockbackSpeed = 9f;
+    [Tooltip("Part minimum de verticalité dans la poussée. 0 = purement horizontal, 1 = purement vertical.")]
     [SerializeField] private float minUpwardRatio = 0.4f;
+    [Tooltip("Plafond de sécurité au cas où la poussée se cumulerait avec la vitesse existante.")]
+    [SerializeField] private float maxKnockbackSpeed = 14f;
     [SerializeField] private float explosionShakeDuration = 0.7f;
     [SerializeField] private float explosionShakeMagnitude = 0.8f;
-    [SerializeField] private float explosionHitStop = 0.12f;
 
     [Header("Diagnostic")]
     [SerializeField] private bool logDiagnostics = true;
@@ -428,10 +431,7 @@ public class OxiOCore : MonoBehaviour
             explosion.Play();
 
         if (CameraShake.Instance != null)
-        {
             CameraShake.Instance.Shake(explosionShakeDuration, explosionShakeMagnitude);
-            CameraShake.HitStop(explosionHitStop);
-        }
 
         StartCoroutine(KnockbackRoutine());
         onCoreExplosionEvent?.Invoke();
@@ -476,8 +476,12 @@ public class OxiOCore : MonoBehaviour
         direction.y = Mathf.Max(direction.y, minUpwardRatio);
         direction.Normalize();
 
-        body.linearVelocity = Vector2.zero;
-        body.AddForce(direction * knockbackForce, ForceMode2D.Impulse);
+        Vector2 push = direction * knockbackSpeed;
+
+        if (push.magnitude > maxKnockbackSpeed)
+            push = push.normalized * maxKnockbackSpeed;
+
+        body.linearVelocity = push;
     }
 
     private void SetProgress(float value)
