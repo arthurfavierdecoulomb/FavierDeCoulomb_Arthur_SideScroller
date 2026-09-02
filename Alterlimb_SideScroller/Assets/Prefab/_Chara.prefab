@@ -10,8 +10,8 @@ GameObject:
   m_Component:
   - component: {fileID: 5893882235502422700}
   - component: {fileID: 1350706790486595203}
-  - component: {fileID: 6806860510807169938}
   - component: {fileID: 7051708387520343031}
+  - component: {fileID: 6806860510807169938}
   - component: {fileID: 9003058991609469300}
   - component: {fileID: 8793314359099259191}
   m_Layer: 0
@@ -95,27 +95,6 @@ SpriteRenderer:
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
   m_SpriteSortPoint: 0
---- !u!114 &6806860510807169938
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3685160582410192760}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f911ad574f7ef6a4f84d9f373fd24486, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PlayerHealth
-  maxHealth: 100
-  droneDamage: 20
-  bulletDamage: 10
-  invincibilityDuration: 0.5
-  regenDelay: 10
-  regenRate: 5
-  healthBar: {fileID: 0}
-  barSmoothSpeed: 5
-  debugMode: 0
 --- !u!114 &7051708387520343031
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -132,11 +111,10 @@ MonoBehaviour:
   Acceleration: 15
   Deceleration: 20
   JumpForce: 18
-  HighJumpForce: 28
   FallMultiplier: 3
-  LowJumpMultiplier: 5
   CoyoteTime: 0.15
   JumpBufferTime: 0.1
+  JumpLockoutTime: 0.12
   DashForce: 25
   DashDuration: 0.15
   DashCooldown: 0.8
@@ -150,6 +128,28 @@ MonoBehaviour:
     m_Bits: 0
   IceAcceleration: 2
   IceFriction: 0.985
+--- !u!114 &6806860510807169938
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3685160582410192760}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f911ad574f7ef6a4f84d9f373fd24486, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerHealth
+  maxHealth: 100
+  droneDamage: 20
+  bulletDamage: 10
+  invincibilityDuration: 0.5
+  damageZoneDamagePerSecond: 15
+  regenDelay: 10
+  regenRate: 5
+  healthBar: {fileID: 0}
+  barSmoothSpeed: 5
+  debugMode: 0
 --- !u!114 &9003058991609469300
 MonoBehaviour:
   m_ObjectHideFlags: 0

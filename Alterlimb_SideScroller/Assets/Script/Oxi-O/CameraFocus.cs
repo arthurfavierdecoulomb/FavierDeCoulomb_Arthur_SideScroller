@@ -11,6 +11,7 @@ public class CameraFocus : MonoBehaviour
         public string id = "oxio";
         public Transform anchor;
         public Vector2 offset;
+        public float zoomFactor = 1f;
         public float orthographicSize = 0f;
         public float blendDuration = 0.6f;
     }
@@ -114,8 +115,25 @@ public class CameraFocus : MonoBehaviour
 
         camTransform.position = AnchorPosition(activePoint);
 
-        if (activePoint.orthographicSize > 0f && targetCamera.orthographic)
-            targetCamera.orthographicSize = activePoint.orthographicSize;
+        if (targetCamera.orthographic && HasSizeChange(activePoint))
+            targetCamera.orthographicSize = TargetSize(activePoint);
+    }
+
+    private bool HasSizeChange(FocusPoint point)
+    {
+        if (point.orthographicSize > 0f)
+            return true;
+
+        return point.zoomFactor > 0f && !Mathf.Approximately(point.zoomFactor, 1f);
+    }
+
+    private float TargetSize(FocusPoint point)
+    {
+        if (point.orthographicSize > 0f)
+            return point.orthographicSize;
+
+        float factor = point.zoomFactor > 0f ? point.zoomFactor : 1f;
+        return defaultOrthographicSize * factor;
     }
 
     public void FocusOn(string id)
@@ -143,6 +161,15 @@ public class CameraFocus : MonoBehaviour
 
         if (followScript != null)
             followScript.enabled = false;
+
+        if (logDiagnostics && targetCamera.orthographic)
+        {
+            string target = HasSizeChange(point)
+                ? TargetSize(point).ToString("0.##")
+                : "inchangé";
+
+            Debug.Log($"[CameraFocus] Focus '{point.id}' : Orthographic Size de jeu {defaultOrthographicSize:0.##}, cible {target}. Mets Zoom Factor à 2 pour voir deux fois plus large.", this);
+        }
 
         blendRoutine = StartCoroutine(BlendToPointRoutine(point));
     }
@@ -184,7 +211,8 @@ public class CameraFocus : MonoBehaviour
 
         Vector3 startPosition = camTransform.position;
         float startSize = targetCamera.orthographic ? targetCamera.orthographicSize : 0f;
-        bool changeSize = point.orthographicSize > 0f && targetCamera.orthographic;
+        bool changeSize = targetCamera.orthographic && HasSizeChange(point);
+        float endSize = changeSize ? TargetSize(point) : startSize;
 
         float duration = Mathf.Max(0.01f, point.blendDuration);
         float elapsed = 0f;
@@ -199,7 +227,7 @@ public class CameraFocus : MonoBehaviour
             camTransform.position = Vector3.Lerp(startPosition, AnchorPosition(point), eased);
 
             if (changeSize)
-                targetCamera.orthographicSize = Mathf.Lerp(startSize, point.orthographicSize, eased);
+                targetCamera.orthographicSize = Mathf.Lerp(startSize, endSize, eased);
 
             yield return null;
         }
@@ -207,7 +235,7 @@ public class CameraFocus : MonoBehaviour
         camTransform.position = AnchorPosition(point);
 
         if (changeSize)
-            targetCamera.orthographicSize = point.orthographicSize;
+            targetCamera.orthographicSize = endSize;
 
         holdPosition = true;
         blendRoutine = null;

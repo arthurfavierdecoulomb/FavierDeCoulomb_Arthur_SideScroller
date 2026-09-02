@@ -71,7 +71,7 @@ public class OxiOBossDirector : MonoBehaviour
     [SerializeField] private CameraFocus cameraFocus;
     [SerializeField] private string coreCutFocusId = "oxio";
     [SerializeField] private bool cinematicOnCoreCut = true;
-    [SerializeField] private OxiOAnimation oxiAnimation;
+    [SerializeField] private OxiO_Animation oxiAnimation;
     [SerializeField] private float coreCutCameraDelay = 0.15f;
     [SerializeField] private float coreCutHoldAfterAnimation = 0.6f;
     [SerializeField] private float coreCutMaxDuration = 8f;
@@ -170,7 +170,7 @@ public class OxiOBossDirector : MonoBehaviour
             core.BeginPhase(currentPhase, cutsPerPhase);
 
         if (abilityManager == null)
-            abilityManager = FindObjectOfType<AbilityManager>();
+            abilityManager = FindAnyObjectByType<AbilityManager>();
 
         if (core != null)
         {
@@ -183,6 +183,9 @@ public class OxiOBossDirector : MonoBehaviour
         {
             Debug.LogError($"[OxiOBossDirector] '{name}' : le champ Core est vide. Aucune fenêtre de vulnérabilité ne s'ouvrira jamais.", this);
         }
+
+        if (cinematicOnCoreCut && cameraFocus == null && logCinematicWarnings)
+            Debug.LogWarning($"[OxiOBossDirector] '{name}' : Camera Focus non assigné, la caméra ne montrera pas Oxi-O quand un noyau est arraché.", this);
 
         if (abilityManager != null)
             abilityManager.SetCombatLock(true);

@@ -39,7 +39,7 @@ public class OxiOCore : MonoBehaviour
     [SerializeField] private int cutsPerPhase = 2;
 
     [Header("Animation")]
-    [SerializeField] private OxiOAnimation animationDriver;
+    [SerializeField] private OxiO_Animation animationDriver;
     [SerializeField] private int slicedPhaseIndex = 1;
     [SerializeField] private bool playSlicedOnEveryCut = true;
     [SerializeField] private bool explosionFromAnimationEvent = true;
@@ -55,11 +55,8 @@ public class OxiOCore : MonoBehaviour
 
     [Header("Explosion du noyau")]
     [SerializeField] private ParticleSystem explosion;
-    [Tooltip("Vitesse exacte donnée à Azu au moment de l'explosion (unités/seconde). Ne dépend pas de sa masse.")]
     [SerializeField] private float knockbackSpeed = 9f;
-    [Tooltip("Part minimum de verticalité dans la poussée. 0 = purement horizontal, 1 = purement vertical.")]
     [SerializeField] private float minUpwardRatio = 0.4f;
-    [Tooltip("Plafond de sécurité au cas où la poussée se cumulerait avec la vitesse existante.")]
     [SerializeField] private float maxKnockbackSpeed = 14f;
     [SerializeField] private float explosionShakeDuration = 0.7f;
     [SerializeField] private float explosionShakeMagnitude = 0.8f;
@@ -398,9 +395,16 @@ public class OxiOCore : MonoBehaviour
             animationDriver.PlaySliced(slicedPhaseIndex);
 
             if (explosionFromAnimationEvent)
+            {
+                if (logDiagnostics)
+                    Debug.Log($"[OxiOCore] '{name}' : explosion en attente d'un Animation Event, secours dans {explosionFallbackDelay}s.", this);
+
                 StartCoroutine(ExplosionFallbackRoutine());
+            }
             else
+            {
                 TriggerCoreExplosion();
+            }
         }
         else
         {
@@ -423,18 +427,52 @@ public class OxiOCore : MonoBehaviour
     public void TriggerCoreExplosion()
     {
         if (explosionDone)
+        {
+            if (logDiagnostics)
+                Debug.LogWarning($"[OxiOCore] '{name}' : explosion déjà jouée pour cette découpe, appel ignoré.", this);
+
             return;
+        }
 
         explosionDone = true;
 
-        if (explosion != null)
-            explosion.Play();
+        PlayExplosionParticles();
 
         if (CameraShake.Instance != null)
             CameraShake.Instance.Shake(explosionShakeDuration, explosionShakeMagnitude);
 
         StartCoroutine(KnockbackRoutine());
         onCoreExplosionEvent?.Invoke();
+    }
+
+    private void PlayExplosionParticles()
+    {
+        if (explosion == null)
+        {
+            Debug.LogError($"[OxiOCore] '{name}' : le champ Explosion est vide, aucune particule ne sera jouée. Assigne ton ParticleSystem.", this);
+            return;
+        }
+
+        if (!explosion.gameObject.activeInHierarchy)
+        {
+            if (logDiagnostics)
+                Debug.LogWarning($"[OxiOCore] '{name}' : le ParticleSystem '{explosion.name}' était désactivé, il est réactivé.", this);
+
+            explosion.gameObject.SetActive(true);
+        }
+
+        explosion.Clear(true);
+        explosion.Play(true);
+
+        if (!logDiagnostics)
+            return;
+
+        ParticleSystemRenderer renderer = explosion.GetComponent<ParticleSystemRenderer>();
+        string layer = renderer != null
+            ? $"layer '{renderer.sortingLayerName}' ordre {renderer.sortingOrder}"
+            : "aucun ParticleSystemRenderer";
+
+        Debug.Log($"[OxiOCore] Explosion jouée : '{explosion.name}' à {explosion.transform.position}, {explosion.main.duration:0.##}s, {layer}.", explosion);
     }
 
     private IEnumerator ExplosionFallbackRoutine()

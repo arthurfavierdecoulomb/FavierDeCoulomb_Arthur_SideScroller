@@ -39,6 +39,10 @@ public class OxiOPhaseTransition : MonoBehaviour
         public string phaseMusicId = "boss_euphorie";
         public MusicMode phaseMusicMode = MusicMode.Queue;
 
+        [Header("Voix")]
+        public AudioClip transformationVoice;
+        public float voiceDelay = 0f;
+
         [Header("Écran suspendu")]
         public ScreenReturn screenReturn = ScreenReturn.ApresTransformation;
 
@@ -49,12 +53,15 @@ public class OxiOPhaseTransition : MonoBehaviour
 
     [Header("Références")]
     [SerializeField] private OxiOBossDirector director;
-    [SerializeField] private OxiOAnimation oxiAnimation;
+    [SerializeField] private OxiO_Animation oxiAnimation;
     [SerializeField] private OxiOScreenUI screenUI;
     [SerializeField] private BossDialogueManager dialogue;
 
     [Header("Transitions")]
     [SerializeField] private List<PhaseStep> steps = new List<PhaseStep>();
+
+    [Header("Voix")]
+    [SerializeField] private AudioSource voiceSource;
 
     [Header("Caméra")]
     [SerializeField] private CameraFocus cameraFocus;
@@ -94,7 +101,7 @@ public class OxiOPhaseTransition : MonoBehaviour
             director = GetComponentInParent<OxiOBossDirector>();
 
         if (director == null)
-            director = FindObjectOfType<OxiOBossDirector>();
+            director = FindAnyObjectByType<OxiOBossDirector>();
 
         if (dialogue == null)
             dialogue = BossDialogueManager.Instance;
@@ -115,6 +122,9 @@ public class OxiOPhaseTransition : MonoBehaviour
 
         if (oxiAnimation == null && waitForSlicedAnimation)
             Debug.LogWarning($"[OxiOPhaseTransition] '{name}' : Oxi Animation non assigné, l'attente de l'animation sliced sera ignorée.", this);
+
+        if (cameraFocus == null)
+            Debug.LogWarning($"[OxiOPhaseTransition] '{name}' : Camera Focus non assigné, la caméra restera sur Azu pendant le dialogue et la transformation.", this);
 
         if (screenUI == null && hideScreenDuringDialogue)
             Debug.LogWarning($"[OxiOPhaseTransition] '{name}' : Screen UI non assigné, l'écran restera visible pendant le dialogue.", this);
@@ -295,6 +305,8 @@ public class OxiOPhaseTransition : MonoBehaviour
 
         step.onTransformationStart?.Invoke();
 
+        PlayVoice(step);
+
         bool done = false;
         System.Action handler = () => done = true;
 
@@ -318,6 +330,31 @@ public class OxiOPhaseTransition : MonoBehaviour
 
         if (step.delayAfterTransformation > 0f)
             yield return new WaitForSeconds(step.delayAfterTransformation);
+    }
+
+    private void PlayVoice(PhaseStep step)
+    {
+        if (step.transformationVoice == null)
+            return;
+
+        if (voiceSource == null)
+        {
+            Debug.LogWarning($"[OxiOPhaseTransition] '{name}' : un clip de voix est réglé mais aucun Voice Source n'est assigné.", this);
+            return;
+        }
+
+        if (step.voiceDelay > 0f)
+            StartCoroutine(DelayedVoice(step));
+        else
+            voiceSource.PlayOneShot(step.transformationVoice);
+    }
+
+    private IEnumerator DelayedVoice(PhaseStep step)
+    {
+        yield return new WaitForSeconds(step.voiceDelay);
+
+        if (voiceSource != null && step.transformationVoice != null)
+            voiceSource.PlayOneShot(step.transformationVoice);
     }
 
     private void PlayMusic(string id, MusicMode mode)

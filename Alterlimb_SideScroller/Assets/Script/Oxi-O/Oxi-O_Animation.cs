@@ -1,7 +1,7 @@
 using UnityEngine;
 using System.Collections;
 
-public class OxiOAnimation : MonoBehaviour
+public class OxiO_Animation : MonoBehaviour
 {
     [Header("Animators")]
     [SerializeField] Animator oxiAnimator;
@@ -17,7 +17,6 @@ public class OxiOAnimation : MonoBehaviour
 
     [Header("États combat")]
     [SerializeField] string economyModeState = "mode_economie";
-    
     [SerializeField] string economyModeEuphoriaState = "";
     [SerializeField] string[] slicedStates = { "phase_1_sliced", "phase_2_sliced" };
     [SerializeField] bool returnToIdleAfterSliced = true;
@@ -26,6 +25,9 @@ public class OxiOAnimation : MonoBehaviour
     [SerializeField] string ventIdleState = "Tuyaux_vent_idle";
     [SerializeField] string ventErrorBoostState = "Tuyaux_vent_erreur_puis_boost";
     [SerializeField] string ventBoostState = "Tuyaux_vent_boost";
+
+    [Header("Durée de la transformation")]
+    [SerializeField] float transformationDuration = 0f;
 
     [Header("Clignement")]
     [SerializeField] bool autoBlink = true;
@@ -144,7 +146,6 @@ public class OxiOAnimation : MonoBehaviour
 
         isTalking = true;
 
-        // En euphorie on garde l'idle euphorique : pas d'état de dialogue dédié.
         if (isEuphoric) return;
 
         if (!isBlinking) PlayPreservingCycle(talkHash);
@@ -216,10 +217,24 @@ public class OxiOAnimation : MonoBehaviour
             return 0f;
 
         int index = Mathf.Clamp(phaseIndex - 1, 0, slicedStates.Length - 1);
-        string target = slicedStates[index];
+        return GetClipLength(slicedStates[index]);
+    }
+
+    public float GetTransformationDuration()
+    {
+        if (transformationDuration > 0f)
+            return transformationDuration;
+
+        return GetClipLength(transformationState);
+    }
+
+    float GetClipLength(string stateName)
+    {
+        if (oxiAnimator == null || oxiAnimator.runtimeAnimatorController == null)
+            return 0f;
 
         foreach (AnimationClip clip in oxiAnimator.runtimeAnimatorController.animationClips)
-            if (clip.name == target)
+            if (clip.name == stateName)
                 return clip.length;
 
         return 0f;
@@ -247,11 +262,17 @@ public class OxiOAnimation : MonoBehaviour
         if (ventAnimator != null)
             StartCoroutine(VentBoostRoutine());
 
+        float clipLength = GetClipLength(transformationState);
+
+        if (transformationDuration > 0f && clipLength > 0f)
+            oxiAnimator.speed = clipLength / transformationDuration;
+
         oxiAnimator.Play(transformationHash, 0, 0f);
 
         yield return null;
-        yield return WaitForStateEnd(oxiAnimator);
+        yield return WaitForState(oxiAnimator, transformationHash, transformationState);
 
+        oxiAnimator.speed = 1f;
         oxiAnimator.Play(euphoriaIdleHash, 0, 0f);
 
         isEuphoric = true;
@@ -335,6 +356,27 @@ public class OxiOAnimation : MonoBehaviour
     IEnumerator WaitForStateEnd(Animator animator)
     {
         while (animator.GetCurrentAnimatorStateInfo(0).normalizedTime < 1f)
+            yield return null;
+    }
+
+    IEnumerator WaitForState(Animator animator, int hash, string stateName)
+    {
+        float guard = 0f;
+
+        while (animator.GetCurrentAnimatorStateInfo(0).shortNameHash != hash && guard < 2f)
+        {
+            guard += Time.deltaTime;
+            yield return null;
+        }
+
+        if (animator.GetCurrentAnimatorStateInfo(0).shortNameHash != hash)
+        {
+            Debug.LogError($"[OxiOAnimation] L'Animator n'est jamais entré dans l'état '{stateName}'. Une transition automatique le renvoie ailleurs ?");
+            yield break;
+        }
+
+        while (animator.GetCurrentAnimatorStateInfo(0).shortNameHash == hash
+            && animator.GetCurrentAnimatorStateInfo(0).normalizedTime < 1f)
             yield return null;
     }
 }

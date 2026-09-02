@@ -72,7 +72,7 @@ public class BossDialogueManager : MonoBehaviour
     [SerializeField] string oxiName = "Oxi-O";
 
     [Header("Références")]
-    [SerializeField] OxiOAnimation oxiAnimation;
+    [SerializeField] OxiO_Animation oxiAnimation;
     [SerializeField] MonoBehaviour playerController;
 
     [Header("Blocage du joueur")]
@@ -81,6 +81,7 @@ public class BossDialogueManager : MonoBehaviour
     [SerializeField] Rigidbody2D playerBody;
     [SerializeField] bool freezePlayerBody = true;
     [SerializeField] bool keepGravityWhileFrozen = true;
+    [SerializeField] bool autoFindCharaController = true;
 
     [Header("Doublage")]
     [SerializeField] AudioSource voiceSource;
@@ -115,6 +116,7 @@ public class BossDialogueManager : MonoBehaviour
     bool isPlaying;
     bool skipRequested;
     Coroutine freezeRoutine;
+    CharaController charaController;
     int chosenIndex = -1;
 
     void Awake()
@@ -161,16 +163,22 @@ public class BossDialogueManager : MonoBehaviour
 
     void ResolvePlayerReferences()
     {
-        GameObject found = null;
-
-        if (playerBody == null || playerController == null)
-            found = GameObject.FindGameObjectWithTag(playerTag);
+        GameObject found = GameObject.FindGameObjectWithTag(playerTag);
 
         if (playerBody == null && found != null)
             playerBody = found.GetComponentInChildren<Rigidbody2D>();
 
-        if (playerController == null)
-            Debug.LogError($"[BossDialogueManager] '{name}' : le champ Player Controller est vide, Azu pourra se déplacer pendant les dialogues. Assigne son CharaController.", this);
+        if (autoFindCharaController && found != null)
+            charaController = found.GetComponentInChildren<CharaController>();
+
+        if (charaController == null && playerController is CharaController assigned)
+            charaController = assigned;
+
+        if (charaController == null)
+            Debug.LogError($"[BossDialogueManager] '{name}' : aucun CharaController trouvé sur l'objet taggé '{playerTag}'. Azu pourra se déplacer pendant les dialogues.", this);
+
+        if (playerController != null && playerController is not CharaController)
+            Debug.LogWarning($"[BossDialogueManager] '{name}' : Player Controller contient un '{playerController.GetType().Name}', qui n'est pas le script de déplacement. Le CharaController est désactivé en plus, mais tu peux vider ce champ.", this);
 
         if (playerBody == null && freezePlayerBody)
             Debug.LogWarning($"[BossDialogueManager] '{name}' : aucun Rigidbody2D trouvé sur l'objet taggé '{playerTag}', Azu gardera son élan pendant les dialogues.", this);
@@ -178,7 +186,10 @@ public class BossDialogueManager : MonoBehaviour
 
     void SetPlayerFrozen(bool frozen)
     {
-        if (playerController != null)
+        if (charaController != null)
+            charaController.enabled = !frozen;
+
+        if (playerController != null && playerController != charaController)
             playerController.enabled = !frozen;
 
         if (!freezePlayerBody || playerBody == null)

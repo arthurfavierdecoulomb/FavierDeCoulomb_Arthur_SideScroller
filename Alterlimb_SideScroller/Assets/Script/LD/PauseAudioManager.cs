@@ -147,7 +147,7 @@ public class PauseAudioManager : MonoBehaviour
         if (!pauseAllOtherSources)
             return;
 
-        AudioSource[] all = FindObjectsOfType<AudioSource>();
+        AudioSource[] all = FindObjectsByType<AudioSource>(FindObjectsInactive.Exclude);
 
         foreach (AudioSource source in all)
             TrySuspend(source);
