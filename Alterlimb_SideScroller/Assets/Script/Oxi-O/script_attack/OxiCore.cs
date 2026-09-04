@@ -55,6 +55,9 @@ public class OxiOCore : MonoBehaviour
 
     [Header("Explosion du noyau")]
     [SerializeField] private ParticleSystem explosion;
+    [SerializeField] private Transform explosionAnchor;
+    [SerializeField] private bool detachExplosionFromVisuals = true;
+    [SerializeField] private float explosionInstanceLifetime = 4f;
     [SerializeField] private float knockbackSpeed = 9f;
     [SerializeField] private float minUpwardRatio = 0.4f;
     [SerializeField] private float maxKnockbackSpeed = 14f;
@@ -109,6 +112,8 @@ public class OxiOCore : MonoBehaviour
         if (grappleAnchor != null)
             grappleAnchor.SetActive(false);
 
+        DetachExplosion();
+
         ShowVisual(lockedVisual);
         StopSparks();
 
@@ -123,6 +128,54 @@ public class OxiOCore : MonoBehaviour
 
         if (ResolvePlayer() == null)
             Debug.LogError($"[OxiOCore] '{name}' : aucun objet trouvé avec le tag '{playerTag}'.", this);
+    }
+
+    private bool ExplosionIsPrefabAsset()
+    {
+        return explosion != null && !explosion.gameObject.scene.IsValid();
+    }
+
+    private void DetachExplosion()
+    {
+        if (explosion == null)
+            return;
+
+        if (ExplosionIsPrefabAsset())
+        {
+            if (logDiagnostics)
+                Debug.Log($"[OxiOCore] '{name}' : '{explosion.name}' est un prefab du Project, il sera instancié à chaque explosion.", this);
+
+            return;
+        }
+
+        if (!IsUnderVisual(explosion.transform))
+            return;
+
+        string oldParent = explosion.transform.parent != null ? explosion.transform.parent.name : "aucun";
+
+        if (!detachExplosionFromVisuals)
+        {
+            Debug.LogError($"[OxiOCore] '{name}' : le ParticleSystem '{explosion.name}' est enfant de '{oldParent}', qui est désactivé quand le noyau change d'état. L'explosion ne se verra jamais. Sors-le de ce groupe ou coche Detach Explosion From Visuals.", this);
+            return;
+        }
+
+        explosion.transform.SetParent(transform, true);
+
+        if (logDiagnostics)
+            Debug.LogWarning($"[OxiOCore] '{name}' : '{explosion.name}' était enfant de '{oldParent}' (un groupe visuel qui s'active et se désactive). Il a été détaché et rattaché au noyau pour rester visible.", this);
+    }
+
+    private bool IsUnderVisual(Transform target)
+    {
+        return IsUnder(target, lockedVisual)
+            || IsUnder(target, vulnerableVisual)
+            || IsUnder(target, cuttingVisual)
+            || IsUnder(target, removedVisual);
+    }
+
+    private bool IsUnder(Transform target, GameObject root)
+    {
+        return root != null && target.IsChildOf(root.transform);
     }
 
     private AbilityManager FindAbilityManager()
@@ -453,10 +506,18 @@ public class OxiOCore : MonoBehaviour
             return;
         }
 
+        if (ExplosionIsPrefabAsset())
+        {
+            SpawnExplosionInstance();
+            return;
+        }
+
         if (!explosion.gameObject.activeInHierarchy)
         {
-            if (logDiagnostics)
-                Debug.LogWarning($"[OxiOCore] '{name}' : le ParticleSystem '{explosion.name}' était désactivé, il est réactivé.", this);
+            Transform blocker = FindInactiveAncestor(explosion.transform);
+
+            if (blocker != null && blocker != explosion.transform)
+                Debug.LogError($"[OxiOCore] '{name}' : '{explosion.name}' ne peut pas s'afficher car son parent '{blocker.name}' est désactivé. Sors le ParticleSystem de ce groupe.", this);
 
             explosion.gameObject.SetActive(true);
         }
@@ -467,12 +528,50 @@ public class OxiOCore : MonoBehaviour
         if (!logDiagnostics)
             return;
 
+        float duration = explosion.main.duration;
+        float lifetime = explosion.main.startLifetime.constantMax;
+
+        if (duration < 0.2f || lifetime < 0.2f)
+            Debug.LogWarning($"[OxiOCore] '{name}' : '{explosion.name}' dure {duration:0.##}s avec une Start Lifetime de {lifetime:0.##}s. C'est trop court pour être vu, monte la Duration à 0.5 et la Start Lifetime à 0.6 minimum.", explosion);
+
         ParticleSystemRenderer renderer = explosion.GetComponent<ParticleSystemRenderer>();
         string layer = renderer != null
             ? $"layer '{renderer.sortingLayerName}' ordre {renderer.sortingOrder}"
             : "aucun ParticleSystemRenderer";
 
-        Debug.Log($"[OxiOCore] Explosion jouée : '{explosion.name}' à {explosion.transform.position}, {explosion.main.duration:0.##}s, {layer}.", explosion);
+        Debug.Log($"[OxiOCore] Explosion jouée : '{explosion.name}' à {explosion.transform.position}, durée {duration:0.##}s, vie {lifetime:0.##}s, {explosion.main.maxParticles} particules max, {layer}.", explosion);
+    }
+
+    private void SpawnExplosionInstance()
+    {
+        Transform anchor = explosionAnchor != null ? explosionAnchor : transform;
+
+        ParticleSystem instance = Instantiate(explosion, anchor.position, anchor.rotation);
+        instance.gameObject.SetActive(true);
+        instance.Play(true);
+
+        float life = Mathf.Max(0.5f, explosionInstanceLifetime);
+        Destroy(instance.gameObject, life);
+
+        if (!logDiagnostics)
+            return;
+
+        Debug.Log($"[OxiOCore] Explosion instanciée : '{explosion.name}' à {anchor.position}, détruite dans {life:0.##}s.", this);
+    }
+
+    private Transform FindInactiveAncestor(Transform target)
+    {
+        Transform current = target;
+
+        while (current != null)
+        {
+            if (!current.gameObject.activeSelf)
+                return current;
+
+            current = current.parent;
+        }
+
+        return null;
     }
 
     private IEnumerator ExplosionFallbackRoutine()
