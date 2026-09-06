@@ -8,6 +8,7 @@ public class StomperAttack : OxiOAttack
         Single,
         Double,
         Simultaneous,
+        Acharne,
         Random
     }
 
@@ -19,6 +20,16 @@ public class StomperAttack : OxiOAttack
     [SerializeField] private int simultaneousCountMin = 2;
     [SerializeField] private int simultaneousCountMax = 3;
     [SerializeField] private int simultaneousMinPhase = 1;
+
+    [Header("Acharnement")]
+    [SerializeField] private int relentlessMinPhase = 2;
+    [SerializeField] private int relentlessStrikesMin = 3;
+    [SerializeField] private int relentlessStrikesMax = 5;
+    [Range(0f, 1f)]
+    [SerializeField] private float relentlessChance = 0.6f;
+
+    [Header("Diagnostic")]
+    [SerializeField] private bool logDiagnostics = true;
 
     [Header("Répétition")]
     [SerializeField] private int repeatMin = 1;
@@ -46,6 +57,9 @@ public class StomperAttack : OxiOAttack
         if (pattern != StompPattern.Random)
             return pattern;
 
+        if (currentPhase >= relentlessMinPhase && Random.value < relentlessChance)
+            return StompPattern.Acharne;
+
         bool canDoSimultaneous = currentPhase >= simultaneousMinPhase && stompZone.StomperCount > 1;
         int roll = Random.Range(0, canDoSimultaneous ? 3 : 2);
 
@@ -65,6 +79,17 @@ public class StomperAttack : OxiOAttack
         if (resolved == StompPattern.Double)
         {
             yield return stompZone.PlayDouble();
+            yield break;
+        }
+
+        if (resolved == StompPattern.Acharne)
+        {
+            int strikes = Random.Range(relentlessStrikesMin, relentlessStrikesMax + 1);
+
+            if (logDiagnostics)
+                Debug.Log($"[StomperAttack] '{name}' : acharnement, {strikes} écrasements d'affilée sans remonter.", this);
+
+            yield return stompZone.PlayStrikes(strikes);
             yield break;
         }
 

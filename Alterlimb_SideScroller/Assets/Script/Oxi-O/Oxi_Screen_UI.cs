@@ -391,6 +391,12 @@ public class OxiOScreenUI : MonoBehaviour
         }
     }
 
+    public void ResetAllCores()
+    {
+        for (int i = 0; i < states.Length; i++)
+            SetCoreState(i, CoreState.On);
+    }
+
     public int RemainingCores()
     {
         int remaining = 0;

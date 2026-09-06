@@ -7,7 +7,7 @@ public class SpikeMoverAttack : OxiOAttack
     public enum Direction
     {
         VersLeJoueur,
-        Aleatoire,
+        Random,
         GaucheVersDroite,
         DroiteVersGauche,
         Alternance
@@ -110,9 +110,9 @@ public class SpikeMoverAttack : OxiOAttack
             case Direction.DroiteVersGauche:
                 return false;
 
-            case Direction.Aleatoire:
+            case Direction.Random:
                 return Random.value < 0.5f;
-
+                
             case Direction.Alternance:
                 lastWasLeft = !lastWasLeft;
                 return lastWasLeft;

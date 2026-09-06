@@ -12,6 +12,7 @@ public abstract class OxiOAttack : MonoBehaviour
     private float lastUsedTime = -999f;
 
     public float Weight => Mathf.Max(0f, weight);
+    public bool IsRunning { get; private set; }
 
     public bool IsAvailable(int currentPhase)
     {
@@ -23,7 +24,11 @@ public abstract class OxiOAttack : MonoBehaviour
     public IEnumerator Execute(int currentPhase)
     {
         lastUsedTime = Time.time;
+        IsRunning = true;
+
         yield return Run(currentPhase);
+
+        IsRunning = false;
     }
 
     public void ResetCooldown()
@@ -34,6 +39,7 @@ public abstract class OxiOAttack : MonoBehaviour
     public virtual void Interrupt()
     {
         StopAllCoroutines();
+        IsRunning = false;
     }
 
     protected abstract IEnumerator Run(int currentPhase);

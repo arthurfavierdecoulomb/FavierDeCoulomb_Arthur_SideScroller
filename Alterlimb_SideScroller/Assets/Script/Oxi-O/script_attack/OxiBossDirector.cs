@@ -46,6 +46,9 @@ public class OxiOBossDirector : MonoBehaviour
     [SerializeField] private float delayBeforeOverheat = 0.8f;
     [SerializeField] private float delayAfterWindow = 1f;
 
+    [Header("Une seule attaque à la fois")]
+    [SerializeField] private bool singleAttackAtATime = true;
+
     [Header("Accélération")]
     [SerializeField] private float delayMultiplierPerFailedWindow = 0.88f;
     [SerializeField] private float minDelayBetweenAttacks = 0.4f;
@@ -92,6 +95,8 @@ public class OxiOBossDirector : MonoBehaviour
     [SerializeField] private bool stopOnPlayerDeath = true;
     [SerializeField] private bool restartOnPlayerRespawn = true;
     [SerializeField] private bool resetCoreProgressOnDeath = true;
+    [SerializeField] private bool restartWholeFightOnDeath = true;
+    [SerializeField] private string restartMusicId = "";
     [SerializeField] private float restartDelayAfterRespawn = 1.5f;
 
     [Header("Événements")]
@@ -141,10 +146,39 @@ public class OxiOBossDirector : MonoBehaviour
 
         StopFight();
 
-        if (core != null)
+        if (restartWholeFightOnDeath)
+            ResetWholeFight();
+        else if (core != null)
             core.ResetForRetry(resetCoreProgressOnDeath);
 
         StartCoroutine(RestartAfterRespawn());
+    }
+
+    private void ResetWholeFight()
+    {
+        failedWindows = 0;
+
+        if (cameraFocus != null)
+            cameraFocus.ReleaseFocusInstant();
+
+        if (oxiAnimation != null)
+            oxiAnimation.ResetToNormal();
+
+        if (screenUI != null)
+        {
+            screenUI.CancelEcoCountdown();
+            screenUI.ResetAllCores();
+        }
+
+        SetPhase(1);
+
+        if (core != null)
+            core.ResetForRetry(true);
+
+        if (!string.IsNullOrEmpty(restartMusicId) && BossMusicSequencer.Instance != null)
+            BossMusicSequencer.Instance.ForcePlay(restartMusicId);
+
+        Debug.Log("[OxiOBossDirector] Mort du joueur : retour phase 1, quatre noyaux rallumés.", this);
     }
 
     private IEnumerator RestartAfterRespawn()
@@ -313,6 +347,25 @@ public class OxiOBossDirector : MonoBehaviour
         if (step == null || step.simultaneousAttacks == null)
             yield break;
 
+        if (singleAttackAtATime)
+        {
+            foreach (OxiOAttack attack in step.simultaneousAttacks)
+            {
+                if (attack == null)
+                    continue;
+
+                lastAttack = attack;
+                yield return attack.Execute(currentPhase);
+
+                if (phaseComplete)
+                    yield break;
+
+                yield return new WaitForSeconds(currentDelayBetweenAttacks);
+            }
+
+            yield break;
+        }
+
         int[] running = new int[1];
 
         foreach (OxiOAttack attack in step.simultaneousAttacks)
@@ -380,7 +433,7 @@ public class OxiOBossDirector : MonoBehaviour
         cutThisWindow = false;
         core.OpenWindow();
 
-        if (currentPhase >= attacksDuringWindowMinPhase)
+        if (!singleAttackAtATime && currentPhase >= attacksDuringWindowMinPhase)
         {
             windowPressureActive = true;
             StartCoroutine(WindowPressureRoutine());

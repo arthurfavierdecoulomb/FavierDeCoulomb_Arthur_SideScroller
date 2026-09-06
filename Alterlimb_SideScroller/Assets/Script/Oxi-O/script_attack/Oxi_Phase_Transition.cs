@@ -22,9 +22,9 @@ public class OxiOPhaseTransition : MonoBehaviour
     [System.Serializable]
     public class PhaseStep
     {
-        public string label = "Phase 1 -> 2";
+        public string label = "Phase 1 à 2";
         public int fromPhase = 1;
-        public string dialogueSequenceId = "oxio_phase2";
+        public string dialogueSequenceId = "dialogue_interlude";
         public int nextPhase = 2;
         public bool isFinalPhase;
 

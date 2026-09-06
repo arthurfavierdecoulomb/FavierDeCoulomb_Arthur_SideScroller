@@ -240,6 +240,30 @@ public class OxiO_Animation : MonoBehaviour
         return 0f;
     }
 
+    public void ResetToNormal()
+    {
+        StopAllCoroutines();
+
+        isEuphoric = false;
+        isTransforming = false;
+        isEconomyMode = false;
+        isSlicing = false;
+        isTalking = false;
+        isBlinking = false;
+
+        if (oxiAnimator != null)
+        {
+            oxiAnimator.speed = 1f;
+            oxiAnimator.Play(idleHash, 0, 0f);
+        }
+
+        if (ventAnimator != null)
+            ventAnimator.Play(ventIdleHash, 0, 0f);
+
+        if (autoBlink)
+            blinkRoutine = StartCoroutine(AutoBlinkRoutine());
+    }
+
     public void TransformToEuphoria()
     {
         if (isEuphoric || isTransforming) return;
