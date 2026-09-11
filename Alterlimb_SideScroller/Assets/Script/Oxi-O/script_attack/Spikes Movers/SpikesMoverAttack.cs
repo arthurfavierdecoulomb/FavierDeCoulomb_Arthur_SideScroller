@@ -7,7 +7,7 @@ public class SpikeMoverAttack : OxiOAttack
     public enum Direction
     {
         VersLeJoueur,
-        Random,
+        Aleatoire,
         GaucheVersDroite,
         DroiteVersGauche,
         Alternance
@@ -28,6 +28,10 @@ public class SpikeMoverAttack : OxiOAttack
     [SerializeField] private bool overlapPasses = true;
     [SerializeField] private bool lockDirectionPerAttack = true;
     [SerializeField] private float warnOverride = -1f;
+
+    [Header("Alternance forcée")]
+    [SerializeField] private int alternateMinPhase = 2;
+    [SerializeField] private int maxConcurrentPasses = 2;
 
     [Header("Double passage")]
     [SerializeField] private int pincerMinPhase = 99;
@@ -57,16 +61,20 @@ public class SpikeMoverAttack : OxiOAttack
             yield break;
         }
 
-        bool lockedDirection = ResolveDirection();
+        bool alternate = currentPhase >= alternateMinPhase;
+        bool startDirection = ResolveDirection();
 
         if (logDiagnostics)
-            Debug.Log($"[SpikeMoverAttack] '{name}' : {passes} passage(s) depuis {(lockedDirection ? "la GAUCHE" : "la DROITE")}.", this);
+        {
+            string mode = alternate ? "en alternance" : "verrouillé";
+            Debug.Log($"[SpikeMoverAttack] '{name}' : {passes} passage(s), départ {(startDirection ? "GAUCHE" : "DROITE")}, {mode}.", this);
+        }
 
         if (!overlapPasses)
         {
             for (int i = 0; i < passes; i++)
             {
-                yield return RunSingle(lockDirectionPerAttack ? lockedDirection : ResolveDirection());
+                yield return RunSingle(DirectionForPass(i, startDirection, alternate));
 
                 if (i < passes - 1)
                     yield return new WaitForSeconds(delayBetweenPasses);
@@ -76,9 +84,13 @@ public class SpikeMoverAttack : OxiOAttack
         }
 
         int[] running = new int[1];
+        int limit = Mathf.Max(1, maxConcurrentPasses);
 
         for (int i = 0; i < passes; i++)
         {
+            while (running[0] >= limit)
+                yield return null;
+
             OxiSpikeMover mover = PickFreeMover();
 
             if (mover == null)
@@ -90,7 +102,7 @@ public class SpikeMoverAttack : OxiOAttack
             }
 
             running[0]++;
-            StartCoroutine(RunOne(mover, lockDirectionPerAttack ? lockedDirection : ResolveDirection(), running));
+            StartCoroutine(RunOne(mover, DirectionForPass(i, startDirection, alternate), running));
 
             if (i < passes - 1)
                 yield return new WaitForSeconds(delayBetweenPasses);
@@ -98,6 +110,14 @@ public class SpikeMoverAttack : OxiOAttack
 
         while (running[0] > 0)
             yield return null;
+    }
+
+    private bool DirectionForPass(int passIndex, bool startDirection, bool alternate)
+    {
+        if (alternate)
+            return passIndex % 2 == 0 ? startDirection : !startDirection;
+
+        return lockDirectionPerAttack ? startDirection : ResolveDirection();
     }
 
     private bool ResolveDirection()
@@ -110,9 +130,9 @@ public class SpikeMoverAttack : OxiOAttack
             case Direction.DroiteVersGauche:
                 return false;
 
-            case Direction.Random:
+            case Direction.Aleatoire:
                 return Random.value < 0.5f;
-                
+
             case Direction.Alternance:
                 lastWasLeft = !lastWasLeft;
                 return lastWasLeft;

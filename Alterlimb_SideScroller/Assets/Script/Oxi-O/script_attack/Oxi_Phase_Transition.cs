@@ -22,9 +22,9 @@ public class OxiOPhaseTransition : MonoBehaviour
     [System.Serializable]
     public class PhaseStep
     {
-        public string label = "Phase 1 à 2";
+        public string label = "Phase 1 -> 2";
         public int fromPhase = 1;
-        public string dialogueSequenceId = "dialogue_interlude";
+        public string dialogueSequenceId = "oxio_phase2";
         public int nextPhase = 2;
         public bool isFinalPhase;
 
@@ -63,14 +63,18 @@ public class OxiOPhaseTransition : MonoBehaviour
     [Header("Voix")]
     [SerializeField] private AudioSource voiceSource;
 
+    [Header("Corps d'Oxi-O")]
+    [SerializeField] private OxiBodyMover bodyMotion;
+
     [Header("Caméra")]
     [SerializeField] private CameraFocus cameraFocus;
-    [SerializeField] private string dialogueFocusId = "oxio";
-    [SerializeField] private string transformationFocusId = "oxio";
+    [SerializeField] private string dialogueFocusId = "dialogue_interlude";
+    [SerializeField] private string transformationFocusId = "dialogue_interlude";
 
     [Header("Branchement")]
     [SerializeField] private bool autoSubscribe = true;
 
+    [Header("Rythme")]
     [Header("Rythme")]
     [SerializeField] private float delayAfterLastCut = 1.2f;
     [SerializeField] private bool waitForSlicedAnimation = true;
@@ -203,6 +207,9 @@ public class OxiOPhaseTransition : MonoBehaviour
         step.onTransitionStart?.Invoke();
 
         director.StopFight();
+
+        if (bodyMotion != null)
+            bodyMotion.RiseToRest();
 
         if (cameraFocus != null)
             cameraFocus.FocusOn(dialogueFocusId);

@@ -70,6 +70,14 @@ public class OxiOBossDirector : MonoBehaviour
     [Header("Écran suspendu")]
     [SerializeField] private OxiOScreenUI screenUI;
 
+    [Header("Descente d'Oxi-O")]
+    [SerializeField] private OxiBodyMover bodyMotion;
+    [SerializeField] private int descendMinPhase = 1;
+    [SerializeField] private float[] descendChancePerPhase = { 0.5f, 1f };
+    [SerializeField] private int[] descendLevelPerPhase = { 0, 1 };
+    [SerializeField] private bool riseOnVulnerability = true;
+    [SerializeField] private int stayLoweredMinPhase = 99;
+
     [Header("Caméra")]
     [SerializeField] private CameraFocus cameraFocus;
     [SerializeField] private string coreCutFocusId = "oxio";
@@ -259,6 +267,9 @@ public class OxiOBossDirector : MonoBehaviour
         if (abilityManager != null)
             abilityManager.SetCombatLock(true);
 
+        if (bodyMotion != null)
+            bodyMotion.RiseToRest();
+
         foreach (LaserBeam laser in containmentLasers)
             if (laser != null)
                 laser.TurnOff();
@@ -288,6 +299,8 @@ public class OxiOBossDirector : MonoBehaviour
 
         while (!phaseComplete)
         {
+            TryDescend();
+
             if (patternMode == PatternMode.AuthoredPatterns)
                 yield return RunAuthoredPattern();
             else
@@ -414,6 +427,34 @@ public class OxiOBossDirector : MonoBehaviour
         }
     }
 
+    private void TryDescend()
+    {
+        if (bodyMotion == null || currentPhase < descendMinPhase)
+            return;
+
+        if (Random.value > DescendChanceForPhase())
+            return;
+
+        int level = 0;
+
+        if (descendLevelPerPhase != null && descendLevelPerPhase.Length > 0)
+        {
+            int index = Mathf.Clamp(currentPhase - 1, 0, descendLevelPerPhase.Length - 1);
+            level = descendLevelPerPhase[index];
+        }
+
+        bodyMotion.DescendTo(level);
+    }
+
+    private float DescendChanceForPhase()
+    {
+        if (descendChancePerPhase == null || descendChancePerPhase.Length == 0)
+            return 1f;
+
+        int index = Mathf.Clamp(currentPhase - 1, 0, descendChancePerPhase.Length - 1);
+        return Mathf.Clamp01(descendChancePerPhase[index]);
+    }
+
     private IEnumerator RunVulnerabilityWindow()
     {
         if (core == null)
@@ -429,6 +470,9 @@ public class OxiOBossDirector : MonoBehaviour
             laser.SetIntensityMultiplier(laserIntensityOverheat);
             laser.FlickerWhileOn(laserFlickerOnWindowOpen);
         }
+
+        if (riseOnVulnerability && bodyMotion != null && currentPhase < stayLoweredMinPhase)
+            bodyMotion.RiseToRest();
 
         cutThisWindow = false;
         core.OpenWindow();
