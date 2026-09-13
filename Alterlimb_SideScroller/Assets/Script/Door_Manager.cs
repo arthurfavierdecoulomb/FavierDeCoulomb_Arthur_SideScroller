@@ -2,16 +2,6 @@
 using System.Collections;
 using System.Collections.Generic;
 
-/// <summary>
-/// Porte avec 4 modes d'ouverture : Proximity, Levers, OnDroneKilled, Fuses.
-/// 
-/// Option stayOpenForever : si cochée, la porte reste ouverte définitivement
-/// après ouverture (pas de fermeture auto).
-/// 
-/// Message verrouillé : quand le joueur fait un clic droit sur une porte
-/// encore verrouillée (Levers/OnDroneKilled/Fuses pas satisfaits), un message
-/// du TutorialManager s'affiche (id configuré dans 'lockedMessageId').
-/// </summary>
 public class Door : MonoBehaviour
 {
     public enum OpeningMode { Proximity, Levers, OnDroneKilled, Fuses }
@@ -20,61 +10,55 @@ public class Door : MonoBehaviour
     [SerializeField] OpeningMode mode = OpeningMode.Proximity;
 
     [Header("Mode Proximité")]
-    [Tooltip("Distance maximale pour que le joueur puisse interagir")]
     [SerializeField] float interactionRange = 2.5f;
-    [SerializeField] KeyCode interactionKey = KeyCode.Mouse1; // clic droit
+    [SerializeField] KeyCode interactionKey = KeyCode.Mouse1;
 
     [Header("Mode Leviers")]
-    [Tooltip("Liste des leviers qui doivent TOUS être activés pour ouvrir la porte")]
     [SerializeField] List<Lever> requiredLevers = new List<Lever>();
 
     [Header("Mode OnDroneKilled")]
-    [Tooltip("Drone dont la mort déverrouille cette porte")]
     [SerializeField] DroneEnemy targetDrone;
 
     [Header("Comportement commun")]
-    [Tooltip("Si coché, la porte reste ouverte définitivement après ouverture (pas de fermeture auto)")]
     [SerializeField] bool stayOpenForever = false;
-    [Tooltip("Délai avant fermeture automatique après que le joueur soit passé")]
     [SerializeField] float autoCloseDelay = 3f;
-    [Tooltip("Détection du joueur via tag")]
     [SerializeField] string playerTag = "Player";
 
     [Header("Message si verrouillée")]
-    [Tooltip("Id du message TutorialManager à afficher si le joueur interagit avec la porte verrouillée. Laisser vide pour aucun message.")]
     [SerializeField] string lockedMessageId = "";
-    [Tooltip("Distance max pour déclencher le message verrouillé au clic droit")]
     [SerializeField] float lockedMessageRange = 2.5f;
 
     [Header("Références")]
     [SerializeField] Animator animator;
-    [SerializeField] Transform playerTransform; // optionnel, sinon trouvé via tag
+    [SerializeField] Transform playerTransform;
 
     [Header("Mode Fusibles")]
-    [Tooltip("La porte s'ouvre quand tous les fusibles sont installés dans le FuseManager")]
     [SerializeField] bool useFuseManager = true;
 
     [Header("Collisions physiques")]
-    [Tooltip("Collider2D solide qui bloque le joueur. Désactivé quand la porte est ouverte.")]
     [SerializeField] Collider2D solidCollider;
     [SerializeField] float openColliderDelay = 0.2f;
     [SerializeField] float closeColliderDelay = 0.4f;
 
-    // ════════════════════════════════════════════════════════════
-    //  État runtime
-    // ════════════════════════════════════════════════════════════
+    [Header("Audio")]
+    [SerializeField] SfxEmitter sfx;
+    [SerializeField] AudioClip[] unlockClips;
+    [SerializeField] AudioClip[] openClips;
+    [SerializeField] AudioClip[] closeClips;
+    [SerializeField] AudioClip[] lockedClips;
+    [SerializeField] bool soundsFromAnimationEvents = false;
+    [SerializeField] float unlockToOpenDelay = 0.35f;
+    [SerializeField] float closeSoundDelay = 0f;
+    [SerializeField] float lockedSoundCooldown = 0.6f;
 
     bool isOpen;
     bool playerWasInside;
     float closeTimer;
     bool autoCloseScheduled;
+    float lockedSoundTimer;
 
     static readonly int OpenTrigger = Animator.StringToHash("Open");
     static readonly int CloseTrigger = Animator.StringToHash("Close");
-
-    // ════════════════════════════════════════════════════════════
-    //  Initialisation
-    // ════════════════════════════════════════════════════════════
 
     void Awake()
     {
@@ -91,6 +75,11 @@ public class Door : MonoBehaviour
             solidCollider.enabled = true;
         else
             Debug.LogWarning($"[Door] '{name}' n'a pas de Solid Collider assigné. Le joueur pourra passer à travers.", this);
+
+        if (sfx == null) sfx = GetComponent<SfxEmitter>();
+
+        if (sfx == null && HasAnyClip())
+            Debug.LogError($"[Door] '{name}' a des clips assignés mais aucun SfxEmitter : aucun son ne sera joué.", this);
 
         switch (mode)
         {
@@ -126,12 +115,11 @@ public class Door : MonoBehaviour
         FuseManager.OnAllFusesInstalledStatic -= OnAllFusesHandler;
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  Update
-    // ════════════════════════════════════════════════════════════
-
     void Update()
     {
+        if (lockedSoundTimer > 0f)
+            lockedSoundTimer -= Time.deltaTime;
+
         if (mode == OpeningMode.Proximity)
             HandleProximityMode();
         else
@@ -151,25 +139,25 @@ public class Door : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Pour les modes Levers/OnDroneKilled/Fuses : si le joueur fait un clic droit
-    /// près de la porte alors qu'elle est encore verrouillée, on affiche un message.
-    /// </summary>
     void HandleLockedInteraction()
     {
         if (isOpen) return;
-        if (string.IsNullOrEmpty(lockedMessageId)) return;
         if (playerTransform == null) return;
+        if (!Input.GetKeyDown(interactionKey)) return;
 
-        if (Input.GetKeyDown(interactionKey))
+        float distance = Vector2.Distance(transform.position, playerTransform.position);
+        if (distance > lockedMessageRange) return;
+
+        if (lockedSoundTimer <= 0f)
         {
-            float distance = Vector2.Distance(transform.position, playerTransform.position);
-            if (distance <= lockedMessageRange)
-            {
-                if (TutorialManager.Instance != null)
-                    TutorialManager.Instance.ShowMessageById(lockedMessageId);
-            }
+            PlayLockedSound();
+            lockedSoundTimer = lockedSoundCooldown;
         }
+
+        if (string.IsNullOrEmpty(lockedMessageId)) return;
+
+        if (TutorialManager.Instance != null)
+            TutorialManager.Instance.ShowMessageById(lockedMessageId);
     }
 
     void HandleAutoClose()
@@ -183,10 +171,6 @@ public class Door : MonoBehaviour
             autoCloseScheduled = false;
         }
     }
-
-    // ════════════════════════════════════════════════════════════
-    //  Détection du passage du joueur
-    // ════════════════════════════════════════════════════════════
 
     void OnTriggerEnter2D(Collider2D other)
     {
@@ -206,17 +190,12 @@ public class Door : MonoBehaviour
         {
             playerWasInside = false;
 
-            // Si la porte doit rester ouverte définitivement, on ne programme rien
             if (stayOpenForever) return;
 
             closeTimer = autoCloseDelay;
             autoCloseScheduled = true;
         }
     }
-
-    // ════════════════════════════════════════════════════════════
-    //  Logique d'ouverture / fermeture
-    // ════════════════════════════════════════════════════════════
 
     void OnLeverStateChanged()
     {
@@ -257,7 +236,20 @@ public class Door : MonoBehaviour
     {
         if (isOpen) return;
         isOpen = true;
+
+        bool wasLocked = mode != OpeningMode.Proximity;
+        if (wasLocked) PlayUnlockSound();
+
         if (animator != null) animator.SetTrigger(OpenTrigger);
+
+        if (!soundsFromAnimationEvents)
+        {
+            float delay = wasLocked ? unlockToOpenDelay : 0f;
+            if (delay > 0f)
+                StartCoroutine(PlayAfterDelay(openClips, delay));
+            else
+                PlayOpenSound();
+        }
 
         StartCoroutine(SetColliderAfterDelay(false, openColliderDelay));
     }
@@ -266,9 +258,44 @@ public class Door : MonoBehaviour
     {
         if (!isOpen) return;
         isOpen = false;
+
         if (animator != null) animator.SetTrigger(CloseTrigger);
 
+        if (!soundsFromAnimationEvents)
+        {
+            if (closeSoundDelay > 0f)
+                StartCoroutine(PlayAfterDelay(closeClips, closeSoundDelay));
+            else
+                PlayCloseSound();
+        }
+
         StartCoroutine(SetColliderAfterDelay(true, closeColliderDelay));
+    }
+
+    public void PlayUnlockSound()
+    {
+        if (sfx != null) sfx.Play(unlockClips);
+    }
+
+    public void PlayOpenSound()
+    {
+        if (sfx != null) sfx.Play(openClips);
+    }
+
+    public void PlayCloseSound()
+    {
+        if (sfx != null) sfx.Play(closeClips);
+    }
+
+    public void PlayLockedSound()
+    {
+        if (sfx != null) sfx.Play(lockedClips);
+    }
+
+    IEnumerator PlayAfterDelay(AudioClip[] clips, float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        if (sfx != null) sfx.Play(clips);
     }
 
     IEnumerator SetColliderAfterDelay(bool enabled, float delay)
@@ -281,14 +308,18 @@ public class Door : MonoBehaviour
         solidCollider.enabled = enabled;
     }
 
+    bool HasAnyClip()
+    {
+        return (unlockClips != null && unlockClips.Length > 0)
+            || (openClips != null && openClips.Length > 0)
+            || (closeClips != null && closeClips.Length > 0)
+            || (lockedClips != null && lockedClips.Length > 0);
+    }
+
     public bool IsLeverRequired(Lever lever)
     {
         return mode == OpeningMode.Levers && requiredLevers.Contains(lever);
     }
-
-    // ════════════════════════════════════════════════════════════
-    //  Gizmos
-    // ════════════════════════════════════════════════════════════
 
     void OnDrawGizmosSelected()
     {
@@ -318,7 +349,6 @@ public class Door : MonoBehaviour
                 break;
         }
 
-        // Zone du message verrouillé (si configuré)
         if (!string.IsNullOrEmpty(lockedMessageId))
         {
             Gizmos.color = new Color(1f, 0.5f, 0f, 0.5f);

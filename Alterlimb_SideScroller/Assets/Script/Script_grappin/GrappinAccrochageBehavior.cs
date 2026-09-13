@@ -1,17 +1,5 @@
 ﻿using UnityEngine;
 
-/// <summary>
-/// Grappin du joueur : déploiement progressif, accroche sur décor ou drone,
-/// swing latéral et contrôle de la longueur de corde.
-/// 
-/// États logiques (exposés via la propriété State pour les systèmes visuels) :
-///   - Idle      : rien en cours
-///   - Deploying : le harpon voyage vers le point d'accroche
-///   - Hooked    : accroché, le SpringJoint2D est actif
-/// 
-/// isUsingGrapple : vrai uniquement quand le grappin est réellement en action
-/// (tir qui a accroché). Reste faux si le tir part dans le vide.
-/// </summary>
 public class GrapplingHook : MonoBehaviour
 {
     public enum GrappleState { Idle, Deploying, Hooked }
@@ -47,23 +35,14 @@ public class GrapplingHook : MonoBehaviour
     DroneEnemy hookedDrone = null;
     Rigidbody2D droneRb = null;
 
-    // ════════════════════════════════════════════════════════════
-    //  Accès public (pour les systèmes visuels : bras, harpon, anim)
-    // ════════════════════════════════════════════════════════════
-
-    /// <summary>État actuel du grappin (Idle / Deploying / Hooked).</summary>
     public GrappleState State => state;
 
-    /// <summary>Position du bout de la corde (le harpon) en temps réel.</summary>
     public Vector2 HookTipPosition => hookTipPosition;
 
-    /// <summary>Vrai si le grappin est accroché (état Hooked).</summary>
     public bool IsHooked => state == GrappleState.Hooked;
 
-    /// <summary>
-    /// Direction du dernier scroll molette : 1 = raccourcir (dur),
-    /// -1 = rallonger (moux), 0 = pas de scroll. Mis à jour chaque frame.
-    /// </summary>
+    public float RopeLength => springJoint != null ? springJoint.distance : 0f;
+
     public int ScrollDirection { get; private set; }
 
     void Awake()
@@ -84,8 +63,6 @@ public class GrapplingHook : MonoBehaviour
     {
         if (!canUseGrapple)
         {
-            // Sécurité : si on change d'artefact pendant qu'on grappine,
-            // on relâche proprement.
             if (state != GrappleState.Idle) ReleaseGrapple();
             return;
         }
@@ -115,15 +92,12 @@ public class GrapplingHook : MonoBehaviour
             state = GrappleState.Deploying;
             lineRenderer.enabled = true;
 
-            // Le grappin est réellement en action (le tir a accroché)
             isUsingGrapple = true;
 
             hookedDrone = hit.collider.GetComponent<DroneEnemy>();
             if (hookedDrone != null)
                 droneRb = hit.collider.GetComponent<Rigidbody2D>();
         }
-        // Si le raycast ne touche rien : isUsingGrapple reste false,
-        // le bras grappin n'apparaîtra pas pour un tir dans le vide.
     }
 
     void UpdateDeployment()
@@ -147,7 +121,6 @@ public class GrapplingHook : MonoBehaviour
         {
             hookedDrone.GetHooked();
 
-            // SpringJoint sur le JOUEUR → tire le joueur vers le drone
             springJoint = gameObject.AddComponent<SpringJoint2D>();
             springJoint.autoConfigureConnectedAnchor = false;
             springJoint.connectedBody = droneRb;
@@ -159,7 +132,6 @@ public class GrapplingHook : MonoBehaviour
             return;
         }
 
-        // Accroche sur décor
         springJoint = gameObject.AddComponent<SpringJoint2D>();
         springJoint.autoConfigureConnectedAnchor = false;
         springJoint.connectedAnchor = hookPoint;
@@ -173,7 +145,6 @@ public class GrapplingHook : MonoBehaviour
 
     void UpdateRopeLength()
     {
-        // Réinitialise la direction de scroll chaque frame
         ScrollDirection = 0;
 
         if (state != GrappleState.Hooked || springJoint == null) return;
@@ -181,7 +152,6 @@ public class GrapplingHook : MonoBehaviour
         float scroll = Input.GetAxis("Mouse ScrollWheel");
         if (scroll != 0f)
         {
-            // Mémorise le sens du scroll pour l'animation du bras
             ScrollDirection = (scroll > 0f) ? 1 : -1;
 
             springJoint.distance = Mathf.Clamp(
@@ -191,7 +161,6 @@ public class GrapplingHook : MonoBehaviour
             );
         }
 
-        // Swing latéral uniquement sur décor
         if (hookedDrone == null)
         {
             float inputX = Input.GetAxisRaw("Horizontal");
@@ -218,7 +187,6 @@ public class GrapplingHook : MonoBehaviour
             springJoint = null;
         }
 
-        // Le drone reprend son IA
         if (hookedDrone != null)
         {
             hookedDrone.ReleaseHook();

@@ -118,10 +118,10 @@ TextureImporter:
       name: spritesheet_fly_02_0
       rect:
         serializedVersion: 2
-        x: 765
-        y: 3113
-        width: 684
-        height: 855
+        x: 0
+        y: 3016
+        width: 1920
+        height: 1080
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -140,10 +140,10 @@ TextureImporter:
       name: spritesheet_fly_02_1
       rect:
         serializedVersion: 2
-        x: 2717
-        y: 3117
-        width: 674
-        height: 852
+        x: 1920
+        y: 3016
+        width: 1920
+        height: 1080
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -162,10 +162,10 @@ TextureImporter:
       name: spritesheet_fly_02_2
       rect:
         serializedVersion: 2
-        x: 789
-        y: 2023
-        width: 670
-        height: 850
+        x: 0
+        y: 1936
+        width: 1920
+        height: 1080
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -184,10 +184,10 @@ TextureImporter:
       name: spritesheet_fly_02_3
       rect:
         serializedVersion: 2
-        x: 2729
-        y: 2025
-        width: 667
-        height: 849
+        x: 1920
+        y: 1936
+        width: 1920
+        height: 1080
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -206,10 +206,10 @@ TextureImporter:
       name: spritesheet_fly_02_4
       rect:
         serializedVersion: 2
-        x: 794
-        y: 929
-        width: 667
-        height: 849
+        x: 0
+        y: 856
+        width: 1920
+        height: 1080
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -228,10 +228,10 @@ TextureImporter:
       name: spritesheet_fly_02_5
       rect:
         serializedVersion: 2
-        x: 2729
-        y: 929
-        width: 667
-        height: 849
+        x: 1920
+        y: 856
+        width: 1920
+        height: 1080
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -260,7 +260,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries:
       - key: SpriteEditor.SliceSettings
-        value: '{"sliceOnImport":false,"gridCellCount":{"x":1.0,"y":1.0},"gridSpriteSize":{"x":4080.0,"y":4080.0},"gridSpriteOffset":{"x":0.0,"y":0.0},"gridSpritePadding":{"x":0.0,"y":0.0},"pivot":{"x":0.5,"y":0.5},"pivotPixels":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":0,"pivotUnitMode":0,"slicingType":0,"keepEmptyRects":false,"isAlternate":false}'
+        value: '{"sliceOnImport":false,"gridCellCount":{"x":1.0,"y":1.0},"gridSpriteSize":{"x":1920.0,"y":1080.0},"gridSpriteOffset":{"x":0.0,"y":0.0},"gridSpritePadding":{"x":0.0,"y":0.0},"pivot":{"x":0.5,"y":0.5},"pivotPixels":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":0,"pivotUnitMode":0,"slicingType":1,"keepEmptyRects":false,"isAlternate":false}'
     nameFileIdTable:
       spritesheet_fly_02_0: -1869497916318213318
       spritesheet_fly_02_1: -6652418238052693344
