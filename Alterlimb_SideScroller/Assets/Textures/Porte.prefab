@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 1123390176820006224}
   - component: {fileID: 2882209348853926925}
   - component: {fileID: 2038393333436808338}
+  - component: {fileID: 8343738275817709863}
   m_Layer: 0
   m_Name: Porte
   m_TagString: Untagged
@@ -153,8 +154,8 @@ BoxCollider2D:
   m_Offset: {x: 0, y: 0}
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
-    pivot: {x: 0.5, y: 0.5}
-    oldSize: {x: 0.3137255, y: 3.0039215}
+    pivot: {x: 1, y: 0.5}
+    oldSize: {x: 1.6588235, y: 3.0039215}
     newSize: {x: 0.8, y: 7.66}
     adaptiveTilingThreshold: 0.5
     drawMode: 0
@@ -178,7 +179,47 @@ MonoBehaviour:
   interactionRange: 2.5
   interactionKey: 324
   requiredLevers: []
+  targetDrone: {fileID: 0}
+  stayOpenForever: 0
   autoCloseDelay: 3
   playerTag: Player
+  lockedMessageId: 
+  lockedMessageRange: 2.5
   animator: {fileID: 1123390176820006224}
   playerTransform: {fileID: 0}
+  useFuseManager: 1
+  solidCollider: {fileID: 2882209348853926925}
+  openColliderDelay: 0.2
+  closeColliderDelay: 0.4
+  sfx: {fileID: 8343738275817709863}
+  unlockClips:
+  - {fileID: 8300000, guid: e2f29c5fe170ec344a260ad87be953b2, type: 3}
+  openClips:
+  - {fileID: 8300000, guid: ed4acd6153e87784786005d8723c2965, type: 3}
+  closeClips:
+  - {fileID: 8300000, guid: 02e6491f897900b47bff977fa58285bb, type: 3}
+  lockedClips:
+  - {fileID: 8300000, guid: f2675585fd7666d47be329d5a422310b, type: 3}
+  soundsFromAnimationEvents: 1
+  unlockToOpenDelay: 0.35
+  closeSoundDelay: 0
+  lockedSoundCooldown: 0.6
+--- !u!114 &8343738275817709863
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4364318915148001581}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b535677abf084cc4c8db2988e9b0fe28, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SfxEmitter
+  sfxGroup: {fileID: 7067628019711585974, guid: 1e7aa001d7c8eea4884c2974bfe5a345, type: 2}
+  volume: 1
+  spatialBlend: 1
+  minDistance: 1
+  maxDistance: 5
+  pitchRange: {x: 0.97, y: 1.03}
+  blockedWhilePaused: 1

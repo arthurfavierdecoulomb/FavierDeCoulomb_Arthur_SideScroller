@@ -1,41 +1,54 @@
 using UnityEngine;
-using UnityEngine.Audio;
 
+[RequireComponent(typeof(AudioSource))]
 public class SfxEmitter : MonoBehaviour
 {
-    [Header("Sortie mixer")]
-    [SerializeField] AudioMixerGroup sfxGroup;
-
     [Header("Lecture")]
     [SerializeField] float volume = 1f;
-    [Range(0f, 1f)]
-    [SerializeField] float spatialBlend = 0f;
-    [SerializeField] float minDistance = 4f;
-    [SerializeField] float maxDistance = 30f;
     [SerializeField] Vector2 pitchRange = new Vector2(0.97f, 1.03f);
 
     [Header("Pause")]
     [SerializeField] bool blockedWhilePaused = true;
+
+    [Header("Debug")]
+    [SerializeField] bool logDistanceToListener = false;
 
     AudioSource source;
     AudioClip lastClip;
 
     void Awake()
     {
-        source = gameObject.AddComponent<AudioSource>();
+        source = GetComponent<AudioSource>();
         source.playOnAwake = false;
         source.loop = false;
-        source.spatialBlend = spatialBlend;
-        source.rolloffMode = AudioRolloffMode.Linear;
-        source.minDistance = minDistance;
-        source.maxDistance = maxDistance;
-        source.outputAudioMixerGroup = sfxGroup;
+    }
 
-        if (sfxGroup == null)
-            Debug.LogError($"[SfxEmitter] '{name}' n'a pas de Sfx Group assigne : ses sons ignoreront le mixer.", this);
+    void Start()
+    {
+        if (source.outputAudioMixerGroup == null)
+            Debug.LogError($"[SfxEmitter] '{name}' : le champ Output de l'AudioSource est vide, le son ne passera pas par le mixer.", this);
+
+        if (source.spatialBlend > 0f)
+        {
+            AudioListener listener = FindAnyObjectByType<AudioListener>();
+
+            if (listener == null)
+            {
+                Debug.LogError($"[SfxEmitter] '{name}' est en son 3D mais aucun AudioListener n'existe dans la scène.", this);
+            }
+            else if (Mathf.Abs(listener.transform.position.z - transform.position.z) > source.maxDistance)
+            {
+                Debug.LogError($"[SfxEmitter] '{name}' : l'AudioListener est a {Mathf.Abs(listener.transform.position.z - transform.position.z):0.0} unites sur l'axe Z, soit au-dela du Max Distance ({source.maxDistance}). Le son sera inaudible. Deplace l'AudioListener sur le joueur ou augmente Max Distance.", this);
+            }
+        }
     }
 
     public void Play(AudioClip[] clips)
+    {
+        Play(clips, 1f);
+    }
+
+    public void Play(AudioClip[] clips, float volumeScale)
     {
         if (clips == null || clips.Length == 0) return;
 
@@ -44,17 +57,29 @@ public class SfxEmitter : MonoBehaviour
         if (clips.Length > 1 && clip == lastClip)
             clip = clips[(System.Array.IndexOf(clips, clip) + 1) % clips.Length];
 
-        Play(clip);
+        Play(clip, volumeScale);
     }
 
     public void Play(AudioClip clip)
     {
+        Play(clip, 1f);
+    }
+
+    public void Play(AudioClip clip, float volumeScale)
+    {
         if (clip == null) return;
         if (blockedWhilePaused && Time.timeScale <= 0f) return;
 
+        if (logDistanceToListener)
+        {
+            AudioListener listener = FindAnyObjectByType<AudioListener>();
+            if (listener != null)
+                Debug.Log($"[SfxEmitter] '{name}' : distance au listener = {Vector3.Distance(listener.transform.position, transform.position):0.00} (min {source.minDistance}, max {source.maxDistance})", this);
+        }
+
         lastClip = clip;
         source.pitch = Random.Range(pitchRange.x, pitchRange.y);
-        source.PlayOneShot(clip, volume);
+        source.PlayOneShot(clip, volume * Mathf.Max(volumeScale, 0f));
     }
 
     public void Stop()
