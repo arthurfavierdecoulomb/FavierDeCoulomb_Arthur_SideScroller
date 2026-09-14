@@ -1,43 +1,25 @@
 ﻿using UnityEngine;
 using System.Collections;
 
-/// <summary>
-/// Piège qui charge dans une direction quand le joueur entre dans une zone d'activation.
-/// 
-/// Cycle de vie :
-///   1. Idle     : le piège attend que le joueur entre dans la zone
-///   2. Charging : le joueur est entré → le piège fonce dans la direction configurée
-///   3. Paused   : arrivé au bout, il s'arrête un moment (le joueur peut passer)
-///   4. Returning: il retourne lentement à sa position initiale
-///   5. Cooldown : courte période sans redéclenchement possible, puis Idle
-/// 
-/// Mort du joueur :
-///   - Pendant la phase Charging uniquement, tout contact avec le joueur tue celui-ci.
-///   - Pendant les autres phases, le piège est inoffensif.
-/// 
-/// Reset au respawn via SpawnManager.OnPlayerRespawn.
-/// </summary>
 [RequireComponent(typeof(Rigidbody2D))]
 public class ChargingHazard : MonoBehaviour
 {
-    enum HazardState { Idle, Charging, Paused, Returning, Cooldown }
+    enum HazardState { Idle, Warning, Charging, Paused, Returning, Cooldown }
 
     public enum ChargeDirection { Right, Left, Up, Down }
 
     [Header("Zone d'activation")]
-    [Tooltip("Position de la zone d'activation, relative au piège")]
     [SerializeField] Vector2 activationZoneOffset = Vector2.zero;
-    [Tooltip("Taille de la zone d'activation (largeur × hauteur)")]
     [SerializeField] Vector2 activationZoneSize = new Vector2(4f, 4f);
-    [Tooltip("Layer du joueur (utilisé pour la détection de zone)")]
     [SerializeField] LayerMask playerLayer;
 
     [Header("Charge")]
     [SerializeField] ChargeDirection chargeDirection = ChargeDirection.Right;
-    [Tooltip("Distance totale parcourue pendant la charge (en unités Unity)")]
     [SerializeField] float chargeDistance = 6f;
-    [Tooltip("Vitesse pendant la charge (unités/seconde) — rapide")]
     [SerializeField] float chargeSpeed = 20f;
+
+    [Header("Avertissement")]
+    [SerializeField] float warningDuration = 0.3f;
 
     [Header("Pause")]
     [SerializeField] float pauseDuration = 1.5f;
@@ -51,15 +33,19 @@ public class ChargingHazard : MonoBehaviour
     [Header("Tag joueur (pour Die)")]
     [SerializeField] string playerTag = "Player";
 
+    [Header("Audio")]
+    [SerializeField] SfxEmitter sfx;
+    [SerializeField] AudioClip[] warningClips;
+    [SerializeField] AudioClip[] releaseClips;
+    [SerializeField] AudioClip[] crushClips;
+    [SerializeField] AudioClip[] impactClips;
+
     Rigidbody2D rb;
     Vector2 startPosition;
     Vector2 chargeTargetPosition;
     HazardState state = HazardState.Idle;
     Coroutine cycleCoroutine;
-
-    // ════════════════════════════════════════════════════════════
-    //  Initialisation
-    // ════════════════════════════════════════════════════════════
+    bool hasCrushedThisCharge;
 
     void Awake()
     {
@@ -71,6 +57,11 @@ public class ChargingHazard : MonoBehaviour
 
         startPosition = rb.position;
         chargeTargetPosition = startPosition + GetDirectionVector() * chargeDistance;
+
+        if (sfx == null) sfx = GetComponent<SfxEmitter>();
+
+        if (sfx == null && HasAnyClip())
+            Debug.LogError($"[ChargingHazard] '{name}' a des clips assignés mais aucun SfxEmitter : aucun son ne sera joué.", this);
     }
 
     Vector2 GetDirectionVector()
@@ -84,10 +75,6 @@ public class ChargingHazard : MonoBehaviour
             default: return Vector2.right;
         }
     }
-
-    // ════════════════════════════════════════════════════════════
-    //  Respawn
-    // ════════════════════════════════════════════════════════════
 
     void OnEnable()
     {
@@ -110,11 +97,8 @@ public class ChargingHazard : MonoBehaviour
         rb.position = startPosition;
         rb.linearVelocity = Vector2.zero;
         state = HazardState.Idle;
+        hasCrushedThisCharge = false;
     }
-
-    // ════════════════════════════════════════════════════════════
-    //  Détection de la zone d'activation
-    // ════════════════════════════════════════════════════════════
 
     void FixedUpdate()
     {
@@ -129,15 +113,20 @@ public class ChargingHazard : MonoBehaviour
         }
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  Cycle complet : Charge → Pause → Retour → Cooldown
-    //  CHANGEMENT MAJEUR : on utilise MovePosition au lieu de linearVelocity
-    // ════════════════════════════════════════════════════════════
-
     IEnumerator ChargeCycle()
     {
-        // ── Phase 1 : Charge rapide ─────────────────────────────
+        hasCrushedThisCharge = false;
+
+        if (warningDuration > 0f)
+        {
+            state = HazardState.Warning;
+            PlayClips(warningClips);
+            yield return new WaitForSeconds(warningDuration);
+        }
+
         state = HazardState.Charging;
+        PlayClips(releaseClips);
+
         Vector2 direction = GetDirectionVector();
 
         while (true)
@@ -145,25 +134,22 @@ public class ChargingHazard : MonoBehaviour
             float remaining = Vector2.Distance(rb.position, chargeTargetPosition);
             float step = chargeSpeed * Time.fixedDeltaTime;
 
-            // Si on va dépasser ou atteindre cette frame, on snap
             if (remaining <= step)
             {
                 rb.MovePosition(chargeTargetPosition);
                 break;
             }
 
-            // Sinon on avance d'un pas
             Vector2 newPos = rb.position + direction * step;
             rb.MovePosition(newPos);
 
             yield return new WaitForFixedUpdate();
         }
 
-        // ── Phase 2 : Pause ─────────────────────────────────────
         state = HazardState.Paused;
+        PlayClips(impactClips);
         yield return new WaitForSeconds(pauseDuration);
 
-        // ── Phase 3 : Retour lent ───────────────────────────────
         state = HazardState.Returning;
         Vector2 returnDirection = -direction;
 
@@ -184,17 +170,12 @@ public class ChargingHazard : MonoBehaviour
             yield return new WaitForFixedUpdate();
         }
 
-        // ── Phase 4 : Cooldown ──────────────────────────────────
         state = HazardState.Cooldown;
         yield return new WaitForSeconds(cooldownDuration);
 
         state = HazardState.Idle;
         cycleCoroutine = null;
     }
-
-    // ════════════════════════════════════════════════════════════
-    //  Collision : tue le joueur pendant la charge
-    // ════════════════════════════════════════════════════════════
 
     void OnCollisionEnter2D(Collision2D collision)
     {
@@ -212,33 +193,52 @@ public class ChargingHazard : MonoBehaviour
         if (!other.CompareTag(playerTag)) return;
 
         CharaController chara = other.GetComponent<CharaController>();
-        if (chara != null) chara.Die();
+        if (chara == null) return;
+
+        if (!hasCrushedThisCharge)
+        {
+            hasCrushedThisCharge = true;
+            PlayClips(crushClips);
+        }
+
+        chara.Die();
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  Gizmos
-    // ════════════════════════════════════════════════════════════
+    void PlayClips(AudioClip[] clips)
+    {
+        if (sfx != null) sfx.Play(clips);
+    }
+
+    bool HasAnyClip()
+    {
+        return (warningClips != null && warningClips.Length > 0)
+            || (releaseClips != null && releaseClips.Length > 0)
+            || (crushClips != null && crushClips.Length > 0)
+            || (impactClips != null && impactClips.Length > 0);
+    }
 
     void OnDrawGizmos()
     {
         Vector3 origin = Application.isPlaying ? (Vector3)startPosition : transform.position;
 
-        // Zone d'activation
         Vector3 zoneCenter = transform.position + (Vector3)activationZoneOffset;
-        Gizmos.color = (state == HazardState.Idle || !Application.isPlaying)
-            ? new Color(0.2f, 1f, 0.2f, 0.4f)
-            : new Color(1f, 1f, 0.2f, 0.4f);
+
+        if (!Application.isPlaying || state == HazardState.Idle)
+            Gizmos.color = new Color(0.2f, 1f, 0.2f, 0.4f);
+        else if (state == HazardState.Warning)
+            Gizmos.color = new Color(1f, 0.4f, 0.1f, 0.5f);
+        else
+            Gizmos.color = new Color(1f, 1f, 0.2f, 0.4f);
+
         Gizmos.DrawCube(zoneCenter, activationZoneSize);
         Gizmos.color = new Color(0.2f, 1f, 0.2f, 1f);
         Gizmos.DrawWireCube(zoneCenter, activationZoneSize);
 
-        // Trajectoire de charge
         Vector3 target = origin + (Vector3)GetDirectionVector() * chargeDistance;
         Gizmos.color = Color.red;
         Gizmos.DrawLine(origin, target);
         Gizmos.DrawWireSphere(target, 0.25f);
 
-        // Point de départ
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(origin, 0.20f);
     }

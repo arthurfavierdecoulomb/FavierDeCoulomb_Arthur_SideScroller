@@ -42,6 +42,9 @@ public class LaserBeam : MonoBehaviour
     [SerializeField] private float blinkInterval = 0.1f;
     [SerializeField] private int blinkCount = 5;
 
+    [Header("Charge")]
+    [SerializeField] private float chargeDuration = 0.4f;
+
     private LineRenderer _line;
     private EdgeCollider2D _collider;
     private bool _beamActive = true;
@@ -50,7 +53,12 @@ public class LaserBeam : MonoBehaviour
     private float _targetIntensityMultiplier = 1f;
     private Coroutine _controlledRoutine;
 
+    private bool _isCharging;
+    private bool _isUnstable;
+
     public bool IsActive => _beamActive;
+    public bool IsCharging => _isCharging;
+    public bool IsUnstable => _isUnstable;
     public LaserMode Mode => mode;
 
     void Awake()
@@ -97,18 +105,32 @@ public class LaserBeam : MonoBehaviour
     {
         while (true)
         {
+            yield return ChargeRoutine();
+
             SetBeamActive(true);
 
             float onDuration = Random.Range(onDurationMin, onDurationMax);
             yield return new WaitForSeconds(onDuration);
 
-            yield return StartCoroutine(BlinkRoutine());
+            _isUnstable = true;
+
+            yield return BlinkRoutine();
 
             SetBeamActive(false);
+            _isUnstable = false;
 
             float offDuration = Random.Range(offDurationMin, offDurationMax);
             yield return new WaitForSeconds(offDuration);
         }
+    }
+
+    IEnumerator ChargeRoutine()
+    {
+        if (chargeDuration <= 0f) yield break;
+
+        _isCharging = true;
+        yield return new WaitForSeconds(chargeDuration);
+        _isCharging = false;
     }
 
     IEnumerator BlinkRoutine()
@@ -126,6 +148,12 @@ public class LaserBeam : MonoBehaviour
     {
         StopControlledRoutine();
         SetBeamActive(true);
+    }
+
+    public void TurnOnWithCharge()
+    {
+        StopControlledRoutine();
+        _controlledRoutine = StartCoroutine(TurnOnWithChargeRoutine());
     }
 
     public void TurnOff()
@@ -160,8 +188,20 @@ public class LaserBeam : MonoBehaviour
         _intensityMultiplier = _targetIntensityMultiplier;
     }
 
+    private IEnumerator TurnOnWithChargeRoutine()
+    {
+        yield return ChargeRoutine();
+
+        SetBeamActive(true);
+        _controlledRoutine = null;
+    }
+
     private IEnumerator PowerUpRoutine(int flickers)
     {
+        yield return ChargeRoutine();
+
+        _isUnstable = true;
+
         for (int i = 0; i < flickers; i++)
         {
             SetBeamActive(true);
@@ -169,6 +209,8 @@ public class LaserBeam : MonoBehaviour
             SetBeamActive(false);
             yield return new WaitForSeconds(blinkInterval);
         }
+
+        _isUnstable = false;
 
         SetBeamActive(true);
         _controlledRoutine = null;
@@ -176,6 +218,8 @@ public class LaserBeam : MonoBehaviour
 
     private IEnumerator FlickerRoutine(int flickers)
     {
+        _isUnstable = true;
+
         for (int i = 0; i < flickers; i++)
         {
             SetBeamActive(false);
@@ -184,11 +228,16 @@ public class LaserBeam : MonoBehaviour
             yield return new WaitForSeconds(blinkInterval);
         }
 
+        _isUnstable = false;
+
         _controlledRoutine = null;
     }
 
     private void StopControlledRoutine()
     {
+        _isCharging = false;
+        _isUnstable = false;
+
         if (_controlledRoutine == null)
             return;
 

@@ -39,6 +39,13 @@ public class FactoryLight : MonoBehaviour
     float flickerTarget = 1f;
     float flickerValue = 1f;
     bool flickerOn = true;
+    float currentIntensity;
+
+    public FactoryLightMode ResolvedMode => resolvedMode;
+    public float CurrentIntensity => currentIntensity;
+    public float NormalizedIntensity => Mathf.Clamp01(currentIntensity / Mathf.Max(maxIntensity, 0.0001f));
+    public bool IsFlickerOn => flickerOn;
+    public bool IsDead => resolvedMode == FactoryLightMode.Dead;
 
     void Awake()
     {
@@ -111,6 +118,8 @@ public class FactoryLight : MonoBehaviour
 
     void Apply(float intensity)
     {
+        currentIntensity = intensity;
+
         if (targetLight != null)
             targetLight.intensity = intensity;
 

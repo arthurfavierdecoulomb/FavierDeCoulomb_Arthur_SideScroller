@@ -3,6 +3,9 @@ using UnityEngine;
 [RequireComponent(typeof(AudioSource))]
 public class SfxEmitter : MonoBehaviour
 {
+    [Header("Source")]
+    [SerializeField] AudioSource source;
+
     [Header("Lecture")]
     [SerializeField] float volume = 1f;
     [SerializeField] Vector2 pitchRange = new Vector2(0.97f, 1.03f);
@@ -11,15 +14,17 @@ public class SfxEmitter : MonoBehaviour
     [SerializeField] bool blockedWhilePaused = true;
 
     [Header("Debug")]
-    [SerializeField] bool logDistanceToListener = false;
+    [SerializeField] bool logAttenuation = false;
 
-    AudioSource source;
     AudioProxi proximity;
     AudioClip lastClip;
 
+    public AudioSource Source => source;
+
     void Awake()
     {
-        source = GetComponent<AudioSource>();
+        if (source == null) source = GetComponent<AudioSource>();
+
         source.playOnAwake = false;
         source.loop = false;
 
@@ -65,7 +70,7 @@ public class SfxEmitter : MonoBehaviour
         float attenuation = proximity != null ? proximity.GetAttenuation() : 1f;
         if (attenuation <= 0.001f) return;
 
-        if (logDistanceToListener)
+        if (logAttenuation)
             Debug.Log($"[SfxEmitter] '{name}' : attenuation = {attenuation:0.00}", this);
 
         lastClip = clip;
