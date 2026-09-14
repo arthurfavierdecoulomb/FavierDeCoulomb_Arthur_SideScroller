@@ -14,6 +14,7 @@ public class SfxEmitter : MonoBehaviour
     [SerializeField] bool logDistanceToListener = false;
 
     AudioSource source;
+    AudioProxi proximity;
     AudioClip lastClip;
 
     void Awake()
@@ -21,6 +22,8 @@ public class SfxEmitter : MonoBehaviour
         source = GetComponent<AudioSource>();
         source.playOnAwake = false;
         source.loop = false;
+
+        proximity = GetComponent<AudioProxi>();
     }
 
     void Start()
@@ -29,18 +32,7 @@ public class SfxEmitter : MonoBehaviour
             Debug.LogError($"[SfxEmitter] '{name}' : le champ Output de l'AudioSource est vide, le son ne passera pas par le mixer.", this);
 
         if (source.spatialBlend > 0f)
-        {
-            AudioListener listener = FindAnyObjectByType<AudioListener>();
-
-            if (listener == null)
-            {
-                Debug.LogError($"[SfxEmitter] '{name}' est en son 3D mais aucun AudioListener n'existe dans la scène.", this);
-            }
-            else if (Mathf.Abs(listener.transform.position.z - transform.position.z) > source.maxDistance)
-            {
-                Debug.LogError($"[SfxEmitter] '{name}' : l'AudioListener est a {Mathf.Abs(listener.transform.position.z - transform.position.z):0.0} unites sur l'axe Z, soit au-dela du Max Distance ({source.maxDistance}). Le son sera inaudible. Deplace l'AudioListener sur le joueur ou augmente Max Distance.", this);
-            }
-        }
+            Debug.LogWarning($"[SfxEmitter] '{name}' : Spatial Blend n'est pas a 0. Utilise plutot un AudioProximity, le rolloff 3D d'Unity compte le Z de la camera.", this);
     }
 
     public void Play(AudioClip[] clips)
@@ -70,16 +62,15 @@ public class SfxEmitter : MonoBehaviour
         if (clip == null) return;
         if (blockedWhilePaused && Time.timeScale <= 0f) return;
 
+        float attenuation = proximity != null ? proximity.GetAttenuation() : 1f;
+        if (attenuation <= 0.001f) return;
+
         if (logDistanceToListener)
-        {
-            AudioListener listener = FindAnyObjectByType<AudioListener>();
-            if (listener != null)
-                Debug.Log($"[SfxEmitter] '{name}' : distance au listener = {Vector3.Distance(listener.transform.position, transform.position):0.00} (min {source.minDistance}, max {source.maxDistance})", this);
-        }
+            Debug.Log($"[SfxEmitter] '{name}' : attenuation = {attenuation:0.00}", this);
 
         lastClip = clip;
         source.pitch = Random.Range(pitchRange.x, pitchRange.y);
-        source.PlayOneShot(clip, volume * Mathf.Max(volumeScale, 0f));
+        source.PlayOneShot(clip, volume * Mathf.Max(volumeScale, 0f) * attenuation);
     }
 
     public void Stop()

@@ -3,10 +3,6 @@ using System.Collections.Generic;
 
 public class HazardManager : MonoBehaviour
 {
-    // ════════════════════════════════════════════════════════════
-    //  Types
-    // ════════════════════════════════════════════════════════════
-
     public enum MovementType
     {
         UpDown,
@@ -32,7 +28,6 @@ public class HazardManager : MonoBehaviour
         public float amplitude = 2f;
 
         [Range(0f, 1f)]
-        [Tooltip("Décalage de phase : 0 = aucun, 0.5 = opposé, 0.25 = quart de cycle")]
         public float phase = 0f;
 
         [Header("Pause aux extrémités (UpDown / LeftRight)")]
@@ -54,21 +49,20 @@ public class HazardManager : MonoBehaviour
         public float destroyDelay = 2f;
         public float respawnDelay = 5f;
 
-        // ── Données runtime (cachées dans l'Inspector) ─────────
         [HideInInspector] public Vector3 startPosition;
         [HideInInspector] public Quaternion startRotation;
         [HideInInspector] public float timer;
         [HideInInspector] public float orbitAngle;
         [HideInInspector] public Vector3 previousPosition;
         [HideInInspector] public Animator animator;
-        [HideInInspector] public Rigidbody2D rb; // ← NOUVEAU : pour MovePosition
+        [HideInInspector] public Rigidbody2D rb;
         [HideInInspector] public bool justResumed;
+        [HideInInspector] public PlatformAudio platformAudio;
+        [HideInInspector] public int audioDirection;
 
-        // Pause runtime
         [HideInInspector] public bool isPaused;
         [HideInInspector] public float pauseTimer;
 
-        // Breakable runtime
         [HideInInspector] public bool playerOnPlatform;
         [HideInInspector] public float breakTimer;
         [HideInInspector] public bool isBroken;
@@ -78,18 +72,10 @@ public class HazardManager : MonoBehaviour
         [HideInInspector] public SpriteRenderer spriteRenderer;
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  Champs
-    // ════════════════════════════════════════════════════════════
-
     [Header("Liste des pièges")]
     [SerializeField] List<Hazard> hazards = new List<Hazard>();
 
     static readonly int MoveDir = Animator.StringToHash("moveDir");
-
-    // ════════════════════════════════════════════════════════════
-    //  Initialisation
-    // ════════════════════════════════════════════════════════════
 
     void Awake()
     {
@@ -103,7 +89,9 @@ public class HazardManager : MonoBehaviour
             h.orbitAngle = h.phase * Mathf.PI * 2f;
             h.previousPosition = h.target.transform.position;
             h.animator = h.target.GetComponent<Animator>();
-            h.rb = h.target.GetComponent<Rigidbody2D>(); // ← NOUVEAU
+            h.rb = h.target.GetComponent<Rigidbody2D>();
+            h.platformAudio = h.target.GetComponent<PlatformAudio>();
+            h.audioDirection = 0;
 
             if (h.movementType == MovementType.Breakable)
                 InitBreakable(h);
@@ -120,10 +108,6 @@ public class HazardManager : MonoBehaviour
             trigger = h.target.AddComponent<BreakablePlatformTrigger>();
         trigger.hazard = h;
     }
-
-    // ════════════════════════════════════════════════════════════
-    //  FixedUpdate principal (CHANGÉ : était Update)
-    // ════════════════════════════════════════════════════════════
 
     void FixedUpdate()
     {
@@ -147,18 +131,16 @@ public class HazardManager : MonoBehaviour
                 }
 
                 UpdateHazardAnimation(h);
+                UpdateHazardAudio(h);
                 continue;
             }
 
             h.timer += Time.fixedDeltaTime * h.speed;
             ProcessHazard(h);
             UpdateHazardAnimation(h);
+            UpdateHazardAudio(h);
         }
     }
-
-    // ════════════════════════════════════════════════════════════
-    //  Mouvements
-    // ════════════════════════════════════════════════════════════
 
     void ProcessHazard(Hazard h)
     {
@@ -172,6 +154,7 @@ public class HazardManager : MonoBehaviour
                     float sin = Mathf.Sin(h.timer + phaseRad);
                     Vector3 newPos = h.startPosition + new Vector3(0f, sin * h.amplitude, 0f);
                     MovePlatform(h, newPos);
+                    h.audioDirection = Mathf.Cos(h.timer + phaseRad) >= 0f ? 1 : -1;
                     CheckPause(h, sin);
                     break;
                 }
@@ -181,6 +164,7 @@ public class HazardManager : MonoBehaviour
                     float sin = Mathf.Sin(h.timer + phaseRad);
                     Vector3 newPos = h.startPosition + new Vector3(sin * h.amplitude, 0f, 0f);
                     MovePlatform(h, newPos);
+                    h.audioDirection = Mathf.Cos(h.timer + phaseRad) >= 0f ? 1 : -1;
                     CheckPause(h, sin);
                     break;
                 }
@@ -221,10 +205,6 @@ public class HazardManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Déplace la plateforme via Rigidbody2D si dispo, sinon via transform.
-    /// Permet la synchronisation correcte avec la physique du joueur.
-    /// </summary>
     void MovePlatform(Hazard h, Vector3 targetPos)
     {
         if (h.rb != null)
@@ -250,10 +230,6 @@ public class HazardManager : MonoBehaviour
         }
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  Animation du monte-charge
-    // ════════════════════════════════════════════════════════════
-
     void UpdateHazardAnimation(Hazard h)
     {
         if (h.animator == null) return;
@@ -268,9 +244,13 @@ public class HazardManager : MonoBehaviour
         h.animator.SetInteger(MoveDir, dir);
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  Plateforme cassable
-    // ════════════════════════════════════════════════════════════
+    void UpdateHazardAudio(Hazard h)
+    {
+        if (h.platformAudio == null) return;
+        if (h.movementType != MovementType.UpDown && h.movementType != MovementType.LeftRight) return;
+
+        h.platformAudio.SetDirection(h.isPaused ? 0 : h.audioDirection);
+    }
 
     void ProcessBreakable(Hazard h)
     {
@@ -300,6 +280,9 @@ public class HazardManager : MonoBehaviour
             Vector3 newPos = h.startPosition + new Vector3(shake, 0f, 0f);
             MovePlatform(h, newPos);
 
+            if (h.platformAudio != null)
+                h.platformAudio.SetCollapsing(true, h.breakDelay > 0f ? h.breakTimer / h.breakDelay : 1f);
+
             if (h.breakTimer >= h.breakDelay)
                 BreakPlatform(h);
         }
@@ -307,6 +290,9 @@ public class HazardManager : MonoBehaviour
         {
             h.breakTimer = 0f;
             MovePlatform(h, h.startPosition);
+
+            if (h.platformAudio != null)
+                h.platformAudio.SetCollapsing(false, 0f);
         }
     }
 
@@ -318,6 +304,9 @@ public class HazardManager : MonoBehaviour
 
         if (h.platformCollider != null)
             h.platformCollider.enabled = false;
+
+        if (h.platformAudio != null)
+            h.platformAudio.PlayBreak();
     }
 
     void RespawnBreakable()
@@ -336,13 +325,12 @@ public class HazardManager : MonoBehaviour
 
             if (h.platformCollider != null)
                 h.platformCollider.enabled = true;
+
+            if (h.platformAudio != null)
+                h.platformAudio.SetCollapsing(false, 0f);
             break;
         }
     }
-
-    // ════════════════════════════════════════════════════════════
-    //  Gizmos
-    // ════════════════════════════════════════════════════════════
 
     void OnDrawGizmos()
     {
