@@ -1,13 +1,14 @@
 using UnityEngine;
+using UnityEngine.Audio;
 
 [RequireComponent(typeof(SfxEmitter))]
 public class LaserAudio : MonoBehaviour
 {
     [Header("Source")]
     [SerializeField] LaserBeam laserBeam;
-    [SerializeField] AudioSource loopSource;
 
     [Header("Boucle")]
+    [SerializeField] AudioMixerGroup loopGroup;
     [SerializeField] AudioClip beamLoop;
     [Range(0f, 1f)]
     [SerializeField] float loopVolume = 0.7f;
@@ -29,11 +30,16 @@ public class LaserAudio : MonoBehaviour
     [Range(0f, 1f)]
     [SerializeField] float unstableOffVolume = 0.15f;
 
+    [Header("Priorite audio")]
+    [Range(0, 256)]
+    [SerializeField] int loopPriority = 160;
+
     [Header("Pause")]
     [SerializeField] bool muteWhilePaused = true;
 
     SfxEmitter sfx;
     AudioProxi proximity;
+    AudioSource loopSource;
 
     bool wasActive;
     bool wasCharging;
@@ -56,27 +62,19 @@ public class LaserAudio : MonoBehaviour
             return;
         }
 
-        if (loopSource == null)
-        {
-            if (beamLoop != null)
-                Debug.LogError($"[LaserAudio] '{name}' a un Beam Loop mais aucun Loop Source assigné. Ajoute un second AudioSource et glisse-le dans Loop Source.", this);
-            return;
-        }
+        if (beamLoop == null) return;
 
-        if (loopSource == sfx.Source)
-        {
-            Debug.LogError($"[LaserAudio] '{name}' : le Loop Source et le SfxEmitter utilisent le MÊME AudioSource. Ajoute un second AudioSource (même GameObject, c'est très bien) et assigne-le a Loop Source.", this);
-            loopSource = null;
-            return;
-        }
+        if (loopGroup == null)
+            Debug.LogError($"[LaserAudio] '{name}' : Loop Group non assigné, la boucle ne passera pas par le mixer.", this);
 
-        if (loopSource.outputAudioMixerGroup == null)
-            Debug.LogError($"[LaserAudio] '{name}' : le champ Output du Loop Source est vide, le son ne passera pas par le mixer.", this);
-
+        loopSource = gameObject.AddComponent<AudioSource>();
         loopSource.clip = beamLoop;
         loopSource.loop = true;
         loopSource.playOnAwake = false;
+        loopSource.spatialBlend = 0f;
         loopSource.volume = 0f;
+        loopSource.priority = loopPriority;
+        loopSource.outputAudioMixerGroup = loopGroup;
 
         wasActive = laserBeam.IsActive;
         wasCharging = laserBeam.IsCharging;
@@ -110,7 +108,7 @@ public class LaserAudio : MonoBehaviour
 
     void UpdateLoop(bool active, bool unstable)
     {
-        if (loopSource == null || beamLoop == null) return;
+        if (loopSource == null) return;
 
         float target;
         float pitch;

@@ -3,6 +3,8 @@ using UnityEngine;
 using UnityEngine.Audio;
 using UnityEngine.Tilemaps;
 
+public enum FootstepMode { AnimationEvents, Distance }
+
 public class AzuAudio : MonoBehaviour
 {
     [System.Serializable]
@@ -15,6 +17,11 @@ public class AzuAudio : MonoBehaviour
 
     [Header("Sortie mixer")]
     [SerializeField] AudioMixerGroup sfxGroup;
+
+    [Header("Pas")]
+    [SerializeField] FootstepMode footstepMode = FootstepMode.AnimationEvents;
+    [SerializeField] float stepDistance = 1.6f;
+    [SerializeField] float minStepSpeed = 0.5f;
 
     [Header("Pas par surface")]
     [SerializeField] SurfaceBank[] surfaceBanks;
@@ -63,6 +70,12 @@ public class AzuAudio : MonoBehaviour
     [Header("Variation")]
     [SerializeField] Vector2 pitchRange = new Vector2(0.95f, 1.05f);
 
+    [Header("Priorite audio")]
+    [Range(0, 256)]
+    [SerializeField] int oneShotPriority = 0;
+    [Range(0, 256)]
+    [SerializeField] int alertPriority = 16;
+
     [Header("Debug")]
     [SerializeField] bool logSurfaceDetection = false;
 
@@ -79,8 +92,11 @@ public class AzuAudio : MonoBehaviour
     float lastRopeLength;
     float ropeClickAccumulator;
 
+    bool isGrounded = true;
     bool wasGrounded = true;
     float previousFallSpeed;
+    float stepAccumulator;
+    bool wasStepping;
     AudioClip lastPlayedClip;
 
     readonly Dictionary<Collider2D, Tilemap[]> tilemapCache = new Dictionary<Collider2D, Tilemap[]>();
@@ -99,6 +115,7 @@ public class AzuAudio : MonoBehaviour
         oneShotSource.playOnAwake = false;
         oneShotSource.loop = false;
         oneShotSource.spatialBlend = 0f;
+        oneShotSource.priority = oneShotPriority;
         oneShotSource.outputAudioMixerGroup = sfxGroup;
 
         alertSource = gameObject.AddComponent<AudioSource>();
@@ -107,6 +124,7 @@ public class AzuAudio : MonoBehaviour
         alertSource.spatialBlend = 0f;
         alertSource.volume = lowEnergyVolume;
         alertSource.clip = lowEnergyLoop;
+        alertSource.priority = alertPriority;
         alertSource.outputAudioMixerGroup = sfxGroup;
     }
 
@@ -133,10 +151,49 @@ public class AzuAudio : MonoBehaviour
 
     void Update()
     {
+        UpdateGroundState();
         UpdateArmSwap();
         UpdateGrapple();
+        UpdateFootstepDistance();
         UpdateLanding();
         UpdateLowEnergyAlert();
+    }
+
+    void UpdateGroundState()
+    {
+        isGrounded = Physics2D.Raycast(transform.position, Vector2.down, surfaceCheckDistance, surfaceMask);
+    }
+
+    void UpdateFootstepDistance()
+    {
+        if (footstepMode != FootstepMode.Distance) return;
+        if (rb == null || IsPaused) return;
+
+        float speed = Mathf.Abs(rb.linearVelocity.x);
+        bool stepping = isGrounded && speed >= minStepSpeed;
+
+        if (!stepping)
+        {
+            wasStepping = false;
+            stepAccumulator = 0f;
+            return;
+        }
+
+        if (!wasStepping)
+        {
+            wasStepping = true;
+            stepAccumulator = 0f;
+            PlayFootstep();
+            return;
+        }
+
+        stepAccumulator += speed * Time.deltaTime;
+
+        if (stepAccumulator >= stepDistance)
+        {
+            stepAccumulator -= stepDistance;
+            PlayFootstep();
+        }
     }
 
     public void ClearSurfaceCache()
@@ -146,7 +203,21 @@ public class AzuAudio : MonoBehaviour
 
     public void Footstep()
     {
-        SurfaceBank bank = GetBankOrFallback(DetectSurface());
+        if (footstepMode != FootstepMode.AnimationEvents) return;
+        PlayFootstep();
+    }
+
+    void PlayFootstep()
+    {
+        SurfaceType surface = DetectSurface();
+        SurfaceBank bank = GetBankOrFallback(surface);
+
+        if (logSurfaceDetection)
+        {
+            int clipCount = (bank == null || bank.footsteps == null) ? 0 : bank.footsteps.Length;
+            Debug.Log($"[AzuAudio] Footstep() -> surface {surface}, banque {(bank == null ? "AUCUNE" : bank.surface.ToString())}, {clipCount} clip(s), timeScale {Time.timeScale}");
+        }
+
         if (bank == null) return;
         PlayRandom(bank.footsteps, footstepVolume);
     }
@@ -229,12 +300,10 @@ public class AzuAudio : MonoBehaviour
     {
         if (!autoStompOnLanding || rb == null) return;
 
-        bool grounded = Physics2D.Raycast(transform.position, Vector2.down, surfaceCheckDistance, surfaceMask);
-
-        if (grounded && !wasGrounded && previousFallSpeed <= -minFallSpeedForStomp)
+        if (isGrounded && !wasGrounded && previousFallSpeed <= -minFallSpeedForStomp)
             Stomp();
 
-        wasGrounded = grounded;
+        wasGrounded = isGrounded;
         previousFallSpeed = rb.linearVelocity.y;
     }
 
@@ -271,10 +340,20 @@ public class AzuAudio : MonoBehaviour
     {
         RaycastHit2D hit = Physics2D.Raycast(transform.position, Vector2.down, surfaceCheckDistance, surfaceMask);
 
+        if (logSurfaceDetection)
+            Debug.DrawRay(transform.position, Vector2.down * surfaceCheckDistance, hit.collider != null ? Color.green : Color.red, 1f);
+
         if (hit.collider == null)
         {
             if (logSurfaceDetection)
-                Debug.LogWarning($"[AzuAudio] Raycast sol vide (distance {surfaceCheckDistance}, mask {surfaceMask.value}) -> surface par defaut.");
+            {
+                RaycastHit2D anyHit = Physics2D.Raycast(transform.position, Vector2.down, surfaceCheckDistance);
+                string nearby = anyHit.collider != null
+                    ? $"mais '{anyHit.collider.name}' est la, sur le layer '{LayerMask.LayerToName(anyHit.collider.gameObject.layer)}' (absent du Surface Mask)"
+                    : "et rien du tout sous Azu a cette distance";
+
+                Debug.LogWarning($"[AzuAudio] Raycast sol vide (distance {surfaceCheckDistance}) {nearby} -> surface par defaut ({defaultSurface}).");
+            }
 
             return defaultSurface;
         }

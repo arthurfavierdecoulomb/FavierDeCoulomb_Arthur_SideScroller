@@ -137,8 +137,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NewMonoBehaviourScript
   factoryLight: {fileID: 7856437318621842393}
-  buzzSource: {fileID: 932590033398092857}
   sfx: {fileID: 5311647289253343277}
+  buzzGroup: {fileID: 7067628019711585974, guid: 1e7aa001d7c8eea4884c2974bfe5a345, type: 2}
   buzzLoop: {fileID: 8300000, guid: 1793893a91fbf8a4281920345bc9957a, type: 3}
   minVolume: 0.15
   maxVolume: 0.6
@@ -153,6 +153,7 @@ MonoBehaviour:
   - {fileID: 8300000, guid: 4a3c49422ba6ad145947a403f1066712, type: 3}
   flickerClipVolume: 0.6
   silentWhenDead: 1
+  buzzPriority: 220
   muteWhilePaused: 1
 --- !u!114 &5311647289253343277
 MonoBehaviour:
@@ -166,10 +167,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b535677abf084cc4c8db2988e9b0fe28, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SfxEmitter
+  source: {fileID: 932590033398092857}
   volume: 1
   pitchRange: {x: 0.97, y: 1.03}
   blockedWhilePaused: 1
-  logDistanceToListener: 0
+  logAttenuation: 0
 --- !u!82 &932590033398092857
 AudioSource:
   m_ObjectHideFlags: 0

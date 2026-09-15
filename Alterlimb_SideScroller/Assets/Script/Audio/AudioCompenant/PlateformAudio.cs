@@ -1,12 +1,13 @@
 using UnityEngine;
+using UnityEngine.Audio;
 
 [RequireComponent(typeof(SfxEmitter))]
 public class PlatformAudio : MonoBehaviour
 {
     public enum BleepMode { AnimationEvents, Interval }
 
-    [Header("Source en boucle")]
-    [SerializeField] AudioSource loopSource;
+    [Header("Boucle")]
+    [SerializeField] AudioMixerGroup loopGroup;
     [SerializeField] AudioClip motorLoop;
     [SerializeField] AudioClip creakLoop;
     [SerializeField] float loopFadeSpeed = 8f;
@@ -37,11 +38,16 @@ public class PlatformAudio : MonoBehaviour
     [SerializeField] Vector2 creakPitchRange = new Vector2(0.9f, 1.3f);
     [SerializeField] AudioClip[] breakClips;
 
+    [Header("Priorite audio")]
+    [Range(0, 256)]
+    [SerializeField] int loopPriority = 140;
+
     [Header("Pause")]
     [SerializeField] bool muteWhilePaused = true;
 
     SfxEmitter sfx;
     AudioProxi proximity;
+    AudioSource loopSource;
 
     int direction;
     bool motorPending;
@@ -61,22 +67,18 @@ public class PlatformAudio : MonoBehaviour
 
     void Start()
     {
-        if (loopSource == null)
-        {
-            if (motorLoop != null || creakLoop != null)
-                Debug.LogError($"[PlatformAudio] '{name}' a un clip en boucle mais aucun Loop Source assigné. Mets un AudioSource sur un enfant et glisse-le ici.", this);
-            return;
-        }
+        if (motorLoop == null && creakLoop == null) return;
 
-        if (loopSource.gameObject == gameObject)
-            Debug.LogError($"[PlatformAudio] '{name}' : le Loop Source est sur le même GameObject que le SfxEmitter. Mets-le sur un enfant, sinon les deux se disputent le même AudioSource.", this);
+        if (loopGroup == null)
+            Debug.LogError($"[PlatformAudio] '{name}' : Loop Group non assigné, la boucle ne passera pas par le mixer.", this);
 
-        if (loopSource.outputAudioMixerGroup == null)
-            Debug.LogError($"[PlatformAudio] '{name}' : le champ Output du Loop Source est vide, le son ne passera pas par le mixer.", this);
-
+        loopSource = gameObject.AddComponent<AudioSource>();
         loopSource.loop = true;
         loopSource.playOnAwake = false;
+        loopSource.spatialBlend = 0f;
         loopSource.volume = 0f;
+        loopSource.priority = loopPriority;
+        loopSource.outputAudioMixerGroup = loopGroup;
     }
 
     void Update()

@@ -1,13 +1,14 @@
 using UnityEngine;
+using UnityEngine.Audio;
 
 public class FactoryLightAudio : MonoBehaviour
 {
-    [Header("Sources")]
+    [Header("Source")]
     [SerializeField] FactoryLight factoryLight;
-    [SerializeField] AudioSource buzzSource;
     [SerializeField] SfxEmitter sfx;
 
     [Header("Buzz")]
+    [SerializeField] AudioMixerGroup buzzGroup;
     [SerializeField] AudioClip buzzLoop;
     [Range(0f, 1f)]
     [SerializeField] float minVolume = 0.15f;
@@ -30,10 +31,15 @@ public class FactoryLightAudio : MonoBehaviour
     [Header("Lampe morte")]
     [SerializeField] bool silentWhenDead = true;
 
+    [Header("Priorite audio")]
+    [Range(0, 256)]
+    [SerializeField] int buzzPriority = 220;
+
     [Header("Pause")]
     [SerializeField] bool muteWhilePaused = true;
 
     AudioProxi proximity;
+    AudioSource buzzSource;
     bool wasFlickerOn = true;
     bool initialised;
 
@@ -56,28 +62,24 @@ public class FactoryLightAudio : MonoBehaviour
 
         if (silentWhenDead && factoryLight.IsDead)
         {
-            if (buzzSource != null) buzzSource.Stop();
             enabled = false;
             return;
         }
-
-        if (buzzSource == null)
-        {
-            Debug.LogError($"[FactoryLightAudio] '{name}' n'a pas de Buzz Source assignée.", this);
-            enabled = false;
-            return;
-        }
-
-        if (buzzSource.outputAudioMixerGroup == null)
-            Debug.LogError($"[FactoryLightAudio] '{name}' : le champ Output de la Buzz Source est vide, le son ne passera pas par le mixer.", this);
-
-        buzzSource.clip = buzzLoop;
-        buzzSource.loop = true;
-        buzzSource.playOnAwake = false;
-        buzzSource.volume = 0f;
 
         if (buzzLoop != null)
         {
+            if (buzzGroup == null)
+                Debug.LogError($"[FactoryLightAudio] '{name}' : Buzz Group non assigné, la boucle ne passera pas par le mixer.", this);
+
+            buzzSource = gameObject.AddComponent<AudioSource>();
+            buzzSource.clip = buzzLoop;
+            buzzSource.loop = true;
+            buzzSource.playOnAwake = false;
+            buzzSource.spatialBlend = 0f;
+            buzzSource.volume = 0f;
+            buzzSource.priority = buzzPriority;
+            buzzSource.outputAudioMixerGroup = buzzGroup;
+
             buzzSource.Play();
             buzzSource.time = Random.Range(0f, buzzLoop.length);
         }
@@ -105,7 +107,7 @@ public class FactoryLightAudio : MonoBehaviour
 
     void UpdateBuzz()
     {
-        if (buzzLoop == null) return;
+        if (buzzSource == null) return;
 
         float normalized = factoryLight.NormalizedIntensity;
 
