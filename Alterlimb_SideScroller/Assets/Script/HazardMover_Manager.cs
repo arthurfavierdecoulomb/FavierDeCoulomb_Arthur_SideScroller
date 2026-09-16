@@ -33,6 +33,11 @@ public class HazardManager : MonoBehaviour
         [Header("Pause aux extrémités (UpDown / LeftRight)")]
         public float pauseDuration = 0f;
 
+        [Header("Rebond aux extrémités (UpDown / LeftRight)")]
+        public float bounceOvershoot = 0f;
+        public float bounceDuration = 0.3f;
+        public int bounceCount = 2;
+
         [Header("Rotation")]
         public float rotationSpeed = 90f;
 
@@ -62,6 +67,10 @@ public class HazardManager : MonoBehaviour
 
         [HideInInspector] public bool isPaused;
         [HideInInspector] public float pauseTimer;
+
+        [HideInInspector] public bool isBouncing;
+        [HideInInspector] public float bounceTimer;
+        [HideInInspector] public float bounceExtremitySign;
 
         [HideInInspector] public bool playerOnPlatform;
         [HideInInspector] public float breakTimer;
@@ -118,6 +127,19 @@ public class HazardManager : MonoBehaviour
             if (h.movementType == MovementType.Breakable)
             {
                 ProcessBreakable(h);
+                continue;
+            }
+
+            if (h.isBouncing)
+            {
+                h.bounceTimer -= Time.fixedDeltaTime;
+                ProcessBounce(h);
+                UpdateHazardAnimation(h);
+                UpdateHazardAudio(h);
+
+                if (h.bounceTimer <= 0f)
+                    EndBounce(h);
+
                 continue;
             }
 
@@ -215,7 +237,9 @@ public class HazardManager : MonoBehaviour
 
     void CheckPause(Hazard h, float sinValue)
     {
-        if (h.pauseDuration <= 0f) return;
+        bool bounceEnabled = h.bounceOvershoot > 0f && h.bounceDuration > 0f;
+        if (h.pauseDuration <= 0f && !bounceEnabled) return;
+
         if (h.justResumed)
         {
             if (Mathf.Abs(Mathf.Abs(sinValue) - 1f) > 0.1f)
@@ -225,8 +249,54 @@ public class HazardManager : MonoBehaviour
 
         if (Mathf.Abs(Mathf.Abs(sinValue) - 1f) < 0.02f)
         {
+            if (bounceEnabled)
+            {
+                h.isBouncing = true;
+                h.bounceTimer = h.bounceDuration;
+                h.bounceExtremitySign = Mathf.Sign(sinValue);
+            }
+            else
+            {
+                h.isPaused = true;
+                h.pauseTimer = h.pauseDuration;
+            }
+        }
+    }
+
+    void ProcessBounce(Hazard h)
+    {
+        float elapsed = h.bounceDuration - h.bounceTimer;
+        float decay = Mathf.Exp(-6f * elapsed / h.bounceDuration);
+        float oscillation = Mathf.Cos(elapsed * h.bounceCount * 2f * Mathf.PI / h.bounceDuration);
+        float displacement = h.bounceExtremitySign * (h.amplitude + h.bounceOvershoot * decay * oscillation);
+
+        Vector3 newPos = h.movementType == MovementType.UpDown
+            ? h.startPosition + new Vector3(0f, displacement, 0f)
+            : h.startPosition + new Vector3(displacement, 0f, 0f);
+
+        MovePlatform(h, newPos);
+        h.audioDirection = 0;
+    }
+
+    void EndBounce(Hazard h)
+    {
+        h.isBouncing = false;
+
+        float displacement = h.bounceExtremitySign * h.amplitude;
+        Vector3 finalPos = h.movementType == MovementType.UpDown
+            ? h.startPosition + new Vector3(0f, displacement, 0f)
+            : h.startPosition + new Vector3(displacement, 0f, 0f);
+
+        MovePlatform(h, finalPos);
+
+        if (h.pauseDuration > 0f)
+        {
             h.isPaused = true;
             h.pauseTimer = h.pauseDuration;
+        }
+        else
+        {
+            h.justResumed = true;
         }
     }
 
@@ -249,7 +319,7 @@ public class HazardManager : MonoBehaviour
         if (h.platformAudio == null) return;
         if (h.movementType != MovementType.UpDown && h.movementType != MovementType.LeftRight) return;
 
-        h.platformAudio.SetDirection(h.isPaused ? 0 : h.audioDirection);
+        h.platformAudio.SetDirection(h.isPaused || h.isBouncing ? 0 : h.audioDirection);
     }
 
     void ProcessBreakable(Hazard h)

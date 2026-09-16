@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.Audio;
 using UnityEngine.Events;
 using System.Collections;
 using System.Collections.Generic;
@@ -89,10 +90,35 @@ public class BossDialogueManager : MonoBehaviour
     [Range(0f, 1f)]
     [SerializeField] float voiceVolume = 1f;
 
+    [Header("Bruitages — sortie mixer")]
+    [SerializeField] AudioMixerGroup sfxGroup;
+    [Range(0, 256)]
+    [SerializeField] int sfxPriority = 0;
+
+    [Header("Bruitages — machine à écrire")]
+    [SerializeField] AudioClip[] typewriterClips;
+    [SerializeField] bool typewriterForAzuOnly = true;
+    [SerializeField] bool skipTypewriterWhenVoiced = true;
+    [SerializeField] float typewriterMinInterval = 0.05f;
+    [Range(0f, 1f)]
+    [SerializeField] float typewriterVolume = 0.45f;
+    [SerializeField] Vector2 typewriterPitchRange = new Vector2(0.94f, 1.06f);
+
+    [Header("Bruitages — panneau")]
+    [SerializeField] AudioClip[] panelInClips;
+    [SerializeField] AudioClip[] panelOutClips;
+    [Range(0f, 1f)]
+    [SerializeField] float panelVolume = 0.8f;
+
+    [Header("Bruitages — validation")]
+    [SerializeField] AudioClip[] advanceClips;
+    [Range(0f, 1f)]
+    [SerializeField] float advanceVolume = 0.7f;
+
     [Header("Machine à écrire")]
     [SerializeField] float typewriterDelay = 0.035f;
     [SerializeField] float minTypewriterDelay = 0.012f;
-    [SerializeField] KeyCode advanceKey = KeyCode.E;
+    [SerializeField] KeyCode advanceKey = KeyCode.Return;
 
     [Header("Animation du panneau")]
     [SerializeField] float hideOffsetY = -400f;
@@ -119,6 +145,10 @@ public class BossDialogueManager : MonoBehaviour
     CharaController charaController;
     int chosenIndex = -1;
 
+    AudioSource sfxSource;
+    AudioClip lastSfxClip;
+    float lastTypewriterTime = -999f;
+
     void Awake()
     {
         if (Instance != null && Instance != this)
@@ -128,6 +158,14 @@ public class BossDialogueManager : MonoBehaviour
         }
 
         Instance = this;
+
+        sfxSource = gameObject.AddComponent<AudioSource>();
+        sfxSource.playOnAwake = false;
+        sfxSource.loop = false;
+        sfxSource.spatialBlend = 0f;
+        sfxSource.priority = sfxPriority;
+        sfxSource.ignoreListenerPause = true;
+        sfxSource.outputAudioMixerGroup = sfxGroup;
 
         panelRect = dialoguePanel.GetComponent<RectTransform>();
         canvasGroup = dialoguePanel.GetComponent<CanvasGroup>();
@@ -159,6 +197,17 @@ public class BossDialogueManager : MonoBehaviour
             continueHintLabel.text = string.Format(continueHintFormat, advanceKey);
 
         ResolvePlayerReferences();
+    }
+
+    void Start()
+    {
+        if (sfxGroup == null)
+            Debug.LogWarning($"[BossDialogueManager] '{name}' : Sfx Group non assigné, les bruitages du dialogue ne passeront pas par le mixer.", this);
+    }
+
+    void OnDestroy()
+    {
+        if (Instance == this) Instance = null;
     }
 
     void ResolvePlayerReferences()
@@ -261,7 +310,7 @@ public class BossDialogueManager : MonoBehaviour
 
             PlayVoice(line);
 
-            yield return StartCoroutine(TypeLineRoutine(line.text, DelayForLine(line)));
+            yield return StartCoroutine(TypeLineRoutine(line.text, DelayForLine(line), ShouldClick(line)));
 
             if (line.speaker == Speaker.OxiO && oxiAnimation != null)
                 oxiAnimation.StopTalking();
@@ -291,6 +340,40 @@ public class BossDialogueManager : MonoBehaviour
         isPlaying = false;
         sequence.onSequenceEnd?.Invoke();
         OnSequenceFinished?.Invoke(sequence.id);
+    }
+
+    bool ShouldClick(DialogueLine line)
+    {
+        if (typewriterClips == null || typewriterClips.Length == 0) return false;
+        if (typewriterForAzuOnly && line.speaker != Speaker.Azu) return false;
+        if (skipTypewriterWhenVoiced && line.voice != null) return false;
+
+        return true;
+    }
+
+    void PlayTypewriterClick()
+    {
+        if (Time.unscaledTime - lastTypewriterTime < typewriterMinInterval) return;
+        lastTypewriterTime = Time.unscaledTime;
+
+        PlaySfx(typewriterClips, typewriterVolume, Random.Range(typewriterPitchRange.x, typewriterPitchRange.y));
+    }
+
+    void PlaySfx(AudioClip[] clips, float volume, float pitch)
+    {
+        if (sfxSource == null) return;
+        if (clips == null || clips.Length == 0) return;
+
+        AudioClip clip = clips[Random.Range(0, clips.Length)];
+
+        if (clips.Length > 1 && clip == lastSfxClip)
+            clip = clips[(System.Array.IndexOf(clips, clip) + 1) % clips.Length];
+
+        if (clip == null) return;
+
+        lastSfxClip = clip;
+        sfxSource.pitch = pitch;
+        sfxSource.PlayOneShot(clip, volume);
     }
 
     void ShowContinueHint()
@@ -424,7 +507,7 @@ public class BossDialogueManager : MonoBehaviour
         return Mathf.Max(minTypewriterDelay, computed);
     }
 
-    IEnumerator TypeLineRoutine(string text, float delay)
+    IEnumerator TypeLineRoutine(string text, float delay, bool playClicks)
     {
         if (dialogueText == null) yield break;
 
@@ -441,11 +524,19 @@ public class BossDialogueManager : MonoBehaviour
 
             dialogueText.text += c;
 
+            if (playClicks && !char.IsWhiteSpace(c))
+                PlayTypewriterClick();
+
             float elapsed = 0f;
 
             while (elapsed < delay)
             {
-                if (AdvancePressed()) skipRequested = true;
+                if (AdvancePressed())
+                {
+                    skipRequested = true;
+                    PlaySfx(advanceClips, advanceVolume, 1f);
+                }
+
                 elapsed += Time.deltaTime;
                 yield return null;
             }
@@ -466,6 +557,8 @@ public class BossDialogueManager : MonoBehaviour
 
         while (!AdvancePressed())
             yield return null;
+
+        PlaySfx(advanceClips, advanceVolume, 1f);
 
         yield return null;
     }
@@ -517,6 +610,8 @@ public class BossDialogueManager : MonoBehaviour
 
         canvasGroup.alpha = 1f;
 
+        PlaySfx(panelInClips, panelVolume, 1f);
+
         float elapsed = 0f;
         Vector2 startPos = hiddenPosition;
         panelRect.anchoredPosition = startPos;
@@ -540,6 +635,8 @@ public class BossDialogueManager : MonoBehaviour
     IEnumerator SlideOutRoutine()
     {
         SetInteractable(false);
+
+        PlaySfx(panelOutClips, panelVolume, 1f);
 
         float elapsed = 0f;
         Vector2 startPos = panelRect.anchoredPosition;

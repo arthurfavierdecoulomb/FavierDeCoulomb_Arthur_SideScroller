@@ -7,7 +7,6 @@ public class GameHud : MonoBehaviour
 {
     [Header("Racine")]
     [SerializeField] CanvasGroup canvasGroup;
-    [SerializeField] RectTransform container;
 
     [Header("Bloc morts")]
     [SerializeField] GameObject deathGroup;
@@ -18,10 +17,6 @@ public class GameHud : MonoBehaviour
     [SerializeField] GameObject timerGroup;
     [SerializeField] TMP_Text timerLabel;
     [SerializeField] HudTimerFormat timerFormat = HudTimerFormat.HoursMinutesSeconds;
-
-    [Header("Alignement")]
-    [SerializeField] TMP_Text[] alignedLabels;
-    [SerializeField] Vector2 margin = new Vector2(32f, 24f);
 
     [Header("Pause")]
     [SerializeField] bool hideWhenPaused = true;
@@ -35,8 +30,26 @@ public class GameHud : MonoBehaviour
     bool showTimer;
     bool showDeaths;
     bool subscribed;
+    bool timerUsable;
+    bool deathUsable;
 
     bool IsPaused => Time.timeScale <= 0.0001f;
+
+    void Awake()
+    {
+        timerUsable = timerLabel != null;
+        deathUsable = deathLabel != null;
+
+        if (!timerUsable)
+            Debug.LogError($"[GameHud] '{name}' : Timer Label non assigné, le chronomètre restera masqué.", this);
+
+        if (!deathUsable)
+            Debug.LogError($"[GameHud] '{name}' : Death Label non assigné, le compteur de morts restera masqué.", this);
+
+        GameHud[] others = FindObjectsByType<GameHud>(FindObjectsInactive.Include);
+        if (others.Length > 1)
+            Debug.LogError($"[GameHud] {others.Length} GameHud presents en scene. Un seul doit exister, les autres ont des references vides.", this);
+    }
 
     void OnEnable()
     {
@@ -94,6 +107,8 @@ public class GameHud : MonoBehaviour
 
     void RefreshTimer()
     {
+        if (timerLabel == null) return;
+
         float time = SettingsManager.Instance.TimerMode == TimerDisplayMode.Level
             ? GameStats.Instance.LevelTime
             : GameStats.Instance.ElapsedTime;
@@ -134,6 +149,8 @@ public class GameHud : MonoBehaviour
 
     void RefreshDeaths()
     {
+        if (deathLabel == null) return;
+
         int deaths = SettingsManager.Instance.DeathMode == DeathDisplayMode.Level
             ? GameStats.Instance.LevelDeaths
             : GameStats.Instance.DeathCount;
@@ -149,8 +166,8 @@ public class GameHud : MonoBehaviour
     {
         if (SettingsManager.Instance == null) return;
 
-        showTimer = SettingsManager.Instance.TimerMode != TimerDisplayMode.Off;
-        showDeaths = SettingsManager.Instance.DeathMode != DeathDisplayMode.Off;
+        showTimer = timerUsable && SettingsManager.Instance.TimerMode != TimerDisplayMode.Off;
+        showDeaths = deathUsable && SettingsManager.Instance.DeathMode != DeathDisplayMode.Off;
 
         if (timerGroup != null) timerGroup.SetActive(showTimer);
         if (deathGroup != null) deathGroup.SetActive(showDeaths);
@@ -163,51 +180,6 @@ public class GameHud : MonoBehaviour
 
         lastTimerTick = -1;
         lastDeaths = -1;
-
-        ApplyCorner(SettingsManager.Instance.Corner);
-    }
-
-    void ApplyCorner(HudCorner corner)
-    {
-        Vector2 anchor;
-        TextAlignmentOptions alignment;
-
-        switch (corner)
-        {
-            case HudCorner.TopRight:
-                anchor = new Vector2(1f, 1f);
-                alignment = TextAlignmentOptions.Right;
-                break;
-            case HudCorner.BottomLeft:
-                anchor = new Vector2(0f, 0f);
-                alignment = TextAlignmentOptions.Left;
-                break;
-            case HudCorner.BottomRight:
-                anchor = new Vector2(1f, 0f);
-                alignment = TextAlignmentOptions.Right;
-                break;
-            default:
-                anchor = new Vector2(0f, 1f);
-                alignment = TextAlignmentOptions.Left;
-                break;
-        }
-
-        if (container != null)
-        {
-            container.anchorMin = anchor;
-            container.anchorMax = anchor;
-            container.pivot = anchor;
-            container.anchoredPosition = new Vector2(
-                Mathf.Lerp(margin.x, -margin.x, anchor.x),
-                Mathf.Lerp(margin.y, -margin.y, anchor.y));
-        }
-
-        if (alignedLabels == null) return;
-        for (int i = 0; i < alignedLabels.Length; i++)
-        {
-            if (alignedLabels[i] != null)
-                alignedLabels[i].alignment = alignment;
-        }
     }
 
     static int WriteNumber(char[] buffer, int index, int value, int minDigits)

@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
 
+[RequireComponent(typeof(SfxEmitter))]
 public class OxiOScreenUI : MonoBehaviour
 {
     public enum CoreState
@@ -51,12 +52,29 @@ public class OxiOScreenUI : MonoBehaviour
     [SerializeField] private CoreSlot[] cores;
     [SerializeField] private float delayBeforeCores = 0.35f;
     [SerializeField] private float delayBetweenCoreReveals = 0.28f;
-    [SerializeField] private float coreRevealFlickerDuration = 0.4f;
+    [SerializeField] private float coreRevealFlickerDuration = 0.25f;
     [SerializeField] private bool lightCoresAfterReveal = true;
     [SerializeField] private float delayBeforeLighting = 0.35f;
     [SerializeField] private float delayBetweenCoreLights = 0.22f;
-    [SerializeField] private float coreLightFlickerDuration = 0.3f;
+    [SerializeField] private float coreLightFlickerDuration = 0.45f;
     [SerializeField] private float coreDestroyFlickerDuration = 1.1f;
+
+    [Header("Audio")]
+    [SerializeField] private AudioClip[] titleClips;
+    [SerializeField] private AudioClip[] coreOffClips;
+    [SerializeField] private AudioClip[] coreOnClips;
+    [SerializeField] private AudioClip[] ecoStartClips;
+    [SerializeField] private AudioClip[] countdownTickClips;
+    [Range(0f, 1f)]
+    [SerializeField] private float titleVolume = 1f;
+    [Range(0f, 1f)]
+    [SerializeField] private float coreOffVolume = 1f;
+    [Range(0f, 1f)]
+    [SerializeField] private float coreOnVolume = 1f;
+    [Range(0f, 1f)]
+    [SerializeField] private float ecoStartVolume = 1f;
+    [Range(0f, 1f)]
+    [SerializeField] private float countdownTickVolume = 1f;
 
     [Header("Mode Oxi'Eco")]
     [SerializeField] private GameObject coresRoot;
@@ -101,9 +119,12 @@ public class OxiOScreenUI : MonoBehaviour
     private Coroutine currentRoutine;
     private Coroutine ecoRoutine;
     private bool hiddenByDialogue;
+    private SfxEmitter sfx;
 
     private void Awake()
     {
+        sfx = GetComponent<SfxEmitter>();
+
         if (panelRect == null)
             panelRect = GetComponent<RectTransform>();
 
@@ -235,6 +256,8 @@ public class OxiOScreenUI : MonoBehaviour
         if (logEcoDiagnostics)
             Debug.Log($"[OxiOScreenUI] Décompte Oxi'Eco lancé pour {duration}s.", this);
 
+        sfx.Play(ecoStartClips, ecoStartVolume);
+
         StopEcoRoutine();
         ecoRoutine = StartCoroutine(EcoCountdownRoutine(duration));
     }
@@ -283,6 +306,7 @@ public class OxiOScreenUI : MonoBehaviour
             {
                 lastShown = seconds;
                 ApplyCountdownSprite(seconds);
+                sfx.Play(countdownTickClips, countdownTickVolume);
             }
 
             remaining -= Time.deltaTime;
@@ -415,7 +439,10 @@ public class OxiOScreenUI : MonoBehaviour
         yield return new WaitForSeconds(delayBeforeTitle);
 
         if (titleRoot != null)
+        {
+            sfx.Play(titleClips, titleVolume);
             yield return FlickerIn(titleRoot, titleFlickerDuration);
+        }
 
         yield return new WaitForSeconds(delayBeforeCores);
 
@@ -425,6 +452,7 @@ public class OxiOScreenUI : MonoBehaviour
                 continue;
 
             SetCoreState(i, CoreState.Off);
+            sfx.Play(coreOffClips, coreOffVolume);
             yield return FlickerIn(cores[i].image.gameObject, coreRevealFlickerDuration);
             yield return new WaitForSeconds(delayBetweenCoreReveals);
         }
@@ -439,6 +467,7 @@ public class OxiOScreenUI : MonoBehaviour
                     continue;
 
                 SetCoreState(i, CoreState.On);
+                sfx.Play(coreOnClips, coreOnVolume);
                 yield return FlickerHold(cores[i].image.gameObject, coreLightFlickerDuration);
                 yield return new WaitForSeconds(delayBetweenCoreLights);
             }

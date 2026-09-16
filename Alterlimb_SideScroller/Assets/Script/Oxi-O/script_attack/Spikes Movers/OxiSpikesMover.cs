@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.Audio;
 using UnityEngine.Events;
 
 public class OxiSpikeMover : MonoBehaviour
@@ -20,6 +21,13 @@ public class OxiSpikeMover : MonoBehaviour
     [SerializeField] private Collider2D killCollider;
     [SerializeField] private bool autoCollectColliders = true;
 
+    [Header("Audio")]
+    [SerializeField] private AudioMixerGroup loopGroup;
+    [SerializeField] private AudioClip scrapeLoop;
+    [Range(0f, 1f)]
+    [SerializeField] private float loopVolume = 0.8f;
+    [SerializeField] private float loopFadeSpeed = 8f;
+
     [Header("Avertissement")]
     [SerializeField] private SpikeWarningUI warningUI;
     [SerializeField] private float warnDuration = 1.1f;
@@ -39,6 +47,10 @@ public class OxiSpikeMover : MonoBehaviour
     private Vector3 baseLocalScale = Vector3.one;
     private float travelY;
 
+    private AudioProxi proximity;
+    private AudioSource loopSource;
+    private bool loopActive;
+
     private void Awake()
     {
         if (movingRoot == null)
@@ -53,10 +65,28 @@ public class OxiSpikeMover : MonoBehaviour
             ? movingRoot.GetComponentsInChildren<Collider2D>(true)
             : (killCollider != null ? new Collider2D[] { killCollider } : new Collider2D[0]);
 
+        proximity = GetComponent<AudioProxi>();
+
+        if (scrapeLoop != null)
+        {
+            loopSource = gameObject.AddComponent<AudioSource>();
+            loopSource.clip = scrapeLoop;
+            loopSource.loop = true;
+            loopSource.playOnAwake = false;
+            loopSource.spatialBlend = 0f;
+            loopSource.volume = 0f;
+            loopSource.outputAudioMixerGroup = loopGroup;
+        }
+
         SetVisible(false);
         SetCollidersEnabled(false);
 
         LogSetup();
+    }
+
+    private void Update()
+    {
+        UpdateLoop();
     }
 
     private void LogSetup()
@@ -123,6 +153,7 @@ public class OxiSpikeMover : MonoBehaviour
 
         SetVisible(true);
         SetCollidersEnabled(true);
+        SetLoopActive(true);
         onTravelStart?.Invoke();
 
         while (Mathf.Abs(movingRoot.position.x - end.x) > 0.05f)
@@ -133,6 +164,7 @@ public class OxiSpikeMover : MonoBehaviour
 
         SetVisible(false);
         SetCollidersEnabled(false);
+        SetLoopActive(false);
         onTravelEnd?.Invoke();
 
         IsBusy = false;
@@ -144,6 +176,10 @@ public class OxiSpikeMover : MonoBehaviour
 
         SetVisible(false);
         SetCollidersEnabled(false);
+        SetLoopActive(false);
+
+        if (loopSource != null)
+            loopSource.Stop();
 
         if (warningUI != null)
             warningUI.HideAll();
@@ -157,6 +193,37 @@ public class OxiSpikeMover : MonoBehaviour
 
         movingRoot.localScale = baseLocalScale;
         IsBusy = false;
+    }
+
+    private void SetLoopActive(bool active)
+    {
+        loopActive = active;
+    }
+
+    private void UpdateLoop()
+    {
+        if (loopSource == null)
+            return;
+
+        float targetVolume = 0f;
+
+        if (loopActive)
+        {
+            targetVolume = loopVolume;
+            if (proximity != null)
+                targetVolume *= proximity.GetAttenuation();
+        }
+
+        if (loopActive && !loopSource.isPlaying)
+        {
+            loopSource.volume = 0f;
+            loopSource.Play();
+        }
+
+        loopSource.volume = Mathf.MoveTowards(loopSource.volume, targetVolume, loopFadeSpeed * Time.deltaTime);
+
+        if (loopSource.volume <= 0.001f && targetVolume <= 0.001f && loopSource.isPlaying)
+            loopSource.Stop();
     }
 
     private void SetVisible(bool visible)

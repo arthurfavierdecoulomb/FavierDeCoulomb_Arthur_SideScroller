@@ -42,10 +42,6 @@ public class LevelTransitionManager : MonoBehaviour
         public float delayBeforeRewrite = 0.6f;
         public float eraseDuration = 0.7f;
         public float typeInterval = 0.055f;
-
-        [Header("Son")]
-        public AudioClip takeoverSound;
-        public AudioClip typeSound;
     }
 
     [Header("Références UI")]
@@ -110,11 +106,8 @@ public class LevelTransitionManager : MonoBehaviour
     [SerializeField] float flickerMinInterval = 0.04f;
     [SerializeField] float flickerMaxInterval = 0.12f;
 
-
-    [Header("Audio — bruitages")]
-    [SerializeField] AudioSource audioSource;
-    [SerializeField] AudioClip flickerSound;
-    [SerializeField] AudioClip transitionSound;
+    [Header("Audio")]
+    [SerializeField] LevelCardAudio cardAudio;
 
     [Header("Audio — musique des niveaux")]
     [SerializeField] float musicFadeOutDuration = 2f;
@@ -146,6 +139,8 @@ public class LevelTransitionManager : MonoBehaviour
         }
         Instance = this;
 
+        if (cardAudio == null) cardAudio = GetComponent<LevelCardAudio>();
+
         if (transitionOverlay != null) transitionOverlay.SetActive(true);
         if (blackBackground != null) blackBackground.SetActive(false);
         if (crtEffect != null) crtEffect.SetActive(false);
@@ -159,10 +154,18 @@ public class LevelTransitionManager : MonoBehaviour
         LogSetup();
     }
 
+    void OnDestroy()
+    {
+        if (Instance == this) Instance = null;
+    }
+
     void LogSetup()
     {
         if (!logDiagnostics)
             return;
+
+        if (cardAudio == null)
+            Debug.LogWarning("[LevelTransitionManager] Card Audio est vide : la carte de niveau sera muette.", this);
 
         if (crtEffect == null)
             Debug.LogError("[LevelTransitionManager] Le champ Crt Effect est vide : aucun effet CRT ne s'affichera.", this);
@@ -317,8 +320,7 @@ public class LevelTransitionManager : MonoBehaviour
             yield return null;
         }
 
-        if (audioSource != null && transitionSound != null)
-            audioSource.PlayOneShot(transitionSound, 0.6f);
+        if (cardAudio != null) cardAudio.PlayCardOpen();
 
         if (blackBackground != null) blackBackground.SetActive(true);
         if (crtEffect != null) crtEffect.SetActive(true);
@@ -389,8 +391,7 @@ public class LevelTransitionManager : MonoBehaviour
             );
         }
 
-        if (audioSource != null && transitionSound != null)
-            audioSource.PlayOneShot(transitionSound, 0.6f);
+        if (cardAudio != null) cardAudio.PlayCardOpen();
 
         if (blackBackground != null) blackBackground.SetActive(true);
         if (crtEffect != null) crtEffect.SetActive(true);
@@ -413,19 +414,25 @@ public class LevelTransitionManager : MonoBehaviour
         if (levelTitle == null) yield break;
 
         TransitionTakeover takeover = FindTakeover(target);
+        bool oxi = false;
+
+        if (cardAudio != null) cardAudio.StartHum();
 
         levelTitle.text = target.levelName;
         if (levelDescription != null) levelDescription.text = target.levelDescription;
 
-        yield return StartCoroutine(FlickerObjectIn(levelTitle.gameObject, titleFlickerInDuration));
+        yield return StartCoroutine(FlickerObjectIn(levelTitle.gameObject, titleFlickerInDuration, true, oxi));
 
         yield return new WaitForSeconds(delayBeforeDescription);
 
         if (levelDescription != null)
-            yield return StartCoroutine(FlickerObjectIn(levelDescription.gameObject, descriptionFlickerInDuration));
+            yield return StartCoroutine(FlickerObjectIn(levelDescription.gameObject, descriptionFlickerInDuration, false, oxi));
 
         if (takeover != null)
+        {
             yield return StartCoroutine(TakeoverRoutine(takeover));
+            oxi = true;
+        }
 
         yield return new WaitForSeconds(delayBeforeContinuePrompt);
 
@@ -436,9 +443,11 @@ public class LevelTransitionManager : MonoBehaviour
         HidePrompt();
 
         if (levelDescription != null)
-            yield return StartCoroutine(FlickerObjectOut(levelDescription.gameObject, descriptionFlickerOutDuration));
+            yield return StartCoroutine(FlickerObjectOut(levelDescription.gameObject, descriptionFlickerOutDuration, false, oxi));
 
-        yield return StartCoroutine(FlickerObjectOut(levelTitle.gameObject, titleFlickerOutDuration));
+        yield return StartCoroutine(FlickerObjectOut(levelTitle.gameObject, titleFlickerOutDuration, true, oxi));
+
+        if (cardAudio != null) cardAudio.StopHum();
 
         yield return new WaitForSeconds(endBlackHold);
 
@@ -456,6 +465,8 @@ public class LevelTransitionManager : MonoBehaviour
                 takeover.crtOverrideObject.SetActive(false);
 
         HidePrompt();
+
+        if (cardAudio != null) cardAudio.StopHum();
 
         if (levelTitle != null) { levelTitle.color = baseTitleColor; levelTitle.enabled = true; }
         if (levelDescription != null) { levelDescription.color = baseDescriptionColor; levelDescription.enabled = true; }
@@ -493,12 +504,13 @@ public class LevelTransitionManager : MonoBehaviour
         if (takeover.delayBeforeTakeover > 0f)
             yield return new WaitForSeconds(takeover.delayBeforeTakeover);
 
-        if (audioSource != null && takeover.takeoverSound != null)
-            audioSource.PlayOneShot(takeover.takeoverSound, 0.8f);
+        if (cardAudio != null) cardAudio.PlayTakeoverStomp();
 
         yield return StartCoroutine(TakeoverFlickerRoutine(takeover));
 
         ApplyTakeoverVisuals(takeover);
+
+        if (cardAudio != null) cardAudio.SwitchToOxiHum();
 
         if (takeover.glitchTitle)
             yield return StartCoroutine(GlitchTextRoutine(levelTitle, takeover.corruptedTitle, takeover));
@@ -628,8 +640,7 @@ public class LevelTransitionManager : MonoBehaviour
 
             label.text = BuildGlitchedText(finalText, settled);
 
-            if (audioSource != null && takeover.typeSound != null && Random.value < 0.3f)
-                audioSource.PlayOneShot(takeover.typeSound, 0.2f);
+            if (cardAudio != null) cardAudio.PlayTitleBleep(true);
 
             yield return new WaitForSeconds(interval);
             elapsed += interval;
@@ -670,6 +681,9 @@ public class LevelTransitionManager : MonoBehaviour
         {
             current = current.Substring(0, current.Length - 1);
             label.text = current;
+
+            if (cardAudio != null) cardAudio.PlayTextBleep(true);
+
             yield return new WaitForSeconds(interval);
         }
     }
@@ -685,8 +699,8 @@ public class LevelTransitionManager : MonoBehaviour
         {
             label.text += c;
 
-            if (audioSource != null && takeover.typeSound != null && c != ' ')
-                audioSource.PlayOneShot(takeover.typeSound, 0.25f);
+            if (cardAudio != null && c != ' ')
+                cardAudio.PlayTextBleep(true);
 
             yield return new WaitForSeconds(interval);
         }
@@ -700,16 +714,22 @@ public class LevelTransitionManager : MonoBehaviour
         while (elapsed < continueTimeout)
         {
             if (Input.GetKeyDown(continueKey))
-                yield break;
-
-            if (countdownLabel != null)
             {
-                float remaining = Mathf.Ceil(continueTimeout - elapsed);
-                if (!Mathf.Approximately(remaining, lastDisplayedSecond))
-                {
+                if (cardAudio != null) cardAudio.PlayContinue();
+                yield break;
+            }
+
+            float remaining = Mathf.Ceil(continueTimeout - elapsed);
+
+            if (!Mathf.Approximately(remaining, lastDisplayedSecond))
+            {
+                if (countdownLabel != null)
                     countdownLabel.text = FormatCountdown(remaining);
-                    lastDisplayedSecond = remaining;
-                }
+
+                if (cardAudio != null && lastDisplayedSecond >= 0f)
+                    cardAudio.PlayCountdownTick(Mathf.RoundToInt(remaining));
+
+                lastDisplayedSecond = remaining;
             }
 
             elapsed += Time.deltaTime;
@@ -731,6 +751,8 @@ public class LevelTransitionManager : MonoBehaviour
             yield break;
 
         continuePromptRoot.SetActive(true);
+
+        if (cardAudio != null) cardAudio.PlayPromptSwoosh();
 
         if (countdownRoot != null)
             countdownRoot.SetActive(false);
@@ -845,7 +867,7 @@ public class LevelTransitionManager : MonoBehaviour
             continuePromptRoot.SetActive(false);
     }
 
-    IEnumerator FlickerObjectIn(GameObject go, float duration)
+    IEnumerator FlickerObjectIn(GameObject go, float duration, bool isTitle, bool oxi)
     {
         if (go == null) yield break;
 
@@ -857,8 +879,11 @@ public class LevelTransitionManager : MonoBehaviour
             visible = !visible;
             go.SetActive(visible);
 
-            if (audioSource != null && flickerSound != null && visible)
-                audioSource.PlayOneShot(flickerSound, 0.3f);
+            if (cardAudio != null && visible)
+            {
+                if (isTitle) cardAudio.PlayTitleBleep(oxi);
+                else cardAudio.PlayTextBleep(oxi);
+            }
 
             float interval = Random.Range(flickerMinInterval, flickerMaxInterval);
             yield return new WaitForSeconds(interval);
@@ -868,7 +893,7 @@ public class LevelTransitionManager : MonoBehaviour
         go.SetActive(true);
     }
 
-    IEnumerator FlickerObjectOut(GameObject go, float duration)
+    IEnumerator FlickerObjectOut(GameObject go, float duration, bool isTitle, bool oxi)
     {
         if (go == null) yield break;
 
@@ -880,8 +905,11 @@ public class LevelTransitionManager : MonoBehaviour
             visible = !visible;
             go.SetActive(visible);
 
-            if (audioSource != null && flickerSound != null && !visible)
-                audioSource.PlayOneShot(flickerSound, 0.3f);
+            if (cardAudio != null && !visible)
+            {
+                if (isTitle) cardAudio.PlayTitleBleep(oxi);
+                else cardAudio.PlayTextBleep(oxi);
+            }
 
             float interval = Random.Range(flickerMinInterval, flickerMaxInterval);
             yield return new WaitForSeconds(interval);

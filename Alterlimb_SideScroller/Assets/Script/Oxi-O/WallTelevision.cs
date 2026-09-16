@@ -46,16 +46,16 @@ public class WallTelevision : MonoBehaviour
     [SerializeField] Vector2 faceVisibleRange = new Vector2(0.6f, 2.6f);
     [SerializeField] Vector2 faceHiddenRange = new Vector2(0.04f, 0.18f);
 
+    [Header("Possession — fin")]
+    [SerializeField] bool powerOffWhenPlayerLeaves = true;
+    [SerializeField] float minPossessionDuration = 3f;
+
     [Header("Lumière")]
     [SerializeField] Color idleLightColor = new Color(0.85f, 0.8f, 0.6f);
     [SerializeField] Color possessedLightColor = new Color(1f, 0.92f, 0.25f);
     [SerializeField] float idleLightIntensity = 0.35f;
     [SerializeField] float possessedLightIntensity = 0.9f;
     [SerializeField] float interferenceLightIntensity = 1.8f;
-
-    [Header("Son")]
-    [SerializeField] AudioSource audioSource;
-    [SerializeField] AudioClip possessionClip;
 
     TelevisionIdleState resolvedIdle;
     TelevisionReaction resolvedReaction;
@@ -66,12 +66,21 @@ public class WallTelevision : MonoBehaviour
     float frameTimer;
     float possessTimer;
     float connectionTimer;
+    float possessionElapsed;
     int currentFrame = -1;
     bool possessed;
     bool connecting;
     bool faceVisible;
+    bool faceOnScreen;
+    bool interferenceOnScreen;
+    bool poweredOff;
 
     public bool IsPossessed => possessed;
+    public bool IsConnecting => connecting;
+    public bool IsFaceOnScreen => faceOnScreen;
+    public bool IsInterferenceOnScreen => interferenceOnScreen;
+    public bool IsPoweredOff => poweredOff;
+    public TelevisionReaction ResolvedReaction => resolvedReaction;
 
     void Awake()
     {
@@ -102,6 +111,8 @@ public class WallTelevision : MonoBehaviour
 
     void Update()
     {
+        if (poweredOff) return;
+
         detectionTimer -= Time.deltaTime;
         if (detectionTimer <= 0f)
         {
@@ -111,6 +122,14 @@ public class WallTelevision : MonoBehaviour
 
         if (possessed)
         {
+            possessionElapsed += Time.deltaTime;
+
+            if (powerOffWhenPlayerLeaves && player == null && possessionElapsed >= minPossessionDuration)
+            {
+                PowerOff();
+                return;
+            }
+
             UpdatePossessed();
             return;
         }
@@ -133,16 +152,40 @@ public class WallTelevision : MonoBehaviour
 
     public void Possess()
     {
-        if (possessed) return;
+        if (possessed || poweredOff) return;
 
         possessed = true;
         connecting = true;
         faceVisible = false;
         connectionTimer = connectionDuration;
         possessTimer = 0f;
+        possessionElapsed = 0f;
+    }
 
-        if (audioSource != null && possessionClip != null)
-            audioSource.PlayOneShot(possessionClip);
+    public void PowerOff()
+    {
+        poweredOff = true;
+        possessed = false;
+        connecting = false;
+        faceVisible = false;
+        currentFrame = -1;
+        faceOnScreen = false;
+        interferenceOnScreen = false;
+
+        if (screenRenderer != null)
+        {
+            screenRenderer.sprite = offSprite;
+            screenRenderer.color = Color.white;
+        }
+
+        ApplyLight(idleLightColor, 0f);
+    }
+
+    public void PowerOn()
+    {
+        poweredOff = false;
+        possessionElapsed = 0f;
+        ShowIdle();
     }
 
     void DetectPlayer()
@@ -220,6 +263,9 @@ public class WallTelevision : MonoBehaviour
         }
 
         currentFrame = index;
+        faceOnScreen = true;
+        interferenceOnScreen = false;
+
         screenRenderer.sprite = oxioFrames[index];
         screenRenderer.color = Color.white;
         ApplyLight(possessed ? possessedLightColor : idleLightColor, lightIntensity);
@@ -228,6 +274,8 @@ public class WallTelevision : MonoBehaviour
     void ShowInterference()
     {
         currentFrame = -1;
+        faceOnScreen = false;
+        interferenceOnScreen = true;
 
         Sprite sprite = null;
         if (interferenceSprites != null && interferenceSprites.Length > 0)
@@ -241,6 +289,9 @@ public class WallTelevision : MonoBehaviour
     void ShowIdle()
     {
         currentFrame = -1;
+        faceOnScreen = false;
+        interferenceOnScreen = false;
+
         screenRenderer.sprite = idleSprite;
         screenRenderer.color = Color.white;
 

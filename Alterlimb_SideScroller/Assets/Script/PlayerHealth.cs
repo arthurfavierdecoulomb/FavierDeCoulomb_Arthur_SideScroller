@@ -21,6 +21,9 @@ public class PlayerHealth : MonoBehaviour
     [SerializeField] Image healthBar;
     [SerializeField] float barSmoothSpeed = 5f;
 
+    [Header("Audio")]
+    [SerializeField] AzuAudio azuAudio;
+
     [Header("Debug")]
     [SerializeField] bool debugMode = false;
 
@@ -35,11 +38,19 @@ public class PlayerHealth : MonoBehaviour
     public float CurrentHealth => currentHealth;
     public float MaxHealth => maxHealth;
 
+    void Awake()
+    {
+        if (azuAudio == null) azuAudio = GetComponent<AzuAudio>();
+    }
+
     void Start()
     {
         currentHealth = maxHealth;
         displayedHealth = maxHealth;
         timeSinceLastDamage = regenDelay;
+
+        if (azuAudio == null)
+            Debug.LogWarning($"[PlayerHealth] '{name}' ne trouve aucun AzuAudio : les dégâts seront muets.", this);
     }
 
     void Update()
@@ -95,6 +106,8 @@ public class PlayerHealth : MonoBehaviour
         invincibilityTimer = invincibilityDuration;
         timeSinceLastDamage = 0f;
 
+        if (azuAudio != null) azuAudio.Hurt();
+
         if (debugMode) Debug.Log($"[PlayerHealth] Dégâts reçus : {amount}. Vie restante : {currentHealth}/{maxHealth}");
 
         CheckDeath();
@@ -107,6 +120,8 @@ public class PlayerHealth : MonoBehaviour
         currentHealth -= amount;
         currentHealth = Mathf.Max(currentHealth, 0f);
         timeSinceLastDamage = 0f;
+
+        if (azuAudio != null) azuAudio.HurtContinuous();
 
         CheckDeath();
     }

@@ -11,6 +11,8 @@ public class AzuAudio : MonoBehaviour
     public class SurfaceBank
     {
         public SurfaceType surface;
+        [Range(0f, 2f)] public float volumeScale = 1f;
+        [Range(0.5f, 1.5f)] public float pitchScale = 1f;
         public AudioClip[] footsteps;
         public AudioClip[] stomps;
     }
@@ -42,6 +44,9 @@ public class AzuAudio : MonoBehaviour
     [SerializeField] float jumpVolume = 0.9f;
     [SerializeField] AudioClip[] hurtClips;
     [SerializeField] float hurtVolume = 1f;
+    [SerializeField] float continuousHurtInterval = 0.45f;
+    [Range(0f, 1f)]
+    [SerializeField] float continuousHurtVolumeScale = 0.6f;
 
     [Header("Changement de bras")]
     [SerializeField] AudioClip[] swapHandClips;
@@ -97,6 +102,8 @@ public class AzuAudio : MonoBehaviour
     float previousFallSpeed;
     float stepAccumulator;
     bool wasStepping;
+    float lastHurtTime = -999f;
+    bool hurtClipsWarned;
     AudioClip lastPlayedClip;
 
     readonly Dictionary<Collider2D, Tilemap[]> tilemapCache = new Dictionary<Collider2D, Tilemap[]>();
@@ -219,7 +226,7 @@ public class AzuAudio : MonoBehaviour
         }
 
         if (bank == null) return;
-        PlayRandom(bank.footsteps, footstepVolume);
+        PlayRandom(bank.footsteps, footstepVolume * bank.volumeScale, bank.pitchScale);
     }
 
     public void Stomp()
@@ -228,7 +235,7 @@ public class AzuAudio : MonoBehaviour
         if (bank == null) return;
 
         AudioClip[] clips = (bank.stomps != null && bank.stomps.Length > 0) ? bank.stomps : bank.footsteps;
-        PlayRandom(clips, stompVolume);
+        PlayRandom(clips, stompVolume * bank.volumeScale, bank.pitchScale);
     }
 
     public void Jump()
@@ -243,7 +250,32 @@ public class AzuAudio : MonoBehaviour
 
     public void Hurt()
     {
+        if (!HasHurtClips()) return;
+
+        lastHurtTime = Time.time;
         PlayRandom(hurtClips, hurtVolume);
+    }
+
+    public void HurtContinuous()
+    {
+        if (!HasHurtClips()) return;
+        if (Time.time - lastHurtTime < continuousHurtInterval) return;
+
+        lastHurtTime = Time.time;
+        PlayRandom(hurtClips, hurtVolume * continuousHurtVolumeScale);
+    }
+
+    bool HasHurtClips()
+    {
+        if (hurtClips != null && hurtClips.Length > 0) return true;
+
+        if (!hurtClipsWarned)
+        {
+            hurtClipsWarned = true;
+            Debug.LogError("[AzuAudio] Un son de degats a ete demande mais aucun Hurt Clip n'est assigne.", this);
+        }
+
+        return false;
     }
 
     void UpdateArmSwap()
@@ -498,6 +530,11 @@ public class AzuAudio : MonoBehaviour
 
     void PlayRandom(AudioClip[] clips, float volume)
     {
+        PlayRandom(clips, volume, 1f);
+    }
+
+    void PlayRandom(AudioClip[] clips, float volume, float pitchScale)
+    {
         if (IsPaused) return;
         if (clips == null || clips.Length == 0) return;
 
@@ -509,7 +546,7 @@ public class AzuAudio : MonoBehaviour
         if (clip == null) return;
 
         lastPlayedClip = clip;
-        oneShotSource.pitch = Random.Range(pitchRange.x, pitchRange.y);
-        oneShotSource.PlayOneShot(clip, volume);
+        oneShotSource.pitch = Random.Range(pitchRange.x, pitchRange.y) * pitchScale;
+        oneShotSource.PlayOneShot(clip, Mathf.Max(volume, 0f));
     }
 }

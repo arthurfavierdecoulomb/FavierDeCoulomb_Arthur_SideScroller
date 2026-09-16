@@ -20,6 +20,10 @@ public class PlatformAudio : MonoBehaviour
     [Header("Demarrage / arret")]
     [SerializeField] AudioClip[] startClips;
     [SerializeField] AudioClip[] stopClips;
+    [Range(0f, 1f)]
+    [SerializeField] float startVolume = 1f;
+    [Range(0f, 1f)]
+    [SerializeField] float stopVolume = 1f;
     [SerializeField] bool clacOnDirectionChange = true;
 
     [Header("Bleeps de la fleche")]
@@ -98,19 +102,19 @@ public class PlatformAudio : MonoBehaviour
 
         if (previous == 0)
         {
-            sfx.Play(startClips);
+            sfx.Play(startClips, startVolume);
             motorPending = motorStartDelay > 0f;
             motorDelayTimer = motorStartDelay;
             bleepTimer = 0f;
         }
         else if (direction == 0)
         {
-            sfx.Play(stopClips);
+            sfx.Play(stopClips, stopVolume);
             motorPending = false;
         }
         else if (clacOnDirectionChange)
         {
-            sfx.Play(stopClips);
+            sfx.Play(stopClips, stopVolume);
         }
     }
 

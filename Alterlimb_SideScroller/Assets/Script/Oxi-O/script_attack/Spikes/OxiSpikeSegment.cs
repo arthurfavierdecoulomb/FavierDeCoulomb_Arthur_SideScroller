@@ -1,6 +1,7 @@
 using System.Collections;
 using UnityEngine;
 
+[RequireComponent(typeof(SfxEmitter))]
 public class OxiSpikeSegment : MonoBehaviour
 {
     [Header("Références")]
@@ -26,6 +27,17 @@ public class OxiSpikeSegment : MonoBehaviour
     [SerializeField] private float warningBlinkAcceleration = 0.85f;
     [SerializeField] private float warningMinInterval = 0.03f;
 
+    [Header("Audio")]
+    [SerializeField] private AudioClip[] warningClips;
+    [SerializeField] private AudioClip[] riseClips;
+    [SerializeField] private AudioClip[] retractClips;
+    [Range(0f, 1f)]
+    [SerializeField] private float warningVolume = 1f;
+    [Range(0f, 1f)]
+    [SerializeField] private float riseVolume = 1f;
+    [Range(0f, 1f)]
+    [SerializeField] private float retractVolume = 1f;
+
     [Header("Diagnostic")]
     [SerializeField] private bool logSetupWarnings = true;
 
@@ -34,9 +46,12 @@ public class OxiSpikeSegment : MonoBehaviour
 
     private float raisedLocalY;
     private float hiddenLocalY;
+    private SfxEmitter sfx;
 
     private void Awake()
     {
+        sfx = GetComponent<SfxEmitter>();
+
         if (spikes == null)
         {
             spikes = transform;
@@ -122,6 +137,8 @@ public class OxiSpikeSegment : MonoBehaviour
 
     private IEnumerator Warn(float warnDuration)
     {
+        sfx.Play(warningClips, warningVolume);
+
         if (!HasWarningVisual())
         {
             yield return new WaitForSeconds(warnDuration);
@@ -152,6 +169,8 @@ public class OxiSpikeSegment : MonoBehaviour
         if (killCollider != null)
             killCollider.enabled = true;
 
+        sfx.Play(riseClips, riseVolume);
+
         while (spikes.localPosition.y < raisedLocalY - 0.001f)
         {
             float next = Mathf.MoveTowards(spikes.localPosition.y, raisedLocalY, riseSpeed * Time.deltaTime);
@@ -164,6 +183,8 @@ public class OxiSpikeSegment : MonoBehaviour
 
     private IEnumerator Retract()
     {
+        sfx.Play(retractClips, retractVolume);
+
         while (spikes.localPosition.y > hiddenLocalY + 0.001f)
         {
             float next = Mathf.MoveTowards(spikes.localPosition.y, hiddenLocalY, retractSpeed * Time.deltaTime);

@@ -95,6 +95,10 @@ GameObject:
   - component: {fileID: 1814224594156003485}
   - component: {fileID: 5627386660750688775}
   - component: {fileID: 4418919682011660790}
+  - component: {fileID: 631206011790158239}
+  - component: {fileID: 3122913007106750979}
+  - component: {fileID: 1805168289359291164}
+  - component: {fileID: 4132190752801106723}
   m_Layer: 0
   m_Name: "t\xE9l\xE9vision_mural"
   m_TagString: Untagged
@@ -224,10 +228,196 @@ MonoBehaviour:
   connectionFlickerRange: {x: 0.03, y: 0.08}
   faceVisibleRange: {x: 0.6, y: 2.6}
   faceHiddenRange: {x: 0.04, y: 0.18}
+  powerOffWhenPlayerLeaves: 1
+  minPossessionDuration: 3
   idleLightColor: {r: 0.85, g: 0.8, b: 0.6, a: 1}
   possessedLightColor: {r: 1, g: 0.92, b: 0.25, a: 1}
   idleLightIntensity: 0.35
   possessedLightIntensity: 1.4
   interferenceLightIntensity: 1.8
-  audioSource: {fileID: 0}
-  possessionClip: {fileID: 0}
+--- !u!114 &631206011790158239
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7483452548735940019}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b535677abf084cc4c8db2988e9b0fe28, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SfxEmitter
+  source: {fileID: 3122913007106750979}
+  volume: 1
+  pitchRange: {x: 0.97, y: 1.03}
+  blockedWhilePaused: 1
+  logAttenuation: 0
+--- !u!82 &3122913007106750979
+AudioSource:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7483452548735940019}
+  m_Enabled: 1
+  serializedVersion: 4
+  OutputAudioMixerGroup: {fileID: 7067628019711585974, guid: 1e7aa001d7c8eea4884c2974bfe5a345, type: 2}
+  m_audioClip: {fileID: 0}
+  m_Resource: {fileID: 0}
+  m_PlayOnAwake: 1
+  m_Volume: 1
+  m_Pitch: 1
+  Loop: 0
+  Mute: 0
+  Spatialize: 0
+  SpatializePostEffects: 0
+  Priority: 128
+  DopplerLevel: 1
+  MinDistance: 1
+  MaxDistance: 500
+  Pan2D: 0
+  rolloffMode: 0
+  BypassEffects: 0
+  BypassListenerEffects: 0
+  BypassReverbZones: 0
+  rolloffCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  panLevelCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  spreadCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  reverbZoneMixCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+--- !u!114 &1805168289359291164
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7483452548735940019}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9e4ffa600ddb66143849fe8ad6997df9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AudioProxi
+  centerOffset: {x: 0, y: 0}
+  innerRadius: 2.25
+  outerRadius: 8.2
+  falloffCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  minAttenuation: 0
+  playerTag: Player
+  drawGizmos: 1
+--- !u!114 &4132190752801106723
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7483452548735940019}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1ac5bf5d354082240ab9fc287dd51c43, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WallTelevisionAudio
+  television: {fileID: 4418919682011660790}
+  humGroup: {fileID: 7067628019711585974, guid: 1e7aa001d7c8eea4884c2974bfe5a345, type: 2}
+  humLoop: {fileID: 8300000, guid: 3e585917f8d5a194cb91630d197d519e, type: 3}
+  humVolume: 0.5
+  interferenceHumVolume: 0.15
+  humFadeInSpeed: 4
+  humFadeOutSpeed: 8
+  connectingPitch: 0.8
+  pitchSmoothing: 12
+  connectionClips:
+  - {fileID: 8300000, guid: 4b1926fd7987f34458751e2469d8612d, type: 3}
+  glitchClips:
+  - {fileID: 8300000, guid: fb21a2af8f2b5834885bd181de4af1a8, type: 3}
+  shutdownClips:
+  - {fileID: 8300000, guid: 4b1926fd7987f34458751e2469d8612d, type: 3}
+  glitchVolume: 0.8
+  humPriority: 180
+  muteWhilePaused: 1
