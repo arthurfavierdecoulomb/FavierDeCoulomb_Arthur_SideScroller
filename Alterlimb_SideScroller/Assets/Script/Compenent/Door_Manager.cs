@@ -57,6 +57,8 @@ public class Door : MonoBehaviour
     bool autoCloseScheduled;
     float lockedSoundTimer;
 
+    public event System.Action OnOpened;
+
     static readonly int OpenTrigger = Animator.StringToHash("Open");
     static readonly int CloseTrigger = Animator.StringToHash("Close");
 
@@ -251,7 +253,7 @@ public class Door : MonoBehaviour
                 PlayOpenSound();
         }
 
-        StartCoroutine(SetColliderAfterDelay(false, openColliderDelay));
+        StartCoroutine(SetColliderAfterDelay(false, openColliderDelay, () => OnOpened?.Invoke()));
     }
 
     public void CloseDoor()
@@ -298,14 +300,15 @@ public class Door : MonoBehaviour
         if (sfx != null) sfx.Play(clips);
     }
 
-    IEnumerator SetColliderAfterDelay(bool enabled, float delay)
+    IEnumerator SetColliderAfterDelay(bool colliderEnabled, float delay, System.Action onComplete = null)
     {
-        if (solidCollider == null) yield break;
-
         if (delay > 0f)
             yield return new WaitForSeconds(delay);
 
-        solidCollider.enabled = enabled;
+        if (solidCollider != null)
+            solidCollider.enabled = colliderEnabled;
+
+        onComplete?.Invoke();
     }
 
     bool HasAnyClip()

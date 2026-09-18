@@ -60,9 +60,13 @@ public class CharaController : MonoBehaviour
     bool isInvincible;
     bool controlLocked;
 
+    bool hasSafeRespawn;
+    Vector2 safeRespawnPosition;
+
     bool dashEnabled = false;
 
     public static event System.Action OnPlayerDied;
+    public event System.Action OnSafeRespawn;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     static void ResetStatics()
@@ -337,6 +341,12 @@ public class CharaController : MonoBehaviour
         if (isDead) return;
         if (isInvincible) return;
 
+        if (hasSafeRespawn)
+        {
+            RespawnAtSafePoint();
+            return;
+        }
+
         isDead = true;
         isInQuicksand = false;
         isDashing = false;
@@ -347,6 +357,26 @@ public class CharaController : MonoBehaviour
         OnPlayerDied?.Invoke();
 
         SpawnManager.Instance.Respawn(this);
+    }
+
+    void RespawnAtSafePoint()
+    {
+        transform.position = safeRespawnPosition;
+        rb.linearVelocity = Vector2.zero;
+        isDashing = false;
+        dashRequested = false;
+        jumpBufferCounter = 0f;
+        jumpLockoutCounter = 0f;
+
+        GetComponent<PlayerHealth>()?.ResetHealth();
+
+        OnSafeRespawn?.Invoke();
+    }
+
+    public void SetSafeRespawn(Vector2? position)
+    {
+        hasSafeRespawn = position.HasValue;
+        if (hasSafeRespawn) safeRespawnPosition = position.Value;
     }
 
     public void Revive(Vector3 spawnPosition)

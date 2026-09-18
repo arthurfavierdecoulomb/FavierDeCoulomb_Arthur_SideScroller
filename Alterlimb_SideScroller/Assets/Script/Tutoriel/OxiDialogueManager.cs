@@ -14,7 +14,7 @@ public class OxiDialogueManager : MonoBehaviour
     [System.Serializable]
     public class DialogueLine
     {
-        public enum RequiredAction { None, Move, Jump }
+        public enum RequiredAction { None, Move, Jump, External }
 
         public Speaker speaker;
         public Sprite azuExpression;
@@ -84,6 +84,7 @@ public class OxiDialogueManager : MonoBehaviour
     Vector2 hiddenPosition;
     bool isPlaying;
     bool skipRequested;
+    bool externalActionReady;
 
     void Awake()
     {
@@ -270,6 +271,7 @@ public class OxiDialogueManager : MonoBehaviour
 
         bool movedLeft = false;
         bool movedRight = false;
+        externalActionReady = false;
 
         while (true)
         {
@@ -285,9 +287,18 @@ public class OxiDialogueManager : MonoBehaviour
             {
                 if (Input.GetButtonDown("Jump")) break;
             }
+            else if (action == DialogueLine.RequiredAction.External)
+            {
+                if (externalActionReady) break;
+            }
 
             yield return null;
         }
+    }
+
+    public void NotifyExternalActionReady()
+    {
+        externalActionReady = true;
     }
 
     bool AdvancePressed()
