@@ -20,7 +20,7 @@ public class PauseMenu : MonoBehaviour
 
     void Update()
     {
-        if (!KeyBindings.GetDown(GameAction.Pause)) return;
+        if (!Input.GetKeyDown(KeyCode.Escape)) return;
 
         if (settingsAnimator != null && settingsAnimator.IsOpen)
         {

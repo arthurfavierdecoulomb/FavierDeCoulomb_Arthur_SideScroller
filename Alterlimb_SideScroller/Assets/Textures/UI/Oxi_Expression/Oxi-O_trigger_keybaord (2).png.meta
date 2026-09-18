@@ -1,19 +1,10 @@
 fileFormatVersion: 2
-guid: b15e8de7d017ef1459adb3bd0bd82e4a
+guid: 746ac567cc016654587a7e743cc28edc
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 3160529489710011915
-    second: IMG_2245_0
-  - first:
-      213: -8891005420135983133
-    second: IMG_2245_1
-  - first:
-      213: 8746126560807972526
-    second: IMG_2245_2
-  - first:
-      213: -2239617087622992156
-    second: IMG_2245_3
+      213: 8689411925491753054
+    second: Oxi-O_trigger_keybaord (2)_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -81,7 +72,7 @@ TextureImporter:
   platformSettings:
   - serializedVersion: 4
     buildTarget: DefaultTexturePlatform
-    maxTextureSize: 2048
+    maxTextureSize: 8192
     resizeAlgorithm: 0
     textureFormat: -1
     textureCompression: 1
@@ -109,23 +100,23 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: IMG_2245_0
+      name: Oxi-O_trigger_keybaord (2)_0
       rect:
         serializedVersion: 2
-        x: 0
-        y: 0
-        width: 1080
-        height: 1080
+        x: 86
+        y: 482
+        width: 1915
+        height: 1160
       alignment: 0
-      pivot: {x: 0.5, y: 0.5}
+      pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: b06df4063d47cdb20800000000000000
-      internalID: 3160529489710011915
+      spriteID: e50aaf59b1ef69870800000000000000
+      internalID: 8689411925491753054
       vertices: []
       indices: 
       edges: []
@@ -134,7 +125,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 5b7915cf385ad3b488b8aa757ae49edc
+    spriteID: 
     internalID: 0
     vertices: []
     indices: 
@@ -142,11 +133,9 @@ TextureImporter:
     weights: []
     secondaryTextures: []
     spriteCustomMetadata:
-      entries:
-      - key: SpriteEditor.SliceSettings
-        value: '{"sliceOnImport":false,"gridCellCount":{"x":1.0,"y":1.0},"gridSpriteSize":{"x":1080.0,"y":1080.0},"gridSpriteOffset":{"x":0.0,"y":0.0},"gridSpritePadding":{"x":0.0,"y":0.0},"pivot":{"x":0.5,"y":0.5},"pivotPixels":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":0,"pivotUnitMode":0,"slicingType":1,"keepEmptyRects":false,"isAlternate":false}'
+      entries: []
     nameFileIdTable:
-      IMG_2245_0: 3160529489710011915
+      Oxi-O_trigger_keybaord (2)_0: 8689411925491753054
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

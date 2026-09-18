@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.Rendering.Universal;
 
 [System.Serializable]
 public class FlickerLight
@@ -7,6 +8,9 @@ public class FlickerLight
     public SpriteRenderer spriteRenderer;
     public Sprite[] onFrames;
     public Sprite offSprite;
+    public Light2D light2D;
+    public float onIntensity = 1f;
+    public float offIntensity = 0f;
 }
 
 public class ElevatorDestroyed : MonoBehaviour
@@ -29,6 +33,12 @@ public class ElevatorDestroyed : MonoBehaviour
     [SerializeField] private float minSurgeDuration = 0.5f;
     [SerializeField] private float maxSurgeDuration = 1.5f;
 
+    [Header("Audio")]
+    [SerializeField] private AudioSource audioSource;
+    [SerializeField] private AudioClip[] flickerClips;
+    [Range(0f, 1f)]
+    [SerializeField] private float flickerVolume = 1f;
+
     private Coroutine[] flickerRoutines;
 
     private void Awake()
@@ -40,7 +50,7 @@ public class ElevatorDestroyed : MonoBehaviour
 
         if (lights == null || lights.Length == 0)
         {
-            Debug.LogError($"{name}: BrokenElevatorLights has no lights configured");
+            Debug.LogError($"{name}: ElevatorDestroyed has no lights configured");
             enabled = false;
             return;
         }
@@ -90,14 +100,20 @@ public class ElevatorDestroyed : MonoBehaviour
             }
             else
             {
-                if (Random.value < offChance)
+                bool goingOff = Random.value < offChance;
+
+                if (goingOff)
                 {
                     light.spriteRenderer.sprite = light.offSprite;
+                    if (light.light2D != null) light.light2D.intensity = light.offIntensity;
                 }
                 else
                 {
                     light.spriteRenderer.sprite = light.onFrames[Random.Range(0, light.onFrames.Length)];
+                    if (light.light2D != null) light.light2D.intensity = light.onIntensity;
                 }
+
+                PlayFlickerSound();
 
                 yield return new WaitForSeconds(Random.Range(minFlickerDelay, maxFlickerDelay));
             }
@@ -109,11 +125,20 @@ public class ElevatorDestroyed : MonoBehaviour
         float duration = Random.Range(minSurgeDuration, maxSurgeDuration);
         float elapsed = 0f;
         light.spriteRenderer.sprite = light.offSprite;
+        if (light.light2D != null) light.light2D.intensity = light.offIntensity;
+        PlayFlickerSound();
 
         while (elapsed < duration)
         {
             elapsed += Time.deltaTime;
             yield return null;
         }
+    }
+
+    private void PlayFlickerSound()
+    {
+        if (audioSource == null || flickerClips == null || flickerClips.Length == 0) return;
+
+        audioSource.PlayOneShot(flickerClips[Random.Range(0, flickerClips.Length)], flickerVolume);
     }
 }

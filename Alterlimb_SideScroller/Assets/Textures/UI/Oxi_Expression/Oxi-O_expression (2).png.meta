@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 7c879b30b176df44aa8d311b2a05a498
+guid: 4cff71e64bdc61a40bc6fe6ef21cab67
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 7046878512312538187
-    second: IMG_2251_0
+      213: -9203997463570988774
+    second: Oxi-O_expression (2)_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -72,7 +72,7 @@ TextureImporter:
   platformSettings:
   - serializedVersion: 4
     buildTarget: DefaultTexturePlatform
-    maxTextureSize: 2048
+    maxTextureSize: 8192
     resizeAlgorithm: 0
     textureFormat: -1
     textureCompression: 1
@@ -100,23 +100,23 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: IMG_2251_0
+      name: Oxi-O_expression (2)_0
       rect:
         serializedVersion: 2
-        x: 0
-        y: 0
-        width: 1080
-        height: 1080
+        x: 86
+        y: 482
+        width: 1915
+        height: 1160
       alignment: 0
-      pivot: {x: 0.5, y: 0.5}
+      pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: b44d8b5cbaa8bc160800000000000000
-      internalID: 7046878512312538187
+      spriteID: a11414e5215d44080800000000000000
+      internalID: -9203997463570988774
       vertices: []
       indices: 
       edges: []
@@ -125,7 +125,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: d36ad7252a26b6c478fbe50149c71069
+    spriteID: 
     internalID: 0
     vertices: []
     indices: 
@@ -133,11 +133,9 @@ TextureImporter:
     weights: []
     secondaryTextures: []
     spriteCustomMetadata:
-      entries:
-      - key: SpriteEditor.SliceSettings
-        value: '{"sliceOnImport":false,"gridCellCount":{"x":1.0,"y":1.0},"gridSpriteSize":{"x":1080.0,"y":1080.0},"gridSpriteOffset":{"x":0.0,"y":0.0},"gridSpritePadding":{"x":0.0,"y":0.0},"pivot":{"x":0.5,"y":0.5},"pivotPixels":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":0,"pivotUnitMode":0,"slicingType":1,"keepEmptyRects":false,"isAlternate":false}'
+      entries: []
     nameFileIdTable:
-      IMG_2251_0: 7046878512312538187
+      Oxi-O_expression (2)_0: -9203997463570988774
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

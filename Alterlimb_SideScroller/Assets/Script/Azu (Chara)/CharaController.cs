@@ -58,6 +58,7 @@ public class CharaController : MonoBehaviour
     bool isAutoRunning;
     float autoRunDirection;
     bool isInvincible;
+    bool controlLocked;
 
     bool dashEnabled = false;
 
@@ -80,6 +81,14 @@ public class CharaController : MonoBehaviour
     void Update()
     {
         if (isDead) return;
+
+        if (controlLocked)
+        {
+            inputX = 0f;
+            jumpBufferCounter = 0f;
+            dashRequested = false;
+            return;
+        }
 
         if (isAutoRunning)
         {
@@ -107,6 +116,12 @@ public class CharaController : MonoBehaviour
     void FixedUpdate()
     {
         if (isDead) return;
+
+        if (controlLocked)
+        {
+            rb.linearVelocity = Vector2.zero;
+            return;
+        }
 
         UpdateGroundState();
 
@@ -282,6 +297,19 @@ public class CharaController : MonoBehaviour
     public void SetInvincible(bool value)
     {
         isInvincible = value;
+    }
+
+    public void SetControlLocked(bool value)
+    {
+        controlLocked = value;
+
+        if (controlLocked)
+        {
+            inputX = 0f;
+            jumpBufferCounter = 0f;
+            dashRequested = false;
+            rb.linearVelocity = Vector2.zero;
+        }
     }
 
     public void TeleportTo(Vector2 position)

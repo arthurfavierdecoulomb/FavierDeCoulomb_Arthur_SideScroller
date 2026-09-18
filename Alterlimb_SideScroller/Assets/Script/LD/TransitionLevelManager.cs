@@ -7,6 +7,13 @@ using TMPro;
 public class LevelTransitionManager : MonoBehaviour
 {
     public static LevelTransitionManager Instance { get; private set; }
+    public static event System.Action<LevelData> OnLevelEntered;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    static void ResetStatics()
+    {
+        OnLevelEntered = null;
+    }
 
     [System.Serializable]
     public class TransitionTakeover
@@ -369,6 +376,8 @@ public class LevelTransitionManager : MonoBehaviour
         player.SetInvincible(false);
 
         isTransitioning = false;
+
+        OnLevelEntered?.Invoke(target);
     }
 
     IEnumerator IntroSequence(LevelData target)
@@ -378,8 +387,15 @@ public class LevelTransitionManager : MonoBehaviour
         if (player != null)
         {
             player.SetInvincible(true);
+            player.SetControlLocked(true);
             player.SetAutoRun(false, 0f);
-            player.TeleportTo(target.spawnPosition);
+
+            bool tutorialEnabled = PlayerPrefs.GetInt("TutorialEnabled", 1) == 1;
+            Vector2 spawn = (!tutorialEnabled && target.hasNoTutorialSpawn)
+                ? target.noTutorialSpawnPosition
+                : target.spawnPosition;
+
+            player.TeleportTo(spawn);
         }
         if (mainCamera != null)
         {
@@ -404,9 +420,15 @@ public class LevelTransitionManager : MonoBehaviour
         if (target.ambientMusic != null && LevelMusicPlayer.Instance != null)
             LevelMusicPlayer.Instance.PlayMusic(target.ambientMusic, musicFadeInDuration);
 
-        if (player != null) player.SetInvincible(false);
+        if (player != null)
+        {
+            player.SetInvincible(false);
+            player.SetControlLocked(false);
+        }
 
         isTransitioning = false;
+
+        OnLevelEntered?.Invoke(target);
     }
 
     IEnumerator TitleSequence(LevelData target)
