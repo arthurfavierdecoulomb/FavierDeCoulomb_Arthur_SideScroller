@@ -62,11 +62,18 @@ public class CharaController : MonoBehaviour
 
     bool hasSafeRespawn;
     Vector2 safeRespawnPosition;
+    string currentFailDialogueId;
+
+    bool canMove = true;
+    bool canJump = true;
+    bool canInteract = true;
+
+    public bool CanInteract => canInteract && !controlLocked;
 
     bool dashEnabled = false;
 
     public static event System.Action OnPlayerDied;
-    public event System.Action OnSafeRespawn;
+    public event System.Action<string> OnSafeRespawn;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     static void ResetStatics()
@@ -102,9 +109,9 @@ public class CharaController : MonoBehaviour
             return;
         }
 
-        inputX = Input.GetAxisRaw("Horizontal");
+        inputX = canMove ? Input.GetAxisRaw("Horizontal") : 0f;
 
-        if (Input.GetButtonDown("Jump"))
+        if (canJump && Input.GetButtonDown("Jump"))
             jumpBufferCounter = JumpBufferTime;
         else
             jumpBufferCounter -= Time.deltaTime;
@@ -316,6 +323,10 @@ public class CharaController : MonoBehaviour
         }
     }
 
+    public void SetMoveEnabled(bool value) => canMove = value;
+    public void SetJumpEnabled(bool value) => canJump = value;
+    public void SetInteractEnabled(bool value) => canInteract = value;
+
     public void TeleportTo(Vector2 position)
     {
         transform.position = position;
@@ -370,13 +381,14 @@ public class CharaController : MonoBehaviour
 
         GetComponent<PlayerHealth>()?.ResetHealth();
 
-        OnSafeRespawn?.Invoke();
+        OnSafeRespawn?.Invoke(currentFailDialogueId);
     }
 
-    public void SetSafeRespawn(Vector2? position)
+    public void SetSafeRespawn(Vector2? position, string failDialogueId = null)
     {
         hasSafeRespawn = position.HasValue;
         if (hasSafeRespawn) safeRespawnPosition = position.Value;
+        currentFailDialogueId = failDialogueId;
     }
 
     public void Revive(Vector3 spawnPosition)

@@ -206,6 +206,7 @@ MonoBehaviour:
   unlockToOpenDelay: 0.35
   closeSoundDelay: 0
   lockedSoundCooldown: 0.6
+  singleUseDoor: 0
 --- !u!114 &8343738275817709863
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -218,7 +219,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b535677abf084cc4c8db2988e9b0fe28, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SfxEmitter
-  source: {fileID: 0}
+  source: {fileID: 2100921582644979767}
   volume: 1
   pitchRange: {x: 0.97, y: 1.03}
   blockedWhilePaused: 1

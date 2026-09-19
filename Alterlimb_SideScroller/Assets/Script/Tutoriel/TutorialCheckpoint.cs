@@ -7,6 +7,7 @@ public class TutorialCheckpoint : MonoBehaviour
 
     [Header("Comportement")]
     [SerializeField] bool clearsSafeZone = false;
+    [SerializeField] string failDialogueId;
 
     void OnTriggerEnter2D(Collider2D other)
     {
@@ -18,6 +19,6 @@ public class TutorialCheckpoint : MonoBehaviour
         if (clearsSafeZone)
             chara.SetSafeRespawn(null);
         else
-            chara.SetSafeRespawn(transform.position);
+            chara.SetSafeRespawn(transform.position, failDialogueId);
     }
 }

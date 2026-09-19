@@ -34,12 +34,12 @@ public class MainMenuController : MonoBehaviour
 
     public void OnBeginnerSelected()
     {
-        StartGame(false);
+        StartGame(true);
     }
 
     public void OnQualifiedSelected()
     {
-        StartGame(true);
+        StartGame(false);
     }
 
     void StartGame(bool tutorialEnabled)

@@ -86,6 +86,10 @@ public class PlayerWakeUpSequence : MonoBehaviour
         player.SetControlLocked(true);
         abilityManager.SetCombatLock(true);
 
+        player.SetMoveEnabled(!tutorialEnabled);
+        player.SetJumpEnabled(!tutorialEnabled);
+        player.SetInteractEnabled(!tutorialEnabled);
+
         playerAnimator.TriggerWakeUp(entry.animatorTrigger);
     }
 
