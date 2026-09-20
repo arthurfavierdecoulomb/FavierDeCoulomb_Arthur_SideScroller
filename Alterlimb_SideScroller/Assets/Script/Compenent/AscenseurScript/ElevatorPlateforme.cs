@@ -1,28 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections;
 
-/// <summary>
-/// Ascenseur à N étages.
-/// 
-/// Deux façons de le commander :
-///   - PILOTAGE : le joueur monte dessus, et tant qu'il est dessus et que
-///     l'ascenseur est à l'arrêt, W/S le déplacent d'UN étage.
-///   - APPEL : des boutons d'appel (ElevatorCallButton), un par étage,
-///     peuvent appeler l'ascenseur à leur étage via CallToFloor(). L'ascenseur
-///     traverse alors autant d'étages que nécessaire d'un seul trajet.
-/// 
-/// À l'arrivée, un BOUNCE d'overshoot se joue (sinus amorti).
-/// 
-/// Pas de logique de respawn : le système de boutons d'appel garantit que
-/// le joueur peut toujours faire venir l'ascenseur, où qu'il respawn.
-/// 
-/// Setup :
-///   - GameObjects vides "Etage_0", "Etage_1"... placés dans la scène,
-///     drag-and-droppés dans "floors" (triés automatiquement par Y).
-/// 
-/// Animator :
-///   - Paramètre Int "moveDir" : 1 = monte, -1 = descend, 0 = arrêt
-/// </summary>
 [RequireComponent(typeof(Rigidbody2D))]
 public class ElevatorPlatform : MonoBehaviour
 {
@@ -33,9 +11,7 @@ public class ElevatorPlatform : MonoBehaviour
     [SerializeField] KeyCode downKey = KeyCode.S;
 
     [Header("Étages")]
-    [Tooltip("Liste des Transforms représentant chaque étage. Place-les visuellement dans la scène.")]
     [SerializeField] Transform[] floors;
-    [Tooltip("Index de l'étage de départ APRÈS tri par Y croissant (0 = étage le plus bas)")]
     [SerializeField] int startFloorIndex = 0;
 
     [Header("Mouvement")]
@@ -67,7 +43,6 @@ public class ElevatorPlatform : MonoBehaviour
     float timeSinceLastContact;
     int currentMoveDir;
 
-    // ── Étages triés par Y croissant (0 = le plus bas) ──
     float[] sortedFloorYs;
     int currentFloorIndex;
     int targetFloorIndex;
@@ -76,14 +51,13 @@ public class ElevatorPlatform : MonoBehaviour
     ElevatorState state = ElevatorState.Idle;
     Coroutine bounceCoroutine;
 
-    // ── Accès public ──
     public int FloorCount => sortedFloorYs != null ? sortedFloorYs.Length : 0;
     public int CurrentFloor => currentFloorIndex;
     public bool IsIdle => state == ElevatorState.Idle;
-
-    // ════════════════════════════════════════════════════════════
-    //  Initialisation
-    // ════════════════════════════════════════════════════════════
+    public bool IsMoving => state == ElevatorState.Moving;
+    public bool IsBouncing => state == ElevatorState.Bouncing;
+    public int MoveDirection => currentMoveDir;
+    public bool PlayerOnBoard => playerOnPlatform;
 
     void Awake()
     {
@@ -132,10 +106,6 @@ public class ElevatorPlatform : MonoBehaviour
         sortedFloorYs = ys.ToArray();
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  Détection du joueur
-    // ════════════════════════════════════════════════════════════
-
     void OnCollisionStay2D(Collision2D collision)
     {
         if (!collision.collider.CompareTag(playerTag)) return;
@@ -171,7 +141,6 @@ public class ElevatorPlatform : MonoBehaviour
                 DetachPlayer();
         }
 
-        // Pilotage W/S : seulement si le joueur est dessus et l'ascenseur à l'arrêt
         if (state == ElevatorState.Idle && playerOnPlatform)
         {
             if (Input.GetKeyDown(upKey)) TryMoveUp();
@@ -185,34 +154,22 @@ public class ElevatorPlatform : MonoBehaviour
         playerRb = null;
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  Commandes : pilotage (1 étage) et appel (multi-étages)
-    // ════════════════════════════════════════════════════════════
-
-    /// <summary>Pilotage : monte d'UN étage.</summary>
     void TryMoveUp()
     {
         if (currentFloorIndex >= sortedFloorYs.Length - 1) return;
         StartMovement(currentFloorIndex + 1);
     }
 
-    /// <summary>Pilotage : descend d'UN étage.</summary>
     void TryMoveDown()
     {
         if (currentFloorIndex <= 0) return;
         StartMovement(currentFloorIndex - 1);
     }
 
-    /// <summary>
-    /// APPEL : fait venir l'ascenseur à un étage précis (depuis un bouton d'appel).
-    /// L'ascenseur traverse autant d'étages que nécessaire en un seul trajet.
-    /// Ignoré si l'ascenseur n'est pas à l'arrêt, ou s'il est déjà à cet étage.
-    /// </summary>
     public void CallToFloor(int floorIndex)
     {
         if (sortedFloorYs == null) return;
 
-        // L'appel n'est pris en compte que si l'ascenseur est à l'arrêt
         if (state != ElevatorState.Idle)
         {
             Debug.Log("[ElevatorPlatform] Appel ignoré : l'ascenseur est déjà en mouvement.");
@@ -221,7 +178,6 @@ public class ElevatorPlatform : MonoBehaviour
 
         floorIndex = Mathf.Clamp(floorIndex, 0, sortedFloorYs.Length - 1);
 
-        // Déjà à cet étage : rien à faire
         if (floorIndex == currentFloorIndex)
         {
             Debug.Log($"[ElevatorPlatform] Appel ignoré : déjà à l'étage {floorIndex}.");
@@ -237,10 +193,6 @@ public class ElevatorPlatform : MonoBehaviour
         targetY = sortedFloorYs[destinationIndex];
         state = ElevatorState.Moving;
     }
-
-    // ════════════════════════════════════════════════════════════
-    //  FixedUpdate : mouvement (gère un trajet multi-étages)
-    // ════════════════════════════════════════════════════════════
 
     void FixedUpdate()
     {
@@ -290,10 +242,6 @@ public class ElevatorPlatform : MonoBehaviour
         SetMoveDir(newMoveDir);
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  Bounce
-    // ════════════════════════════════════════════════════════════
-
     IEnumerator BounceRoutine(float direction)
     {
         float baseY = targetY;
@@ -330,20 +278,12 @@ public class ElevatorPlatform : MonoBehaviour
         bounceCoroutine = null;
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  Animator helper
-    // ════════════════════════════════════════════════════════════
-
     void SetMoveDir(int dir)
     {
         if (dir == currentMoveDir) return;
         currentMoveDir = dir;
         if (animator != null) animator.SetInteger(MoveDirHash, dir);
     }
-
-    // ════════════════════════════════════════════════════════════
-    //  Gizmos
-    // ════════════════════════════════════════════════════════════
 
     void OnDrawGizmos()
     {

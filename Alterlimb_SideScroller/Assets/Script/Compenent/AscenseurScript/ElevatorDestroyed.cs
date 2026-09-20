@@ -38,11 +38,19 @@ public class ElevatorDestroyed : MonoBehaviour
     [SerializeField] private AudioClip[] flickerClips;
     [Range(0f, 1f)]
     [SerializeField] private float flickerVolume = 1f;
+    [SerializeField] private float minSoundInterval = 0.12f;
+    [SerializeField] private Vector2 pitchRange = new Vector2(0.92f, 1.08f);
+    [SerializeField] private bool muteWhilePaused = true;
 
     private Coroutine[] flickerRoutines;
+    private AudioProxi proximity;
+    private AudioClip lastClip;
+    private float lastSoundTime = -999f;
 
     private void Awake()
     {
+        proximity = GetComponent<AudioProxi>();
+
         if (bodyRenderer != null && bodySprite != null)
         {
             bodyRenderer.sprite = bodySprite;
@@ -64,6 +72,15 @@ public class ElevatorDestroyed : MonoBehaviour
         }
 
         flickerRoutines = new Coroutine[lights.Length];
+    }
+
+    private void Start()
+    {
+        if (proximity == null && audioSource != null && flickerClips != null && flickerClips.Length > 0)
+            Debug.LogWarning($"{name}: aucun AudioProximity, les flickers s'entendront depuis tout le niveau.", this);
+
+        if (audioSource != null && audioSource.spatialBlend > 0f)
+            Debug.LogWarning($"{name}: Spatial Blend de l'AudioSource au-dessus de 0. Utilise plutot l'AudioProximity.", this);
     }
 
     private void OnEnable()
@@ -138,7 +155,22 @@ public class ElevatorDestroyed : MonoBehaviour
     private void PlayFlickerSound()
     {
         if (audioSource == null || flickerClips == null || flickerClips.Length == 0) return;
+        if (muteWhilePaused && Time.timeScale <= 0f) return;
+        if (Time.unscaledTime - lastSoundTime < minSoundInterval) return;
 
-        audioSource.PlayOneShot(flickerClips[Random.Range(0, flickerClips.Length)], flickerVolume);
+        float attenuation = proximity != null ? proximity.GetAttenuation() : 1f;
+        if (attenuation <= 0.001f) return;
+
+        AudioClip clip = flickerClips[Random.Range(0, flickerClips.Length)];
+
+        if (flickerClips.Length > 1 && clip == lastClip)
+            clip = flickerClips[(System.Array.IndexOf(flickerClips, clip) + 1) % flickerClips.Length];
+
+        if (clip == null) return;
+
+        lastSoundTime = Time.unscaledTime;
+        lastClip = clip;
+        audioSource.pitch = Random.Range(pitchRange.x, pitchRange.y);
+        audioSource.PlayOneShot(clip, flickerVolume * attenuation);
     }
 }

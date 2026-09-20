@@ -1,27 +1,10 @@
 ﻿using UnityEngine;
 
-/// <summary>
-/// Laser continu du drone.
-/// 
-/// Comportement :
-///   - Quand SetFiring(true) → le LineRenderer s'active
-///   - Le laser part de l'origine ACTIVE et vise directement le joueur
-///   - Deux origines (gauche / droite) : le DroneEnemy indique laquelle
-///     utiliser via SetActiveOrigin() à chaque flip → pas de "laser au cul"
-///   - Si un mur bloque la vue, le laser s'arrête au mur (pas de dégâts)
-///   - Si le joueur est touché, il prend des dégâts par seconde
-/// </summary>
 [RequireComponent(typeof(LineRenderer))]
 public class DroneLaser : MonoBehaviour
 {
-    // ════════════════════════════════════════════════════════════
-    //  Configuration
-    // ════════════════════════════════════════════════════════════
-
     [Header("Références — Deux sorties de laser")]
-    [Tooltip("Point d'origine du laser quand le drone regarde à DROITE")]
     [SerializeField] Transform laserOriginRight;
-    [Tooltip("Point d'origine du laser quand le drone regarde à GAUCHE")]
     [SerializeField] Transform laserOriginLeft;
 
     [Header("Cible")]
@@ -29,45 +12,47 @@ public class DroneLaser : MonoBehaviour
 
     [Header("Comportement")]
     [SerializeField] float maxRange = 15f;
-    [Tooltip("Layers qui bloquent le laser (murs, sol). NE PAS inclure le layer du joueur !")]
     [SerializeField] LayerMask obstacleLayers;
 
     [Header("Dégâts")]
-    [Tooltip("Dégâts infligés par seconde au joueur")]
     [SerializeField] float damagePerSecond = 25f;
-    [Tooltip("Intervalle entre deux applications de dégâts")]
     [SerializeField] float damageInterval = 0.1f;
 
     [Header("Visuel")]
     [SerializeField] float jitterAmount = 0.05f;
     [SerializeField] float jitterSpeed = 30f;
+    [SerializeField] float minWidthRatio = 0.15f;
+    [SerializeField] float intensitySmoothing = 25f;
 
     [Header("Debug")]
-    [Tooltip("Affiche des messages dans la console pour diagnostiquer")]
     [SerializeField] bool debugMode = false;
-
-    // ════════════════════════════════════════════════════════════
-    //  État runtime
-    // ════════════════════════════════════════════════════════════
 
     LineRenderer lineRenderer;
     Transform player;
     PlayerHealth playerHealth;
     bool isFiring;
+    bool damageEnabled = true;
     float damageTimer;
+    float targetIntensity = 1f;
+    float currentIntensity = 1f;
+    float baseWidth;
+    Color baseStartColor;
+    Color baseEndColor;
 
-    // Origine actuellement active (mise à jour par le DroneEnemy via SetActiveOrigin)
     Transform activeOrigin;
 
-    // ════════════════════════════════════════════════════════════
-    //  Initialisation
-    // ════════════════════════════════════════════════════════════
+    public bool IsFiring => isFiring;
+    public float Intensity => currentIntensity;
 
     void Awake()
     {
         lineRenderer = GetComponent<LineRenderer>();
         lineRenderer.enabled = false;
         lineRenderer.positionCount = 2;
+
+        baseWidth = lineRenderer.widthMultiplier;
+        baseStartColor = lineRenderer.startColor;
+        baseEndColor = lineRenderer.endColor;
 
         GameObject p = GameObject.FindGameObjectWithTag(playerTag);
         if (p != null)
@@ -88,13 +73,8 @@ public class DroneLaser : MonoBehaviour
             Debug.LogError($"[DroneLaser] Aucun GameObject avec le tag '{playerTag}' trouvé !");
         }
 
-        // Origine par défaut (sera mise à jour par le DroneEnemy dès le premier flip)
         activeOrigin = laserOriginRight != null ? laserOriginRight : laserOriginLeft;
     }
-
-    // ════════════════════════════════════════════════════════════
-    //  API publique
-    // ════════════════════════════════════════════════════════════
 
     public void SetFiring(bool firing)
     {
@@ -103,31 +83,44 @@ public class DroneLaser : MonoBehaviour
         if (!firing) damageTimer = 0f;
     }
 
-    /// <summary>
-    /// Définit quelle sortie de laser utiliser selon le sens où le drone regarde.
-    /// Appelé par DroneEnemy à chaque changement de direction (flip).
-    /// </summary>
-    /// <param name="facingRight">true = le drone regarde à droite</param>
+    public void SetIntensity(float intensity)
+    {
+        targetIntensity = Mathf.Clamp01(intensity);
+    }
+
+    public void SetIntensityInstant(float intensity)
+    {
+        targetIntensity = Mathf.Clamp01(intensity);
+        currentIntensity = targetIntensity;
+        ApplyIntensity();
+    }
+
+    public void SetDamageEnabled(bool enabled)
+    {
+        damageEnabled = enabled;
+        if (!enabled) damageTimer = 0f;
+    }
+
     public void SetActiveOrigin(bool facingRight)
     {
         Transform desired = facingRight ? laserOriginRight : laserOriginLeft;
         if (desired != null) activeOrigin = desired;
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  Update
-    // ════════════════════════════════════════════════════════════
-
     void Update()
     {
+        currentIntensity = Mathf.MoveTowards(currentIntensity, targetIntensity, intensitySmoothing * Time.deltaTime);
+
         if (!isFiring || activeOrigin == null || player == null) return;
+
+        ApplyIntensity();
 
         Vector2 origin = activeOrigin.position;
         Vector2 toPlayer = (Vector2)player.position - origin;
-        float distance = Mathf.Min(toPlayer.magnitude, maxRange);
+        float playerDistance = toPlayer.magnitude;
+        float distance = Mathf.Min(playerDistance, maxRange);
         Vector2 direction = toPlayer.normalized;
 
-        // Raycast pour voir si un mur bloque le passage
         RaycastHit2D obstacleHit = Physics2D.Raycast(origin, direction, distance, obstacleLayers);
 
         Vector2 endPoint;
@@ -144,10 +137,9 @@ public class DroneLaser : MonoBehaviour
         else
         {
             endPoint = origin + direction * distance;
-            playerHit = true;
+            playerHit = playerDistance <= maxRange;
         }
 
-        // Jitter visuel
         if (jitterAmount > 0f)
         {
             float jitter = Mathf.Sin(Time.time * jitterSpeed) * jitterAmount;
@@ -155,12 +147,10 @@ public class DroneLaser : MonoBehaviour
             endPoint += perpendicular * jitter;
         }
 
-        // Met à jour le LineRenderer
         lineRenderer.SetPosition(0, origin);
         lineRenderer.SetPosition(1, endPoint);
 
-        // Inflige les dégâts
-        if (playerHit && playerHealth != null)
+        if (playerHit && damageEnabled && playerHealth != null)
         {
             damageTimer += Time.deltaTime;
             if (damageTimer >= damageInterval)
@@ -177,5 +167,20 @@ public class DroneLaser : MonoBehaviour
         {
             damageTimer = 0f;
         }
+    }
+
+    void ApplyIntensity()
+    {
+        if (lineRenderer == null) return;
+
+        lineRenderer.widthMultiplier = baseWidth * Mathf.Lerp(minWidthRatio, 1f, currentIntensity);
+
+        Color start = baseStartColor;
+        Color end = baseEndColor;
+        start.a = baseStartColor.a * currentIntensity;
+        end.a = baseEndColor.a * currentIntensity;
+
+        lineRenderer.startColor = start;
+        lineRenderer.endColor = end;
     }
 }

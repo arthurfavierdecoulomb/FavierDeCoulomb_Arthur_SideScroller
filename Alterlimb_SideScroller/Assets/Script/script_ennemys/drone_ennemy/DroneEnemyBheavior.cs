@@ -1,49 +1,17 @@
 ﻿using UnityEngine;
 using System;
 
-/// <summary>
-/// Drone ennemi volant — version "Animator" (utilise un spritesheet animé).
-/// 
-/// Détection : mode GARDIEN. Le drone ne réagit au joueur que si celui-ci est
-/// dans une zone de détection rectangulaire FIXE posée dans le niveau.
-/// Si le joueur sort de la zone, le drone le perd et retourne en patrouille.
-/// 
-/// État interne (state machine logique) :
-///   - Patrol : patrouille A↔B
-///   - Chase : poursuit le joueur sans tirer
-///   - Attack : tire le laser
-///   - Recharge : s'éloigne pour "recharger" puis revient
-/// 
-/// État envoyé à l'Animator (paramètre Int "State") :
-///   - 0 = Idle, 1 = Chase, 2 = Death
-/// 
-/// Laser : deux sorties (gauche/droite). Le DroneEnemy informe le DroneLaser
-/// de quel côté tirer à chaque flip, pour éviter le "laser au cul".
-/// 
-/// Feedback de dégâts : si un composant DamageFeedback est présent, chaque coup
-/// reçu déclenche un flash blanc + un damage number ("-30").
-/// 
-/// Notification de mort : event statique OnDroneDied (pour les Door).
-/// </summary>
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(SpriteRenderer))]
 public class DroneEnemy : MonoBehaviour
 {
     public enum DroneState { Patrol, Chase, Attack, Recharge }
 
-    // ════════════════════════════════════════════════════════════
-    //  Event statique : notifie qu'un drone est mort (Door OnDroneKilled)
-    // ════════════════════════════════════════════════════════════
     public static event Action<DroneEnemy> OnDroneDied;
 
-    // Constantes pour le paramètre "State" de l'Animator
     const int ANIM_IDLE = 0;
     const int ANIM_CHASE = 1;
     const int ANIM_DEATH = 2;
-
-    // ════════════════════════════════════════════════════════════
-    //  Configuration
-    // ════════════════════════════════════════════════════════════
 
     [Header("Patrouille")]
     [SerializeField] Transform patrolPointA;
@@ -52,22 +20,29 @@ public class DroneEnemy : MonoBehaviour
     [SerializeField] float pointReachedDistance = 0.3f;
 
     [Header("Détection joueur — Zone gardien")]
-    [Tooltip("Centre de la zone de détection rectangulaire FIXE (un Transform vide posé dans le niveau)")]
     [SerializeField] Transform detectionZoneCenter;
-    [Tooltip("Taille de la zone de détection rectangulaire (largeur × hauteur)")]
     [SerializeField] Vector2 detectionZoneSize = new Vector2(10f, 6f);
     [SerializeField] string playerTag = "Player";
-    [Tooltip("Layers qui bloquent la ligne de vue (murs, sol). NE PAS inclure le layer du joueur.")]
     [SerializeField] LayerMask lineOfSightObstacles;
 
     [Header("Chasse")]
     [SerializeField] float chaseSpeed = 4f;
     [SerializeField] float attackDistance = 5f;
-    [Tooltip("Hauteur supplémentaire du drone par rapport au joueur")]
     [SerializeField] float verticalOffset = 2.5f;
+
+    [Header("Visée")]
+    [SerializeField] float aimDuration = 0.7f;
+    [SerializeField] float lockLeadTime = 0.2f;
 
     [Header("Attaque (laser continu)")]
     [SerializeField] float attackDuration = 2.5f;
+
+    [Header("Fin d'énergie")]
+    [SerializeField] float energyBlinkDuration = 0.5f;
+    [SerializeField] float energyBlinkInterval = 0.07f;
+    [Range(0f, 1f)]
+    [SerializeField] float energyBlinkLowIntensity = 0.18f;
+    [SerializeField] bool damageDuringBlink = false;
 
     [Header("Recharge")]
     [SerializeField] float rechargeDuration = 2f;
@@ -76,31 +51,20 @@ public class DroneEnemy : MonoBehaviour
 
     [Header("Vie")]
     [SerializeField] float maxHealth = 100f;
-    [Tooltip("Si activé : la scie ne fait des dégâts QUE si le drone est accroché par le grappin")]
     [SerializeField] bool damageOnlyWhenHooked = false;
-    [Tooltip("Durée de l'animation de mort avant que le GameObject soit détruit")]
     [SerializeField] float deathAnimationDuration = 1.5f;
 
     [Header("Explosion à la mort")]
-    [Tooltip("Prefab de Particle System à instancier lors de l'explosion. Déclenchée par Animation Event.")]
     [SerializeField] GameObject explosionPrefab;
-    [Tooltip("Offset de position pour l'explosion par rapport au centre du drone")]
     [SerializeField] Vector2 explosionOffset = Vector2.zero;
-    [Tooltip("Durée de vie de l'explosion avant destruction (en secondes)")]
     [SerializeField] float explosionLifetime = 3f;
 
     [Header("Flip horizontal")]
-    [Tooltip("Vitesse minimale pour déclencher un flip (anti-jitter)")]
     [SerializeField] float flipThreshold = 0.5f;
-    [Tooltip("Si le sprite original regarde à GAUCHE par défaut, coche cette case")]
     [SerializeField] bool spriteDefaultFacesLeft = true;
 
     [Header("Références")]
     [SerializeField] Animator animator;
-
-    // ════════════════════════════════════════════════════════════
-    //  État runtime
-    // ════════════════════════════════════════════════════════════
 
     Rigidbody2D rb;
     SpriteRenderer spriteRenderer;
@@ -114,20 +78,48 @@ public class DroneEnemy : MonoBehaviour
     float currentHealth;
     bool isDying;
     bool deathNotified;
+    bool lastFiringSent;
+    bool beamBlinkVisible;
+    float lastIntensitySent = -1f;
+    bool lastDamageSent = true;
 
-    // ── Système Grappin ─────────────────────────────────────────
     public bool isHooked { get; private set; }
 
-    // ── Accesseurs publics ──────────────────────────────────────
     public DroneState State => currentState;
     public Vector2 CurrentVelocity => rb != null ? rb.linearVelocity : Vector2.zero;
     public bool IsAlive => currentHealth > 0f && !isDying;
 
-    static readonly int AnimStateHash = Animator.StringToHash("State");
+    float AimEndTime => aimDuration;
+    float FireEndTime => aimDuration + attackDuration;
+    float BlinkEndTime => aimDuration + attackDuration + energyBlinkDuration;
 
-    // ════════════════════════════════════════════════════════════
-    //  Initialisation
-    // ════════════════════════════════════════════════════════════
+    public bool IsAiming => currentState == DroneState.Attack && !isHooked && !isDying
+                         && stateTimer < AimEndTime;
+
+    public bool IsLocked => currentState == DroneState.Attack && !isHooked && !isDying
+                         && stateTimer >= AimEndTime - lockLeadTime && stateTimer < AimEndTime;
+
+    public bool IsFiring => currentState == DroneState.Attack && !isHooked && !isDying
+                         && stateTimer >= AimEndTime && stateTimer < FireEndTime;
+
+    public bool IsBeamBlinking => currentState == DroneState.Attack && !isHooked && !isDying
+                               && stateTimer >= FireEndTime && stateTimer < BlinkEndTime;
+
+    public bool IsBeamVisible => IsFiring || (IsBeamBlinking && beamBlinkVisible);
+
+    public float MotorLoad
+    {
+        get
+        {
+            if (rb == null || isDying) return 0f;
+            if (isHooked) return 0.15f;
+
+            float reference = Mathf.Max(0.01f, Mathf.Max(chaseSpeed, rechargeSpeed));
+            return Mathf.Clamp01(rb.linearVelocity.magnitude / reference);
+        }
+    }
+
+    static readonly int AnimStateHash = Animator.StringToHash("State");
 
     void Awake()
     {
@@ -151,17 +143,13 @@ public class DroneEnemy : MonoBehaviour
         SetAnimatorState(ANIM_IDLE);
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  Update : détection + state machine
-    // ════════════════════════════════════════════════════════════
-
     void Update()
     {
         if (isDying) return;
 
         if (isHooked)
         {
-            if (laser != null) laser.SetFiring(false);
+            SendFiring(false);
             return;
         }
 
@@ -169,6 +157,7 @@ public class DroneEnemy : MonoBehaviour
 
         stateTimer += Time.deltaTime;
         EvaluateStateTransitions();
+        UpdateBeamOutput();
         UpdateFlip();
     }
 
@@ -193,10 +182,6 @@ public class DroneEnemy : MonoBehaviour
         }
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  Transitions d'état (mode gardien)
-    // ════════════════════════════════════════════════════════════
-
     void EvaluateStateTransitions()
     {
         bool playerDetected = IsPlayerInDetectionZone();
@@ -210,7 +195,6 @@ public class DroneEnemy : MonoBehaviour
                 break;
 
             case DroneState.Chase:
-                // Mode gardien : si le joueur sort de la zone, on le perd
                 if (!playerDetected)
                 {
                     ChangeState(DroneState.Patrol);
@@ -231,7 +215,7 @@ public class DroneEnemy : MonoBehaviour
                     ChangeState(DroneState.Chase);
                     break;
                 }
-                if (stateTimer >= attackDuration)
+                if (stateTimer >= BlinkEndTime)
                     ChangeState(DroneState.Recharge);
                 break;
 
@@ -247,10 +231,67 @@ public class DroneEnemy : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Teste si le joueur est à l'intérieur de la zone de détection rectangulaire fixe.
-    /// Le drone est un "gardien" : il ne réagit que dans ce secteur.
-    /// </summary>
+    void UpdateBeamOutput()
+    {
+        if (currentState != DroneState.Attack || stateTimer < AimEndTime)
+        {
+            SendFiring(false);
+            return;
+        }
+
+        if (stateTimer < FireEndTime)
+        {
+            beamBlinkVisible = true;
+            SendFiring(true);
+            SendIntensity(1f);
+            SendDamageEnabled(true);
+            return;
+        }
+
+        float interval = Mathf.Max(0.01f, energyBlinkInterval);
+        int step = Mathf.FloorToInt((stateTimer - FireEndTime) / interval);
+        beamBlinkVisible = (step % 2) == 0;
+
+        SendFiring(true);
+        SendIntensity(beamBlinkVisible ? 1f : energyBlinkLowIntensity);
+        SendDamageEnabled(damageDuringBlink);
+    }
+
+    void SendIntensity(float intensity)
+    {
+        if (Mathf.Approximately(intensity, lastIntensitySent)) return;
+
+        lastIntensitySent = intensity;
+
+        if (laser != null) laser.SetIntensity(intensity);
+    }
+
+    void SendDamageEnabled(bool enabled)
+    {
+        if (enabled == lastDamageSent) return;
+
+        lastDamageSent = enabled;
+
+        if (laser != null) laser.SetDamageEnabled(enabled);
+    }
+
+    void SendFiring(bool firing)
+    {
+        if (firing == lastFiringSent) return;
+
+        lastFiringSent = firing;
+
+        if (laser == null) return;
+
+        laser.SetFiring(firing);
+
+        if (firing)
+        {
+            lastIntensitySent = 1f;
+            laser.SetIntensityInstant(1f);
+        }
+    }
+
     bool IsPlayerInDetectionZone()
     {
         if (detectionZoneCenter == null || player == null) return false;
@@ -272,8 +313,8 @@ public class DroneEnemy : MonoBehaviour
         currentState = newState;
         stateTimer = 0f;
 
-        if (laser != null)
-            laser.SetFiring(newState == DroneState.Attack);
+        if (newState != DroneState.Attack)
+            SendFiring(false);
 
         if (newState == DroneState.Patrol)
             SetAnimatorState(ANIM_IDLE);
@@ -286,10 +327,6 @@ public class DroneEnemy : MonoBehaviour
         if (animator != null)
             animator.SetInteger(AnimStateHash, animState);
     }
-
-    // ════════════════════════════════════════════════════════════
-    //  Comportements
-    // ════════════════════════════════════════════════════════════
 
     void PatrolBehavior()
     {
@@ -344,10 +381,6 @@ public class DroneEnemy : MonoBehaviour
         );
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  Flip horizontal + synchro du laser
-    // ════════════════════════════════════════════════════════════
-
     void UpdateFlip()
     {
         if (spriteRenderer == null) return;
@@ -367,14 +400,9 @@ public class DroneEnemy : MonoBehaviour
 
         spriteRenderer.flipX = spriteDefaultFacesLeft ? shouldFaceRight : !shouldFaceRight;
 
-        // Informe le laser de quel côté tirer (évite le "laser au cul" après un flip)
         if (laser != null)
             laser.SetActiveOrigin(shouldFaceRight);
     }
-
-    // ════════════════════════════════════════════════════════════
-    //  Ligne de vue
-    // ════════════════════════════════════════════════════════════
 
     public bool HasLineOfSightTo(Vector2 targetPos)
     {
@@ -386,17 +414,13 @@ public class DroneEnemy : MonoBehaviour
         return hit.collider == null;
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  Système Grappin
-    // ════════════════════════════════════════════════════════════
-
     public void GetHooked()
     {
         if (isHooked || isDying) return;
         isHooked = true;
         rb.linearVelocity = Vector2.zero;
 
-        if (laser != null) laser.SetFiring(false);
+        SendFiring(false);
         SetAnimatorState(ANIM_IDLE);
         stateTimer = 0f;
     }
@@ -406,15 +430,9 @@ public class DroneEnemy : MonoBehaviour
         isHooked = false;
         if (player != null)
         {
-            // En mode gardien : on reprend la chasse seulement si le joueur
-            // est dans la zone, sinon retour patrouille.
             ChangeState(IsPlayerInDetectionZone() ? DroneState.Chase : DroneState.Patrol);
         }
     }
-
-    // ════════════════════════════════════════════════════════════
-    //  Vie / dégâts
-    // ════════════════════════════════════════════════════════════
 
     public void TakeDamage(float amount)
     {
@@ -423,7 +441,6 @@ public class DroneEnemy : MonoBehaviour
 
         currentHealth -= amount;
 
-        // Feedback visuel : flash blanc + damage number
         if (damageFeedback != null)
             damageFeedback.ShowDamage(amount);
 
@@ -435,7 +452,7 @@ public class DroneEnemy : MonoBehaviour
         if (isDying) return;
         isDying = true;
 
-        if (laser != null) laser.SetFiring(false);
+        SendFiring(false);
         rb.linearVelocity = Vector2.zero;
 
         SetAnimatorState(ANIM_DEATH);
@@ -449,15 +466,6 @@ public class DroneEnemy : MonoBehaviour
         if (!deathNotified) NotifyDeathComplete();
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  Explosion (appelée par Animation Event sur l'anim de mort)
-    // ════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Méthode publique appelée par un Animation Event placé sur une frame
-    /// précise de l'animation de mort. Instancie le Particle System d'explosion.
-    /// La signature doit être sans paramètre pour être appelable depuis un Animation Event.
-    /// </summary>
     public void TriggerDeathExplosion()
     {
         if (explosionPrefab == null)
@@ -471,15 +479,6 @@ public class DroneEnemy : MonoBehaviour
         Destroy(explosion, explosionLifetime);
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  Notification de mort (appelée par Animation Event)
-    // ════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Méthode publique appelée par un Animation Event sur la DERNIÈRE frame
-    /// de l'animation de mort. Notifie les écouteurs (Door en mode OnDroneKilled).
-    /// La signature doit être sans paramètre pour un Animation Event.
-    /// </summary>
     public void NotifyDeathComplete()
     {
         if (deathNotified) return;
@@ -488,13 +487,8 @@ public class DroneEnemy : MonoBehaviour
         OnDroneDied?.Invoke(this);
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  Gizmos
-    // ════════════════════════════════════════════════════════════
-
     void OnDrawGizmos()
     {
-        // Zone de détection rectangulaire fixe (gardien)
         if (detectionZoneCenter != null)
         {
             Gizmos.color = new Color(1f, 0.6f, 0f, 0.25f);

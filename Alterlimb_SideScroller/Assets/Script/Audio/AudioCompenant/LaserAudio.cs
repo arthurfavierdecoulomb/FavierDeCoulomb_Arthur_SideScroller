@@ -17,9 +17,17 @@ public class LaserAudio : MonoBehaviour
 
     [Header("One-shots")]
     [SerializeField] AudioClip[] chargeClips;
+    [Range(0f, 1f)]
+    [SerializeField] float chargeVolume = 0.8f;
     [SerializeField] AudioClip[] fireClips;
+    [Range(0f, 1f)]
+    [SerializeField] float fireVolume = 0.8f;
     [SerializeField] AudioClip[] warningClips;
+    [Range(0f, 1f)]
+    [SerializeField] float warningVolume = 0.8f;
     [SerializeField] AudioClip[] shutdownClips;
+    [Range(0f, 1f)]
+    [SerializeField] float shutdownVolume = 0.8f;
 
     [Header("Instabilite")]
     [SerializeField] float unstableFadeSpeed = 40f;
@@ -88,16 +96,16 @@ public class LaserAudio : MonoBehaviour
         bool unstable = laserBeam.IsUnstable;
 
         if (charging && !wasCharging)
-            sfx.Play(chargeClips);
+            sfx.Play(chargeClips, chargeVolume);
 
         if (unstable && !wasUnstable)
-            sfx.Play(warningClips);
+            sfx.Play(warningClips, warningVolume);
 
         if (active && !wasActive && !unstable)
-            sfx.Play(fireClips);
+            sfx.Play(fireClips, fireVolume);
 
         if (!active && wasActive && !unstable)
-            sfx.Play(shutdownClips);
+            sfx.Play(shutdownClips, shutdownVolume);
 
         wasActive = active;
         wasCharging = charging;

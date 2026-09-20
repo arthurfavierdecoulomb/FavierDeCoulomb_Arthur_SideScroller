@@ -433,11 +433,10 @@ MonoBehaviour:
   laserBeam: {fileID: 2563516259237270396}
   loopGroup: {fileID: 7067628019711585974, guid: 1e7aa001d7c8eea4884c2974bfe5a345, type: 2}
   beamLoop: {fileID: 8300000, guid: 3d633868f423a60429fd48c7a43a2872, type: 3}
-  loopVolume: 0.7
+  loopVolume: 0.575
   fadeInSpeed: 6
   fadeOutSpeed: 10
-  chargeClips:
-  - {fileID: 8300000, guid: abc1cd381b9f106459980de80dab8df3, type: 3}
+  chargeClips: []
   fireClips:
   - {fileID: 8300000, guid: 063b2bf512e655149b39140b45434956, type: 3}
   warningClips:

@@ -2,10 +2,6 @@
 
 public class Turret : MonoBehaviour
 {
-    // ════════════════════════════════════════════════════════════
-    //  Champs sérialisés
-    // ════════════════════════════════════════════════════════════
-
     [Header("Détection")]
     [SerializeField] Vector2 detectionSize = new Vector2(12f, 4f);
     [SerializeField] Vector2 detectionOffset = Vector2.zero;
@@ -18,10 +14,15 @@ public class Turret : MonoBehaviour
     [SerializeField] float bulletSpeed = 12f;
     [SerializeField] float aimSpeed = 10f;
 
+    [Header("Préparation du tir")]
+    [SerializeField] float readyLeadTime = 0.35f;
+    [SerializeField] bool telegraphFirstShot = true;
+
     [Header("Moteur")]
     [SerializeField] Transform motorTransform;
     [SerializeField] float normalSpinSpeed = 180f;
     [SerializeField] float shootingSpinSpeed = 720f;
+    [SerializeField] float spinRatioSmoothing = 3f;
 
     [Header("Refs")]
     [SerializeField] Transform turretHead;
@@ -30,17 +31,24 @@ public class Turret : MonoBehaviour
     [Header("Orientation du sprite")]
     [SerializeField] float spriteAngleOffset = 0f;
 
-    // ════════════════════════════════════════════════════════════
-    //  Données runtime
-    // ════════════════════════════════════════════════════════════
-
     bool playerInSight;
     float currentAngle;
+    float previousAngle;
     float fireCooldown;
+    float spinRatio;
+    float headTurnRate;
+    int shotCount;
+    bool hasFiredSinceSight;
 
-    // ════════════════════════════════════════════════════════════
-    //  Initialisation
-    // ════════════════════════════════════════════════════════════
+    public bool PlayerInSight => playerInSight;
+    public float SpinRatio => spinRatio;
+    public float HeadTurnRate => headTurnRate;
+    public int ShotCount => shotCount;
+
+    public bool IsReadyToFire => playerInSight
+                              && !hasFiredSinceSight
+                              && fireCooldown > 0f
+                              && fireCooldown <= readyLeadTime;
 
     void Awake()
     {
@@ -49,17 +57,29 @@ public class Turret : MonoBehaviour
             GameObject p = GameObject.FindGameObjectWithTag("Player");
             if (p != null) player = p.transform;
         }
-    }
 
-    // ════════════════════════════════════════════════════════════
-    //  Update principal
-    // ════════════════════════════════════════════════════════════
+        currentAngle = turretHead != null ? turretHead.localEulerAngles.z : 0f;
+        previousAngle = currentAngle;
+    }
 
     void Update()
     {
+        bool wasInSight = playerInSight;
         playerInSight = CheckLineOfSight();
 
+        if (playerInSight && !wasInSight)
+        {
+            hasFiredSinceSight = false;
+
+            if (telegraphFirstShot && fireCooldown < readyLeadTime)
+                fireCooldown = readyLeadTime;
+        }
+
+        if (!playerInSight)
+            hasFiredSinceSight = false;
+
         SpinMotor();
+        UpdateSpinRatio();
 
         if (playerInSight)
         {
@@ -72,31 +92,42 @@ public class Turret : MonoBehaviour
             }
         }
 
-        // Applique la rotation
         if (turretHead != null)
             turretHead.localRotation = Quaternion.Euler(0f, 0f, currentAngle);
 
+        UpdateHeadTurnRate();
+
         fireCooldown -= Time.deltaTime;
+
+        if (fireCooldown < 0f)
+            fireCooldown = 0f;
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  Détection
-    // ════════════════════════════════════════════════════════════
+    void UpdateSpinRatio()
+    {
+        float target = playerInSight ? 1f : 0f;
+        spinRatio = Mathf.MoveTowards(spinRatio, target, spinRatioSmoothing * Time.deltaTime);
+    }
+
+    void UpdateHeadTurnRate()
+    {
+        if (Time.deltaTime <= 0f) return;
+
+        headTurnRate = Mathf.Abs(Mathf.DeltaAngle(previousAngle, currentAngle)) / Time.deltaTime;
+        previousAngle = currentAngle;
+    }
 
     bool CheckLineOfSight()
     {
         if (player == null) return false;
 
-        // Convertit la position du joueur dans l'espace local de la tourelle
         Vector2 localPlayerPos = transform.InverseTransformPoint(player.position);
         Vector2 localOffsetPos = localPlayerPos - detectionOffset;
 
-        // Vérifie si le joueur est dans la boîte rectangulaire
         Vector2 half = detectionSize * 0.5f;
         if (Mathf.Abs(localOffsetPos.x) > half.x || Mathf.Abs(localOffsetPos.y) > half.y)
             return false;
 
-        // Vérifie la ligne de vue (raycast obstacle)
         if (firePoint == null) return true;
 
         Vector2 dir = (player.position - firePoint.position).normalized;
@@ -105,10 +136,6 @@ public class Turret : MonoBehaviour
 
         return hit.collider != null && hit.collider.CompareTag("Player");
     }
-
-    // ════════════════════════════════════════════════════════════
-    //  Visée
-    // ════════════════════════════════════════════════════════════
 
     void AimAtPlayer()
     {
@@ -123,10 +150,6 @@ public class Turret : MonoBehaviour
         currentAngle = Mathf.LerpAngle(currentAngle, localAngle, aimSpeed * Time.deltaTime);
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  Tir
-    // ════════════════════════════════════════════════════════════
-
     void FireBullet()
     {
         if (bulletPrefab == null || firePoint == null || player == null) return;
@@ -138,28 +161,22 @@ public class Turret : MonoBehaviour
         Vector2 dir = (player.position - firePoint.position).normalized;
         bulletRb.linearVelocity = dir * bulletSpeed;
 
+        shotCount++;
+        hasFiredSinceSight = true;
+
         Destroy(bullet, 5f);
     }
-
-    // ════════════════════════════════════════════════════════════
-    //  Moteur
-    // ════════════════════════════════════════════════════════════
 
     void SpinMotor()
     {
         if (motorTransform == null) return;
 
-        float speed = playerInSight ? shootingSpinSpeed : normalSpinSpeed;
+        float speed = Mathf.Lerp(normalSpinSpeed, shootingSpinSpeed, spinRatio);
         motorTransform.Rotate(0f, 0f, speed * Time.deltaTime);
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  Gizmos
-    // ════════════════════════════════════════════════════════════
-
     void OnDrawGizmosSelected()
     {
-        // Matrix pour dessiner la zone dans l'espace local de la tourelle
         Gizmos.color = Color.yellow;
         Gizmos.matrix = transform.localToWorldMatrix;
         Gizmos.DrawWireCube(detectionOffset, detectionSize);
