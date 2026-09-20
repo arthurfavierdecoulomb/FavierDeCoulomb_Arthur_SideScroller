@@ -97,6 +97,7 @@ public class OxiDialogueManager : MonoBehaviour
 
     [Header("Machine à écrire")]
     [SerializeField] float typewriterDelay = 0.035f;
+    [SerializeField] bool matchTypewriterToVoice = true;
     [SerializeField] KeyCode advanceKey = KeyCode.Return;
 
     [Header("Animation du panneau")]
@@ -191,6 +192,12 @@ public class OxiDialogueManager : MonoBehaviour
 
     public void PlaySequence(string id)
     {
+        if (isPlaying)
+        {
+            Debug.LogWarning($"{name}: PlaySequence('{id}') ignorée — une séquence est déjà en cours");
+            return;
+        }
+
         DialogueSequence sequence = FindSequence(id);
         if (sequence == null)
         {
@@ -328,6 +335,10 @@ public class OxiDialogueManager : MonoBehaviour
         skipRequested = false;
         bool playClicks = ShouldClick(line);
 
+        float charDelay = typewriterDelay;
+        if (matchTypewriterToVoice && line.voice != null && line.text.Length > 0)
+            charDelay = line.voice.length / line.text.Length;
+
         foreach (char c in line.text)
         {
             if (skipRequested)
@@ -342,12 +353,13 @@ public class OxiDialogueManager : MonoBehaviour
                 PlayTypewriterClick();
 
             float elapsed = 0f;
-            while (elapsed < typewriterDelay)
+            while (elapsed < charDelay)
             {
                 if (AdvancePressed())
                 {
                     skipRequested = true;
                     PlaySfx(advanceClips, advanceVolume, 1f);
+                    voiceSource?.Stop();
                     break;
                 }
 

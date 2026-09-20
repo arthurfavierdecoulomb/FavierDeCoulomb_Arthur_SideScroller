@@ -20,9 +20,14 @@ public class PlayerWakeUpSequence : MonoBehaviour
     [Header("Réveils configurés")]
     [SerializeField] List<WakeUpEntry> wakeUps = new List<WakeUpEntry>();
 
+    [Header("Musique")]
+    [SerializeField] float musicCutDuration = 0.1f;
+    [SerializeField] float musicFadeInDuration = 1.5f;
+
     ArmAbility savedArm;
     bool sequenceActive;
     string pendingDialogueId;
+    LevelData currentLevel;
 
     void Awake()
     {
@@ -60,6 +65,7 @@ public class PlayerWakeUpSequence : MonoBehaviour
         WakeUpEntry entry = FindEntry(target);
         if (entry == null) return;
 
+        currentLevel = target;
         StartWakeUp(entry);
     }
 
@@ -89,6 +95,9 @@ public class PlayerWakeUpSequence : MonoBehaviour
         player.SetMoveEnabled(!tutorialEnabled);
         player.SetJumpEnabled(!tutorialEnabled);
         player.SetInteractEnabled(!tutorialEnabled);
+
+        if (LevelMusicPlayer.Instance != null)
+            LevelMusicPlayer.Instance.FadeOut(musicCutDuration);
 
         playerAnimator.TriggerWakeUp(entry.animatorTrigger);
     }
@@ -125,5 +134,14 @@ public class PlayerWakeUpSequence : MonoBehaviour
 
         player.SetControlLocked(false);
         player.SetInvincible(false);
+    }
+
+    public void StartLevelMusic()
+    {
+        if (currentLevel == null || currentLevel.ambientMusic == null) return;
+        if (LevelMusicPlayer.Instance == null) return;
+
+        LevelMusicPlayer.Instance.PlayMusic(currentLevel.ambientMusic, musicFadeInDuration);
+        currentLevel = null;
     }
 }

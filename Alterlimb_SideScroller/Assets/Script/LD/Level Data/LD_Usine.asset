@@ -19,6 +19,6 @@ MonoBehaviour:
   spawnPosition: {x: -33.54, y: -283.118}
   autoRunEndPosition: {x: 121.28, y: -270.12}
   hasNoTutorialSpawn: 1
-  noTutorialSpawnPosition: {x: 23.99, y: -283.118}
+  noTutorialSpawnPosition: {x: 27.45, y: -283.118}
   exitRunDirection: 1
   ambientMusic: {fileID: 8300000, guid: a9d6056f593e79e428500261bbf420aa, type: 3}
