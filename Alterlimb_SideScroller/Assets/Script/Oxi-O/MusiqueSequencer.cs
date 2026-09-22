@@ -60,6 +60,9 @@ public class BossMusicSequencer : MonoBehaviour
     bool isPlaying;
     bool schedulingSuspended;
 
+    int pendingSourceIndex = -1;
+    double pendingStartTime = -1d;
+
     Coroutine fadeRoutine;
     Coroutine muffleRoutine;
     Coroutine pitchRoutine;
@@ -205,7 +208,10 @@ public class BossMusicSequencer : MonoBehaviour
             return;
 
         if (suspendSchedulingWhileMuffled)
+        {
             schedulingSuspended = true;
+            CancelPendingSchedule();
+        }
 
         if (pitchRoutine != null) StopCoroutine(pitchRoutine);
         pitchRoutine = StartCoroutine(PitchRoutine(muffledPitch, pitchDownDuration, false));
@@ -215,8 +221,13 @@ public class BossMusicSequencer : MonoBehaviour
     {
         if (muffleRoutine != null) StopCoroutine(muffleRoutine);
         muffleRoutine = StartCoroutine(MuffleRoutine(Mathf.Clamp01(volumeFactor), Mathf.Max(0.01f, duration)));
+
         if (suspendSchedulingWhileMuffled)
+        {
             schedulingSuspended = true;
+            CancelPendingSchedule();
+        }
+
         if (pitchRoutine != null) StopCoroutine(pitchRoutine);
         pitchRoutine = StartCoroutine(PitchRoutine(Mathf.Clamp(pitch, 0.05f, 3f), Mathf.Max(0.01f, duration), false));
     }
@@ -248,6 +259,7 @@ public class BossMusicSequencer : MonoBehaviour
         else if (suspendSchedulingWhileMuffled)
         {
             schedulingSuspended = true;
+            CancelPendingSchedule();
         }
     }
 
@@ -305,6 +317,20 @@ public class BossMusicSequencer : MonoBehaviour
         nextEventTime = AudioSettings.dspTime + System.Math.Max(0.05d, remaining);
     }
 
+    void CancelPendingSchedule()
+    {
+        if (pendingSourceIndex < 0) return;
+
+        if (AudioSettings.dspTime < pendingStartTime)
+        {
+            sources[pendingSourceIndex].Stop();
+            sourceIndex = 1 - sourceIndex;
+        }
+
+        pendingSourceIndex = -1;
+        pendingStartTime = -1d;
+    }
+
     float CurrentVolume() => volume * muffleFactor;
     float CurrentPitch() => pitchFactor;
 
@@ -349,6 +375,9 @@ public class BossMusicSequencer : MonoBehaviour
         source.pitch = CurrentPitch();
         source.PlayScheduled(nextEventTime);
 
+        pendingSourceIndex = sourceIndex;
+        pendingStartTime = nextEventTime;
+
         nextEventTime += ClipDuration(segments[next].clip);
 
         bool changed = next != currentIndex;
@@ -360,6 +389,8 @@ public class BossMusicSequencer : MonoBehaviour
 
     IEnumerator CrossfadeRoutine(int index)
     {
+        CancelPendingSchedule();
+
         AudioSource oldSource = sources[sourceIndex];
 
         sourceIndex = 1 - sourceIndex;
@@ -421,6 +452,8 @@ public class BossMusicSequencer : MonoBehaviour
     {
         isPlaying = false;
         queuedIndex = -1;
+        pendingSourceIndex = -1;
+        pendingStartTime = -1d;
 
         for (int i = 0; i < sources.Length; i++)
             sources[i].Stop();

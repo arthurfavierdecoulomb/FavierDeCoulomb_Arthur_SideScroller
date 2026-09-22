@@ -64,6 +64,8 @@ public class Stomper : MonoBehaviour
     public bool IsBusy { get; private set; }
     public bool IsDeployed { get; private set; }
     public float CurrentX => transform.position.x;
+    public int ScreenChangeCount { get; private set; }
+    public float ReferenceSpeed => horizontalSpeed;
 
     private Vector3 restPosition;
     private float railsRestLocalY;
@@ -95,8 +97,7 @@ public class Stomper : MonoBehaviour
         if (railsKillCollider != null)
             railsKillCollider.enabled = false;
 
-        if (screen != null)
-            screen.SetState(StomperScreen.ScreenState.Off);
+        ShowScreen(StomperScreen.ScreenState.Off);
 
         if (hideWhenIdle)
             SetVisualsVisible(false);
@@ -173,6 +174,23 @@ public class Stomper : MonoBehaviour
             Debug.LogWarning($"[Stomper] '{name}' : aucun StomperScreen assigné, pas d'avertissement à l'écran.", this);
     }
 
+    private void ShowScreen(StomperScreen.ScreenState state)
+    {
+        if (screen != null)
+            screen.SetState(state);
+
+        if (state != StomperScreen.ScreenState.Off)
+            ScreenChangeCount++;
+    }
+
+    private void ShowScreenHorizontal(float delta)
+    {
+        if (screen != null)
+            screen.ShowHorizontalDirection(delta);
+
+        ScreenChangeCount++;
+    }
+
     public float ClampToLimits(float x)
     {
         if (!hasLimits)
@@ -229,8 +247,7 @@ public class Stomper : MonoBehaviour
 
         yield return RetractRails();
 
-        if (screen != null)
-            screen.SetState(StomperScreen.ScreenState.DirectionUp);
+        ShowScreen(StomperScreen.ScreenState.DirectionUp);
 
         while (Mathf.Abs(transform.position.y - restPosition.y) > 0.01f)
         {
@@ -239,8 +256,7 @@ public class Stomper : MonoBehaviour
             yield return null;
         }
 
-        if (screen != null)
-            screen.SetState(StomperScreen.ScreenState.Off);
+        ShowScreen(StomperScreen.ScreenState.Off);
 
         if (hideWhenIdle)
             yield return Disappear();
@@ -251,8 +267,7 @@ public class Stomper : MonoBehaviour
 
     private IEnumerator Appear()
     {
-        if (screen != null)
-            screen.SetState(StomperScreen.ScreenState.DirectionDown);
+        ShowScreen(StomperScreen.ScreenState.DirectionDown);
 
         yield return FlickerVisuals(appearFlickerDuration);
         SetVisualsVisible(true);
@@ -296,8 +311,7 @@ public class Stomper : MonoBehaviour
 
     private IEnumerator MoveHorizontally(float targetX, StomperScreen.ScreenState state)
     {
-        if (screen != null)
-            screen.SetState(state);
+        ShowScreen(state);
 
         while (Mathf.Abs(transform.position.x - targetX) > 0.01f)
         {
@@ -309,8 +323,7 @@ public class Stomper : MonoBehaviour
 
     private IEnumerator SlideDeployed(float targetX)
     {
-        if (screen != null)
-            screen.ShowHorizontalDirection(targetX - transform.position.x);
+        ShowScreenHorizontal(targetX - transform.position.x);
 
         while (Mathf.Abs(transform.position.x - targetX) > 0.01f)
         {
@@ -325,8 +338,7 @@ public class Stomper : MonoBehaviour
         if (!hasHoverPoint)
             yield break;
 
-        if (screen != null)
-            screen.SetState(StomperScreen.ScreenState.DirectionDown);
+        ShowScreen(StomperScreen.ScreenState.DirectionDown);
 
         float elapsed = 0f;
         float timeout = Mathf.Abs(restPosition.y - hoverY) / Mathf.Max(0.1f, descendSpeed) + 2f;
@@ -369,8 +381,7 @@ public class Stomper : MonoBehaviour
 
     private IEnumerator WarningPhase(float duration)
     {
-        if (screen != null)
-            screen.SetState(StomperScreen.ScreenState.Warning);
+        ShowScreen(StomperScreen.ScreenState.Warning);
 
         onWarningStart?.Invoke();
 
@@ -379,8 +390,7 @@ public class Stomper : MonoBehaviour
 
     private IEnumerator Slam()
     {
-        if (screen != null)
-            screen.SetState(StomperScreen.ScreenState.Stomp);
+        ShowScreen(StomperScreen.ScreenState.Stomp);
 
         if (crusherKillCollider != null)
             crusherKillCollider.enabled = true;
@@ -389,13 +399,13 @@ public class Stomper : MonoBehaviour
 
         yield return MoveLocalY(crusher, crusherSlamLocalY, slamSpeed);
 
+        onImpact?.Invoke();
+
         if (shakeOnImpact && CameraShake.Instance != null)
         {
             CameraShake.Instance.Punch(Vector2.down, impactPunchMagnitude, impactShakeDuration, impactShakeMagnitude);
             CameraShake.HitStop(impactHitStop);
         }
-
-        onImpact?.Invoke();
 
         yield return new WaitForSeconds(slamHoldDuration);
     }
@@ -477,8 +487,7 @@ public class Stomper : MonoBehaviour
         if (railsKillCollider != null)
             railsKillCollider.enabled = false;
 
-        if (screen != null)
-            screen.SetState(StomperScreen.ScreenState.Off);
+        ShowScreen(StomperScreen.ScreenState.Off);
 
         SetVisualsVisible(!hideWhenIdle);
 

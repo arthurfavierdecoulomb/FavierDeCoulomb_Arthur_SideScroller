@@ -86,6 +86,10 @@ public class OxiOPhaseTransition : MonoBehaviour
     [SerializeField] private bool hideScreenDuringDialogue = true;
     [SerializeField] private float screenReturnDelay = 0.8f;
 
+    [Header("Disparition finale")]
+    [SerializeField] private GameObject oxiRoot;
+    [SerializeField] private float vanishDelay = 0.3f;
+
     [Header("Sécurité")]
     [SerializeField] private float dialogueTimeout = 120f;
     [SerializeField] private float transformationTimeout = 20f;
@@ -133,14 +137,22 @@ public class OxiOPhaseTransition : MonoBehaviour
         if (screenUI == null && hideScreenDuringDialogue)
             Debug.LogWarning($"[OxiOPhaseTransition] '{name}' : Screen UI non assigné, l'écran restera visible pendant le dialogue.", this);
 
+        bool hasFinalStep = false;
+
         foreach (PhaseStep step in steps)
         {
             if (step == null)
                 continue;
 
+            if (step.isFinalPhase)
+                hasFinalStep = true;
+
             if (!step.isFinalPhase && step.nextPhase <= step.fromPhase)
                 Debug.LogWarning($"[OxiOPhaseTransition] '{name}' : l'étape '{step.label}' repart en phase {step.nextPhase} depuis la phase {step.fromPhase}. Boucle possible.", this);
         }
+
+        if (hasFinalStep && oxiRoot == null)
+            Debug.LogWarning($"[OxiOPhaseTransition] '{name}' : Oxi Root non assigné, Oxi-O ne disparaîtra pas à la fin du combat.", this);
     }
 
     private void OnEnable()
@@ -234,6 +246,9 @@ public class OxiOPhaseTransition : MonoBehaviour
                 Debug.LogWarning($"[OxiOPhaseTransition] '{name}' : l'animation sliced n'est jamais sortie de son état après {slicedTimeout}s. Vérifie qu'elle n'est pas en loop.", this);
         }
 
+        if (step.isFinalPhase)
+            yield return VanishOxiO();
+
         if (hideScreenDuringDialogue && screenUI != null)
             screenUI.Hide();
 
@@ -278,6 +293,25 @@ public class OxiOPhaseTransition : MonoBehaviour
 
         IsRunning = false;
         routine = null;
+    }
+
+    private IEnumerator VanishOxiO()
+    {
+        if (oxiRoot == null)
+        {
+            if (logDiagnostics)
+                Debug.LogWarning($"[OxiOPhaseTransition] '{name}' : Oxi Root non assigné, impossible de le faire disparaître.", this);
+
+            yield break;
+        }
+
+        if (vanishDelay > 0f)
+            yield return new WaitForSeconds(vanishDelay);
+
+        oxiRoot.SetActive(false);
+
+        if (logDiagnostics)
+            Debug.Log($"[OxiOPhaseTransition] '{oxiRoot.name}' désactivé, Oxi-O a disparu.", this);
     }
 
     private IEnumerator ReturnScreen()
