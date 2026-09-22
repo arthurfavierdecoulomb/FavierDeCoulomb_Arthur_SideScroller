@@ -107,6 +107,9 @@ public class OxiOBossDirector : MonoBehaviour
     [SerializeField] private string restartMusicId = "";
     [SerializeField] private float restartDelayAfterRespawn = 1.5f;
 
+    [Header("Musique - mort du joueur")]
+    [SerializeField] private bool duckMusicOnDeath = true;
+
     [Header("Événements")]
     public UnityEvent onFightStart;
     public UnityEvent onOverheatStart;
@@ -145,6 +148,9 @@ public class OxiOBossDirector : MonoBehaviour
             return;
 
         StopFight();
+
+        if (duckMusicOnDeath && BossMusicSequencer.Instance != null)
+            BossMusicSequencer.Instance.MuffleMusic();
     }
 
     private void HandlePlayerRespawn()
@@ -153,6 +159,9 @@ public class OxiOBossDirector : MonoBehaviour
             return;
 
         StopFight();
+
+        if (duckMusicOnDeath && BossMusicSequencer.Instance != null)
+            BossMusicSequencer.Instance.UnmuffleMusic();
 
         if (restartWholeFightOnDeath)
             ResetWholeFight();

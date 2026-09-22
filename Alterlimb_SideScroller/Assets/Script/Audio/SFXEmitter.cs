@@ -31,7 +31,7 @@ public class SfxEmitter : MonoBehaviour
         proximity = GetComponent<AudioProxi>();
     }
 
-    void Start()
+    void Start()   
     {
         if (source.outputAudioMixerGroup == null)
             Debug.LogError($"[SfxEmitter] '{name}' : le champ Output de l'AudioSource est vide, le son ne passera pas par le mixer.", this);

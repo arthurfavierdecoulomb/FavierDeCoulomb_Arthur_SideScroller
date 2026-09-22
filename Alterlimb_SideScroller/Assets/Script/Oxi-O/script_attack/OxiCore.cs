@@ -64,6 +64,12 @@ public class OxiOCore : MonoBehaviour
     [SerializeField] private float explosionShakeDuration = 0.7f;
     [SerializeField] private float explosionShakeMagnitude = 0.8f;
 
+    [Header("Son d'explosion")]
+    [SerializeField] private AudioSource explosionAudioSource;
+    [SerializeField] private AudioClip explosionClip;
+    [Range(0f, 1f)]
+    [SerializeField] private float explosionVolume = 1f;
+
     [Header("Diagnostic")]
     [SerializeField] private bool logDiagnostics = true;
     [SerializeField] private float diagnosticInterval = 1f;
@@ -128,6 +134,9 @@ public class OxiOCore : MonoBehaviour
 
         if (ResolvePlayer() == null)
             Debug.LogError($"[OxiOCore] '{name}' : aucun objet trouvé avec le tag '{playerTag}'.", this);
+
+        if (explosionClip == null)
+            Debug.LogWarning($"[OxiOCore] '{name}' : aucun Explosion Clip assigné, l'explosion sera silencieuse.", this);
     }
 
     private bool ExplosionIsPrefabAsset()
@@ -490,12 +499,27 @@ public class OxiOCore : MonoBehaviour
         explosionDone = true;
 
         PlayExplosionParticles();
+        PlayExplosionSound();
 
         if (CameraShake.Instance != null)
             CameraShake.Instance.Shake(explosionShakeDuration, explosionShakeMagnitude);
 
         StartCoroutine(KnockbackRoutine());
         onCoreExplosionEvent?.Invoke();
+    }
+
+    private void PlayExplosionSound()
+    {
+        if (explosionClip == null)
+            return;
+
+        if (explosionAudioSource != null)
+        {
+            explosionAudioSource.PlayOneShot(explosionClip, explosionVolume);
+            return;
+        }
+
+        AudioSource.PlayClipAtPoint(explosionClip, transform.position, explosionVolume);
     }
 
     private void PlayExplosionParticles()

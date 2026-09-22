@@ -10,8 +10,15 @@ public class OxiOCoreMusicCue : MonoBehaviour
     [SerializeField] private string[] segmentIdsByCore = { "core_4", "core_3", "core_2", "core_1" };
     [SerializeField] private int cutsPerPhase = 2;
 
+    public enum PlayMode
+    {
+        Play,
+        Crossfade,
+        Queue
+    }
+
     [Header("Mode de lecture")]
-    [SerializeField] private bool useQueue = true;
+    [SerializeField] private PlayMode playMode = PlayMode.Crossfade;
 
     private void Awake()
     {
@@ -58,7 +65,9 @@ public class OxiOCoreMusicCue : MonoBehaviour
         if (string.IsNullOrEmpty(id) || BossMusicSequencer.Instance == null)
             return;
 
-        if (useQueue)
+        if (playMode == PlayMode.Crossfade)
+            BossMusicSequencer.Instance.PlayImmediate(id);
+        else if (playMode == PlayMode.Queue)
             BossMusicSequencer.Instance.QueueSegment(id);
         else
             BossMusicSequencer.Instance.Play(id);

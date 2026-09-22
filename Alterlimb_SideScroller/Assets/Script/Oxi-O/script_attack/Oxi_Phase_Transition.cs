@@ -247,10 +247,16 @@ public class OxiOPhaseTransition : MonoBehaviour
         }
 
         if (step.isFinalPhase)
+        {
             yield return VanishOxiO();
 
-        if (hideScreenDuringDialogue && screenUI != null)
+            if (screenUI != null)
+                screenUI.Hide();
+        }
+        else if (hideScreenDuringDialogue && screenUI != null)
+        {
             screenUI.Hide();
+        }
 
         if (delayBeforeDialogue > 0f)
             yield return new WaitForSeconds(delayBeforeDialogue);
