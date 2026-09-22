@@ -2,23 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.Audio;
 using UnityEngine.UI;
 
-/// <summary>
-/// Gère la roue d'artefacts qui apparaît temporairement quand le joueur cycle
-/// avec Q. Animation : flicker in → rotation overshoot vers l'angle cible →
-/// flicker out. La roue n'est jamais affichée en permanence.
-/// 
-/// Architecture visuelle :
-///   - Background tourne (avec ses placements enfants qui le suivent)
-///   - Les icônes (enfants des placements) sont contre-tournées pour rester
-///     droites visuellement, tout en suivant la position en arc de cercle
-/// 
-/// Au pickup d'un nouvel artefact : bounce au centre, puis la roue apparaît
-/// pour montrer le nouvel artefact à sa position définitive.
-/// 
-/// Écoute AbilityManager via les événements OnArmChanged et OnArmUnlocked.
-/// </summary>
 public class ArtefactRoulette : MonoBehaviour
 {
     [Header("Refs AbilityManager")]
@@ -26,6 +12,7 @@ public class ArtefactRoulette : MonoBehaviour
 
     [Header("Composants de la roue")]
     [SerializeField] CanvasGroup rouletteCanvasGroup;
+    [SerializeField] RectTransform rouletteRoot;
     [SerializeField] RectTransform backgroundRolebar;
 
     [Header("Icônes par artefact")]
@@ -45,16 +32,13 @@ public class ArtefactRoulette : MonoBehaviour
 
     [Header("Animation roue")]
     [SerializeField] float showDuration = 1.2f;
-    [SerializeField] float flickerInDuration = 0.15f;
-    [SerializeField] float flickerOutDuration = 0.15f;
-    [SerializeField] int flickerSteps = 4;
+    [SerializeField] float slideInDuration = 0.2f;
+    [SerializeField] float slideOutDuration = 0.2f;
+    [SerializeField] Vector2 hiddenOffset = new Vector2(0f, -250f);
 
     [Header("Bounce de rotation (overshoot)")]
-    [Tooltip("Combien la roue dépasse sa cible avant de revenir, en degrés")]
     [SerializeField] float rotationOvershoot = 25f;
-    [Tooltip("Durée totale du mouvement de rotation (overshoot + retour)")]
     [SerializeField] float rotationDuration = 0.5f;
-    [Tooltip("Quelle portion de la durée est dédiée à l'overshoot")]
     [SerializeField, Range(0.3f, 0.8f)] float overshootRatio = 0.65f;
 
     [Header("Apparence des icônes")]
@@ -74,32 +58,58 @@ public class ArtefactRoulette : MonoBehaviour
     [SerializeField] float pickupBounceDuration = 0.4f;
     [SerializeField] float pickupPauseDuration = 0.4f;
     [SerializeField] float pickupFlyDuration = 0.5f;
-    [Tooltip("Intensité du bounce au pickup : 1.15 = subtil, 1.5 = exagéré")]
     [SerializeField] float pickupBounceScale = 1.15f;
+
+    [Header("Audio")]
+    [SerializeField] AudioMixerGroup sfxOutput;
+    [SerializeField] AudioClip[] swooshInClips;
+    [SerializeField] AudioClip[] swooshOutClips;
+    [Range(0f, 1f)]
+    [SerializeField] float swooshVolume = 0.8f;
+    [SerializeField] AudioClip[] rouletteTickClips;
+    [SerializeField] float tickStepDegrees = 12f;
+    [Range(0f, 1f)]
+    [SerializeField] float tickVolume = 0.6f;
+    [SerializeField] Vector2 tickPitchRange = new Vector2(0.92f, 1.08f);
+    [SerializeField] AudioClip[] pickupAppearClips;
+    [Range(0f, 1f)]
+    [SerializeField] float pickupAppearVolume = 0.8f;
 
     Coroutine showRoutine;
     Coroutine pickupRoutine;
-
-    // ════════════════════════════════════════════════════════════
-    //  Initialisation
-    // ════════════════════════════════════════════════════════════
+    Vector2 rouletteShownPos;
+    Vector2 pickupHomePos;
+    AudioSource sfxSource;
+    AudioClip lastSfxClip;
 
     void Awake()
     {
-        if (abilityManager == null)
-            abilityManager = FindAnyObjectByType<AbilityManager>();
+        sfxSource = gameObject.AddComponent<AudioSource>();
+        sfxSource.playOnAwake = false;
+        sfxSource.loop = false;
+        sfxSource.spatialBlend = 0f;
+        sfxSource.outputAudioMixerGroup = sfxOutput;
 
         if (rouletteCanvasGroup != null) rouletteCanvasGroup.alpha = 0f;
         if (pickupBounceCanvasGroup != null) pickupBounceCanvasGroup.alpha = 0f;
+
+        if (pickupBounceAnchor != null)
+            pickupHomePos = pickupBounceAnchor.anchoredPosition;
+
+        if (rouletteRoot != null)
+        {
+            rouletteShownPos = rouletteRoot.anchoredPosition;
+            rouletteRoot.anchoredPosition = rouletteShownPos + hiddenOffset;
+        }
+        else
+        {
+            Debug.LogError("ArtefactRoulette : rouletteRoot non assigné.", this);
+        }
     }
 
     void OnEnable()
     {
-        if (abilityManager != null)
-        {
-            abilityManager.OnArmChanged += HandleArmChanged;
-            abilityManager.OnArmUnlocked += HandleArmUnlocked;
-        }
+        StartCoroutine(WaitForAbilityManager());
     }
 
     void OnDisable()
@@ -111,11 +121,28 @@ public class ArtefactRoulette : MonoBehaviour
         }
     }
 
-    void Start()
+    IEnumerator WaitForAbilityManager()
     {
+        float waited = 0f;
+        while (abilityManager == null)
+        {
+            abilityManager = FindAnyObjectByType<AbilityManager>();
+            if (abilityManager != null) break;
+
+            waited += Time.unscaledDeltaTime;
+            if (waited > 5f)
+            {
+                Debug.LogError("ArtefactRoulette : AbilityManager introuvable après 5s, roue désactivée.", this);
+                yield break;
+            }
+            yield return null;
+        }
+
+        abilityManager.OnArmChanged += HandleArmChanged;
+        abilityManager.OnArmUnlocked += HandleArmUnlocked;
+
         RefreshIconStates();
 
-        // Position initiale de la roue : angle de l'artefact actif au démarrage
         if (backgroundRolebar != null)
         {
             float initialAngle = GetTargetAngleFor(abilityManager.CurrentArm);
@@ -124,25 +151,14 @@ public class ArtefactRoulette : MonoBehaviour
         }
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  Update : maintient les icônes droites pendant la rotation
-    // ════════════════════════════════════════════════════════════
-
     void LateUpdate()
     {
         if (backgroundRolebar == null) return;
 
-        // Contre-rotation des icônes pour qu'elles restent droites
-        // même quand le background (et donc leurs placements) tournent.
         float currentBackgroundAngle = backgroundRolebar.localEulerAngles.z;
         ApplyCounterRotationToIcons(currentBackgroundAngle);
     }
 
-    /// <summary>
-    /// Applique une rotation inverse à chaque icône pour annuler visuellement
-    /// la rotation du background. Les icônes suivent la position en arc de
-    /// cercle mais restent toujours droites pour rester lisibles.
-    /// </summary>
     void ApplyCounterRotationToIcons(float backgroundAngle)
     {
         float counter = -backgroundAngle;
@@ -152,10 +168,6 @@ public class ArtefactRoulette : MonoBehaviour
         if (sawIcon != null) sawIcon.rectTransform.localEulerAngles = counterRotation;
         if (grappleIcon != null) grappleIcon.rectTransform.localEulerAngles = counterRotation;
     }
-
-    // ════════════════════════════════════════════════════════════
-    //  Handlers d'événements
-    // ════════════════════════════════════════════════════════════
 
     void HandleArmChanged(ArmAbility newArm)
     {
@@ -172,10 +184,6 @@ public class ArtefactRoulette : MonoBehaviour
         if (pickupRoutine != null) StopCoroutine(pickupRoutine);
         pickupRoutine = StartCoroutine(PickupBounceRoutine(unlockedArm));
     }
-
-    // ════════════════════════════════════════════════════════════
-    //  Mise à jour visuelle des icônes (alpha + tint)
-    // ════════════════════════════════════════════════════════════
 
     void RefreshIconStates()
     {
@@ -199,62 +207,70 @@ public class ArtefactRoulette : MonoBehaviour
         icon.color = c;
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  Animation roue : flicker in → rotation overshoot → flicker out
-    // ════════════════════════════════════════════════════════════
-
     IEnumerator ShowRouletteRoutine(ArmAbility target)
     {
-        // Flicker IN : toute la roue clignote en apparaissant
-        yield return Flicker(rouletteCanvasGroup, 0f, 1f, flickerInDuration);
+        yield return SlideRoulette(true);
 
-        // Rotation avec overshoot vers l'angle cible
         float targetAngle = GetTargetAngleFor(target);
         yield return RotateWithOvershoot(backgroundRolebar, targetAngle, rotationOvershoot, rotationDuration);
 
-        // Pause de visibilité
-        float remainingTime = showDuration - flickerInDuration - flickerOutDuration - rotationDuration;
+        float remainingTime = showDuration - slideInDuration - slideOutDuration - rotationDuration;
         if (remainingTime > 0f)
             yield return new WaitForSecondsRealtime(remainingTime);
 
-        // Flicker OUT : toute la roue clignote en disparaissant
-        yield return Flicker(rouletteCanvasGroup, 1f, 0f, flickerOutDuration);
+        yield return SlideRoulette(false);
     }
 
-    IEnumerator Flicker(CanvasGroup cg, float from, float to, float duration)
+    IEnumerator SlideRoulette(bool show)
     {
-        if (cg == null) yield break;
+        if (rouletteRoot == null || rouletteCanvasGroup == null) yield break;
 
-        float stepDuration = duration / flickerSteps;
-        for (int i = 0; i < flickerSteps; i++)
+        Vector2 hiddenPos = rouletteShownPos + hiddenOffset;
+        Vector2 start = show ? hiddenPos : rouletteShownPos;
+        Vector2 end = show ? rouletteShownPos : hiddenPos;
+        float duration = show ? slideInDuration : slideOutDuration;
+
+        if (show)
         {
-            cg.alpha = (i % 2 == 0) ? to : from;
-            yield return new WaitForSecondsRealtime(stepDuration);
+            rouletteRoot.anchoredPosition = start;
+            rouletteCanvasGroup.alpha = 1f;
+            PlaySfx(swooshInClips, swooshVolume, 1f);
         }
-        cg.alpha = to;
+        else
+        {
+            PlaySfx(swooshOutClips, swooshVolume, 1f);
+        }
+
+        float t = 0f;
+        while (t < duration)
+        {
+            t += Time.unscaledDeltaTime;
+            float p = Mathf.SmoothStep(0f, 1f, t / duration);
+            rouletteRoot.anchoredPosition = Vector2.Lerp(start, end, p);
+            yield return null;
+        }
+        rouletteRoot.anchoredPosition = end;
+
+        if (!show)
+            rouletteCanvasGroup.alpha = 0f;
     }
 
-    /// <summary>
-    /// Tourne le RectTransform vers un angle cible avec un effet d'overshoot :
-    /// dépasse de "overshoot" degrés dans le sens du mouvement, puis revient
-    /// sur la cible.
-    /// </summary>
     IEnumerator RotateWithOvershoot(RectTransform rt, float targetAngle, float overshoot, float duration)
     {
         if (rt == null) yield break;
 
         float startAngle = rt.localEulerAngles.z;
 
-        // Normaliser pour prendre le chemin le plus court (évite de faire un tour complet)
         float delta = Mathf.DeltaAngle(startAngle, targetAngle);
         float effectiveTarget = startAngle + delta;
 
-        // Direction du dépassement : dans le sens de la rotation
         float overshootDirection = Mathf.Sign(delta);
-        if (overshootDirection == 0f) overshootDirection = 1f; // safety
+        if (overshootDirection == 0f) overshootDirection = 1f;
         float overshootAngle = effectiveTarget + overshoot * overshootDirection;
 
-        // Phase 1 : aller vers l'overshoot
+        float tickAccumulator = 0f;
+        float previousAngle = startAngle;
+
         float overshootDuration = duration * overshootRatio;
         float t = 0f;
         while (t < overshootDuration)
@@ -263,10 +279,18 @@ public class ArtefactRoulette : MonoBehaviour
             float p = Mathf.SmoothStep(0f, 1f, t / overshootDuration);
             float angle = Mathf.Lerp(startAngle, overshootAngle, p);
             rt.localEulerAngles = new Vector3(0f, 0f, angle);
+
+            tickAccumulator += Mathf.Abs(angle - previousAngle);
+            previousAngle = angle;
+            if (tickAccumulator >= tickStepDegrees)
+            {
+                tickAccumulator %= tickStepDegrees;
+                PlaySfx(rouletteTickClips, tickVolume, Random.Range(tickPitchRange.x, tickPitchRange.y));
+            }
+
             yield return null;
         }
 
-        // Phase 2 : revenir sur la cible
         float returnDuration = duration - overshootDuration;
         t = 0f;
         while (t < returnDuration)
@@ -275,6 +299,15 @@ public class ArtefactRoulette : MonoBehaviour
             float p = Mathf.SmoothStep(0f, 1f, t / returnDuration);
             float angle = Mathf.Lerp(overshootAngle, effectiveTarget, p);
             rt.localEulerAngles = new Vector3(0f, 0f, angle);
+
+            tickAccumulator += Mathf.Abs(angle - previousAngle);
+            previousAngle = angle;
+            if (tickAccumulator >= tickStepDegrees)
+            {
+                tickAccumulator %= tickStepDegrees;
+                PlaySfx(rouletteTickClips, tickVolume, Random.Range(tickPitchRange.x, tickPitchRange.y));
+            }
+
             yield return null;
         }
 
@@ -292,10 +325,6 @@ public class ArtefactRoulette : MonoBehaviour
         }
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  Animation pickup : centre écran → bounce léger → vol vers la roue
-    // ════════════════════════════════════════════════════════════
-
     IEnumerator PickupBounceRoutine(ArmAbility ability)
     {
         if (pickupIcon == null || pickupBounceAnchor == null) yield break;
@@ -303,39 +332,30 @@ public class ArtefactRoulette : MonoBehaviour
         pickupIcon.sprite = GetSpriteFor(ability);
         if (pickupIcon.sprite == null) yield break;
 
+        pickupBounceAnchor.anchoredPosition = pickupHomePos;
         pickupBounceAnchor.localScale = Vector3.zero;
         pickupBounceCanvasGroup.alpha = 0f;
+        PlaySfx(pickupAppearClips, pickupAppearVolume, 1f);
 
-        // 1. Apparition au centre écran
         yield return ScaleAndFade(pickupBounceAnchor, pickupBounceCanvasGroup,
                                    Vector3.zero, Vector3.one, 0f, 1f, pickupAppearDuration);
 
-        // 2. Bounce subtil (1 rebond)
         yield return ScaleTo(pickupBounceAnchor, Vector3.one * pickupBounceScale, pickupBounceDuration * 0.5f);
         yield return ScaleTo(pickupBounceAnchor, Vector3.one, pickupBounceDuration * 0.5f);
 
-        // 3. Pause d'admiration
         yield return new WaitForSecondsRealtime(pickupPauseDuration);
 
-        // 4. Tourner la roue vers l'angle de l'artefact ramassé EN PARALLÈLE
-        //    et faire apparaître la roue avec flicker pendant que le pickup
-        //    vole vers sa position.
-        //    On lance la roue qui se positionne sur le bon angle, et on attend
-        //    qu'elle ait fini sa rotation pour faire voler l'icône au bon endroit.
         if (showRoutine != null) StopCoroutine(showRoutine);
         showRoutine = StartCoroutine(ShowRouletteRoutine(ability));
 
-        // 5. Attendre le flicker in + la rotation (pour que le placement soit à sa position finale)
-        yield return new WaitForSecondsRealtime(flickerInDuration + rotationDuration);
+        yield return new WaitForSecondsRealtime(slideInDuration + rotationDuration);
 
-        // 6. Vol vers la position de l'artefact (maintenant à sa position finale)
         RectTransform targetPlacement = GetPlacementFor(ability);
         if (targetPlacement != null)
         {
             yield return FlyToTarget(pickupBounceAnchor, targetPlacement, pickupFlyDuration);
         }
 
-        // 7. Disparition du pickup
         pickupBounceCanvasGroup.alpha = 0f;
         pickupBounceAnchor.localScale = Vector3.one;
     }
@@ -361,10 +381,6 @@ public class ArtefactRoulette : MonoBehaviour
             default: return null;
         }
     }
-
-    // ════════════════════════════════════════════════════════════
-    //  Tweens utilitaires
-    // ════════════════════════════════════════════════════════════
 
     IEnumerator ScaleTo(RectTransform rt, Vector3 target, float duration)
     {
@@ -415,5 +431,22 @@ public class ArtefactRoulette : MonoBehaviour
         }
         rt.position = endPos;
         rt.localScale = endScale;
+    }
+
+    void PlaySfx(AudioClip[] clips, float volume, float pitch)
+    {
+        if (sfxSource == null) return;
+        if (clips == null || clips.Length == 0) return;
+
+        AudioClip clip = clips[Random.Range(0, clips.Length)];
+
+        if (clips.Length > 1 && clip == lastSfxClip)
+            clip = clips[(System.Array.IndexOf(clips, clip) + 1) % clips.Length];
+
+        if (clip == null) return;
+
+        lastSfxClip = clip;
+        sfxSource.pitch = pitch;
+        sfxSource.PlayOneShot(clip, volume);
     }
 }

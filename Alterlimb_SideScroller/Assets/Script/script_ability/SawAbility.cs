@@ -1,13 +1,5 @@
 ﻿using UnityEngine;
 
-/// <summary>
-/// Capacité d'attaque à la scie. Inflige des dégâts aux drones dans une zone
-/// circulaire devant le joueur. Notifie l'AbilityEnergySystem pour vider la
-/// barre d'énergie et le PlayerAnimator pour jouer l'animation d'attaque.
-/// 
-/// Activée uniquement quand le joueur a équipé l'altermembre Scie via
-/// AbilityManager (sinon enabled = false, donc Update ne tourne pas).
-/// </summary>
 public class SawAbility : MonoBehaviour
 {
     [Header("Saw Settings")]
@@ -31,11 +23,11 @@ public class SawAbility : MonoBehaviour
         if (cooldownCounter > 0f)
             cooldownCounter -= Time.deltaTime;
 
-        if (Input.GetMouseButtonDown(0) && cooldownCounter <= 0f)
-        {
-            Attack();
-            cooldownCounter = attackCooldown;
-        }
+        if (!Input.GetMouseButtonDown(0) || cooldownCounter > 0f) return;
+        if (energySystem != null && !energySystem.CanUseSaw()) return;
+
+        Attack();
+        cooldownCounter = attackCooldown;
     }
 
     void Attack()

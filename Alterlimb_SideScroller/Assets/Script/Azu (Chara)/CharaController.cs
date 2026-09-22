@@ -31,7 +31,6 @@ public class CharaController : MonoBehaviour
     [SerializeField] float IceFriction = 0.985f;
 
     Rigidbody2D rb;
-    AbilityEnergySystem energySystem;
     GrapplingHook grapple;
 
     float defaultGravityScale;
@@ -84,7 +83,6 @@ public class CharaController : MonoBehaviour
     void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
-        energySystem = GetComponent<AbilityEnergySystem>();
         grapple = GetComponent<GrapplingHook>();
         defaultGravityScale = rb.gravityScale;
     }
@@ -266,14 +264,11 @@ public class CharaController : MonoBehaviour
 
     void StartDash()
     {
-        float multiplier = energySystem != null ? energySystem.GetDashMultiplier() : 1f;
-        energySystem?.OnDashUsed();
-
         isDashing = true;
         dashTimeCounter = DashDuration;
         dashCooldownCounter = DashCooldown;
         dashDirection = inputX != 0f ? Mathf.Sign(inputX) : Mathf.Sign(transform.localScale.x);
-        rb.linearVelocity = new Vector2(dashDirection * DashForce * multiplier, 0f);
+        rb.linearVelocity = new Vector2(dashDirection * DashForce, 0f);
         rb.gravityScale = 0f;
     }
 

@@ -14,9 +14,9 @@ public class AbilityEnergySystem : MonoBehaviour
         public float rechargeTimer;
         public float barSmoothSpeed = 5f;
         public bool isRecharging = false;
-
-        // Multiplicateur d'effet quand barre basse (0.3 = 30% d'effet à vide)
         public float minEffectMultiplier = 0.3f;
+
+        public bool HasEnergy => currentEnergy > 0f;
 
         public void Init()
         {
@@ -24,7 +24,6 @@ public class AbilityEnergySystem : MonoBehaviour
             displayedEnergy = maxEnergy;
         }
 
-        // Retourne un multiplicateur entre minEffectMultiplier et 1 selon l'énergie restante
         public float GetEffectMultiplier()
         {
             float ratio = currentEnergy / maxEnergy;
@@ -33,6 +32,8 @@ public class AbilityEnergySystem : MonoBehaviour
 
         public void Consume(float amount)
         {
+            if (currentEnergy <= 0f) return;
+
             currentEnergy = Mathf.Max(currentEnergy - amount, 0f);
             isRecharging = true;
             rechargeTimer = rechargeDelay;
@@ -49,7 +50,6 @@ public class AbilityEnergySystem : MonoBehaviour
                 isRecharging = false;
             }
 
-            // Lissage visuel
             displayedEnergy = Mathf.Lerp(displayedEnergy, currentEnergy, barSmoothSpeed * deltaTime);
         }
 
@@ -63,24 +63,23 @@ public class AbilityEnergySystem : MonoBehaviour
     [Header("Bras UI")]
     [SerializeField] Image armEnergyBar;
     [SerializeField] TMP_Text armAbilityText;
+    [SerializeField] Image armAttentionIcon;
 
     [Header("Jambes UI")]
     [SerializeField] Image legEnergyBar;
     [SerializeField] TMP_Text legAbilityText;
+    [SerializeField] Image legAttentionIcon;
+
+    [Header("Warning")]
+    [SerializeField] float attentionBlinkInterval = 0.3f;
 
     [Header("Energy Settings - Bras")]
     public AbilityEnergy grapplingEnergy = new AbilityEnergy { maxEnergy = 100f, rechargeDelay = 3f };
     public AbilityEnergy sawEnergy = new AbilityEnergy { maxEnergy = 100f, rechargeDelay = 2f };
 
-    [Header("Energy Settings - Jambes")]
-    public AbilityEnergy dashEnergy = new AbilityEnergy { maxEnergy = 100f, rechargeDelay = 1.5f };
-    public AbilityEnergy jumpEnergy = new AbilityEnergy { maxEnergy = 100f, rechargeDelay = 1f };
-
     [Header("Coût en énergie")]
     [SerializeField] float grapplingCost = 20f;
     [SerializeField] float sawCost = 15f;
-    [SerializeField] float dashCost = 25f;
-    [SerializeField] float jumpBoostCost = 10f;
 
     AbilityManager abilityManager;
     GrapplingHook grapplingHook;
@@ -107,7 +106,6 @@ public class AbilityEnergySystem : MonoBehaviour
         UpdateUI();
     }
 
-    // ── Grappin : consomme quand on lâche ──────────────────────
     void UpdateGrapplingEnergy()
     {
         if (grapplingHook == null) return;
@@ -119,75 +117,84 @@ public class AbilityEnergySystem : MonoBehaviour
         wasUsingGrapple = isUsingNow;
     }
 
-    // ── Appelé par SawAbility quand elle attaque ───────────────
     public void OnSawUsed()
     {
         sawEnergy.Consume(sawCost);
     }
 
-    // ── Appelé par CharaController quand dash ─────────────────
-    public void OnDashUsed()
-    {
-        dashEnergy.Consume(dashCost);
-    }
-
-    // ── Appelé par CharaController quand jump boost ────────────
-    public void OnJumpBoostUsed()
-    {
-        jumpEnergy.Consume(jumpBoostCost);
-    }
-
-    // ── Mise à jour de toutes les barres ──────────────────────
     void UpdateAllBars()
     {
         grapplingEnergy.Update(Time.deltaTime);
         sawEnergy.Update(Time.deltaTime);
-        dashEnergy.Update(Time.deltaTime);
-        jumpEnergy.Update(Time.deltaTime);
 
         grapplingEnergy.SmoothUpdate(Time.deltaTime);
         sawEnergy.SmoothUpdate(Time.deltaTime);
-        dashEnergy.SmoothUpdate(Time.deltaTime);
-        jumpEnergy.SmoothUpdate(Time.deltaTime);
     }
 
-    // ── UI : barre + texte selon capacité active ──────────────
     void UpdateUI()
     {
         if (abilityManager == null) return;
 
-        // Bras
+        bool armEmpty = false;
+
         switch (abilityManager.CurrentArm)
         {
             case ArmAbility.Hand:
                 armEnergyBar.fillAmount = 1f;
                 armAbilityText.text = "Main droite";
+                armEmpty = false;
                 break;
             case ArmAbility.Grapple:
                 armEnergyBar.fillAmount = grapplingEnergy.displayedEnergy / grapplingEnergy.maxEnergy;
                 armAbilityText.text = "Grappin";
+                armEmpty = !grapplingEnergy.HasEnergy;
                 break;
             case ArmAbility.Saw:
                 armEnergyBar.fillAmount = sawEnergy.displayedEnergy / sawEnergy.maxEnergy;
                 armAbilityText.text = "Scie";
+                armEmpty = !sawEnergy.HasEnergy;
                 break;
         }
 
-        // Jambes
+        bool legEmpty = false;
+
         switch (abilityManager.CurrentLeg)
         {
             case LegAbility.NormalJump:
                 legEnergyBar.fillAmount = 1f;
                 legAbilityText.text = "Jambes";
+                legEmpty = false;
                 break;
-            
-        
         }
+
+        UpdateAttentionIcon(armEnergyBar, armAttentionIcon, armEmpty);
+        UpdateAttentionIcon(legEnergyBar, legAttentionIcon, legEmpty);
     }
 
-    // ── Getters multiplicateurs pour les scripts ──────────────
+    void UpdateAttentionIcon(Image energyBar, Image attentionIcon, bool isEmpty)
+    {
+        if (energyBar == null) return;
+
+        energyBar.enabled = !isEmpty;
+
+        if (attentionIcon == null) return;
+
+        if (!isEmpty)
+        {
+            attentionIcon.enabled = false;
+            return;
+        }
+
+        attentionIcon.enabled = true;
+        bool blinkOn = Mathf.FloorToInt(Time.time / attentionBlinkInterval) % 2 == 0;
+        Color c = attentionIcon.color;
+        c.a = blinkOn ? 1f : 0f;
+        attentionIcon.color = c;
+    }
+
+    public bool CanUseGrapple() => grapplingEnergy.HasEnergy;
+    public bool CanUseSaw() => sawEnergy.HasEnergy;
+
     public float GetGrappleMultiplier() => grapplingEnergy.GetEffectMultiplier();
     public float GetSawMultiplier() => sawEnergy.GetEffectMultiplier();
-    public float GetDashMultiplier() => dashEnergy.GetEffectMultiplier();
-    public float GetJumpMultiplier() => jumpEnergy.GetEffectMultiplier();
 }

@@ -72,6 +72,8 @@ public class OxiDialogueManager : MonoBehaviour
     [SerializeField] AudioSource voiceSource;
     [Range(0f, 1f)]
     [SerializeField] float voiceVolume = 1f;
+    [Range(0f, 2f)]
+    [SerializeField] float oxiVoiceVolume = 1f;
 
     [Header("Sortie audio des bruitages")]
     [SerializeField] AudioMixerGroup sfxOutput;
@@ -290,7 +292,7 @@ public class OxiDialogueManager : MonoBehaviour
 
         voiceSource.Stop();
         voiceSource.clip = line.voice;
-        voiceSource.volume = voiceVolume;
+        voiceSource.volume = line.speaker == Speaker.OxiO ? oxiVoiceVolume : voiceVolume;
         voiceSource.Play();
     }
 

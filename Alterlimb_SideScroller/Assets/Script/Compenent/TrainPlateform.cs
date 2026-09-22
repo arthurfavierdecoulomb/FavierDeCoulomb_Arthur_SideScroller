@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
+using UnityEngine.Audio;
 using System.Collections;
-
 
 [RequireComponent(typeof(Rigidbody2D))]
 public class TrainPlatform : MonoBehaviour
@@ -8,31 +8,21 @@ public class TrainPlatform : MonoBehaviour
     enum TrainState { MovingRight, MovingLeft, Bouncing, Paused, WaitingForPlayer }
 
     [Header("Trajet")]
-    [Tooltip("Distance parcourue vers la droite depuis la position de départ")]
     [SerializeField] float rightDistance = 8f;
-    [Tooltip("Distance parcourue vers la gauche depuis la position de départ")]
     [SerializeField] float leftDistance = 8f;
-    [Tooltip("Vitesse de déplacement du train (unités/seconde)")]
     [SerializeField] float moveSpeed = 5f;
-    [Tooltip("Direction de départ du train")]
     [SerializeField] bool startMovingRight = true;
 
     [Header("Attente du joueur")]
-    [Tooltip("Si coché : le train ne part que lorsque le joueur est monté dessus")]
     [SerializeField] bool waitForPlayer = true;
-    [Tooltip("Délai entre le moment où le joueur monte et le départ (laisse le temps de se stabiliser)")]
     [SerializeField] float departDelay = 0.5f;
-    [Tooltip("Temps max d'attente sans joueur avant de repartir quand même. 0 = attente infinie.")]
     [SerializeField] float maxWaitTime = 0f;
 
     [Header("Pause aux extrémités")]
-    [Tooltip("Temps d'arrêt à chaque extrémité avant de repartir")]
     [SerializeField] float pauseDuration = 1f;
 
     [Header("Bounce d'arrivée")]
-    [Tooltip("Amplitude du premier overshoot (en unités Unity)")]
     [SerializeField] float bounceAmplitude = 0.3f;
-    [Tooltip("Durée totale du bounce (en secondes)")]
     [SerializeField] float bounceDuration = 0.5f;
     [Range(1, 4)]
     [SerializeField] int bounceCount = 2;
@@ -41,13 +31,42 @@ public class TrainPlatform : MonoBehaviour
 
     [Header("Détection joueur")]
     [SerializeField] string playerTag = "Player";
-    [Tooltip("Angle maximal du contact pour considérer que le joueur est SUR le train.")]
     [SerializeField] float maxStandingAngle = 45f;
-    [Tooltip("Délai sans contact avant de considérer que le joueur a quitté le train.")]
     [SerializeField] float contactLostThreshold = 0.1f;
 
     [Header("Animation")]
     [SerializeField] Animator animator;
+
+    [Header("Sortie mixer")]
+    [SerializeField] AudioMixerGroup loopGroup;
+    [SerializeField] AudioMixerGroup sfxGroup;
+
+    [Header("Moteur (loop)")]
+    [SerializeField] AudioClip motorLoop;
+    [Range(0f, 1f)]
+    [SerializeField] float motorIdleVolume = 0f;
+    [Range(0f, 1f)]
+    [SerializeField] float motorMaxVolume = 0.7f;
+    [SerializeField] float motorIdlePitch = 0.6f;
+    [SerializeField] float motorMaxPitch = 1f;
+    [SerializeField] float motorSmoothing = 1.5f;
+
+    [Header("Alarme (départ imminent / fin de course)")]
+    [SerializeField] AudioClip[] alarmClips;
+    [Range(0f, 1f)]
+    [SerializeField] float alarmVolume = 0.8f;
+    [SerializeField] float alarmLeadTime = 2f;
+    [SerializeField] Vector2 alarmPitchRange = new Vector2(0.98f, 1.02f);
+
+    [Header("Sons de proximité (milieu du wagon)")]
+    [SerializeField] AudioProxi proximity;
+    [SerializeField] AudioClip[] oxiLogoClips;
+    [SerializeField] AudioClip[] oxiTextClips;
+    [SerializeField] AudioClip[] leftArrowClips;
+    [SerializeField] AudioClip[] rightArrowClips;
+    [Range(0f, 1f)]
+    [SerializeField] float proximitySfxVolume = 0.8f;
+    [SerializeField] Vector2 proximityPitchRange = new Vector2(0.97f, 1.03f);
 
     static readonly int MoveDirHash = Animator.StringToHash("moveDir");
     static readonly int ArretDroitHash = Animator.StringToHash("arretDroit");
@@ -65,19 +84,20 @@ public class TrainPlatform : MonoBehaviour
     int currentMoveDir;
     TrainState state;
 
-   
-    bool nextDirIsRight;   
-    float waitTimer;       
-    float emptyWaitTimer;  
+    bool nextDirIsRight;
+    float waitTimer;
+    float emptyWaitTimer;
 
     float rightLimitX;
     float leftLimitX;
 
     Coroutine bounceCoroutine;
 
-    
-    //  Initialisation
-    
+    AudioSource motorSource;
+    AudioSource oneShotSource;
+    AudioClip lastOneShotClip;
+    bool departureAlarmPlayed;
+
     void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
@@ -87,6 +107,7 @@ public class TrainPlatform : MonoBehaviour
         rb.interpolation = RigidbodyInterpolation2D.Interpolate;
 
         if (animator == null) animator = GetComponent<Animator>();
+        if (proximity == null) proximity = GetComponent<AudioProxi>();
 
         startPosition = rb.position;
         previousPosition = startPosition;
@@ -94,12 +115,36 @@ public class TrainPlatform : MonoBehaviour
         rightLimitX = startPosition.x + rightDistance;
         leftLimitX = startPosition.x - leftDistance;
 
+        oneShotSource = gameObject.AddComponent<AudioSource>();
+        oneShotSource.playOnAwake = false;
+        oneShotSource.loop = false;
+        oneShotSource.spatialBlend = 0f;
+        oneShotSource.outputAudioMixerGroup = sfxGroup;
+
+        if (motorLoop != null)
+        {
+            motorSource = gameObject.AddComponent<AudioSource>();
+            motorSource.playOnAwake = false;
+            motorSource.loop = true;
+            motorSource.spatialBlend = 0f;
+            motorSource.volume = motorIdleVolume;
+            motorSource.pitch = motorIdlePitch;
+            motorSource.clip = motorLoop;
+            motorSource.outputAudioMixerGroup = loopGroup;
+        }
+
         EnterWaitOrMove(startMovingRight);
     }
 
-    
-    //  Respawn
-    
+    void Start()
+    {
+        if (motorSource != null)
+        {
+            motorSource.Play();
+            motorSource.time = Random.Range(0f, motorLoop.length);
+        }
+    }
+
     void OnEnable()
     {
         SpawnManager.OnPlayerRespawn += ResetToStartPosition;
@@ -128,12 +173,12 @@ public class TrainPlatform : MonoBehaviour
         EnterWaitOrMove(startMovingRight);
     }
 
-    
     void EnterWaitOrMove(bool goRight)
     {
         nextDirIsRight = goRight;
         waitTimer = 0f;
         emptyWaitTimer = 0f;
+        departureAlarmPlayed = false;
 
         if (waitForPlayer)
             state = TrainState.WaitingForPlayer;
@@ -148,9 +193,6 @@ public class TrainPlatform : MonoBehaviour
         emptyWaitTimer = 0f;
     }
 
-    
-    //  Détection du joueur (collision sur le dessus)
-    
     void OnCollisionStay2D(Collision2D collision)
     {
         if (!collision.collider.CompareTag(playerTag)) return;
@@ -179,31 +221,53 @@ public class TrainPlatform : MonoBehaviour
 
     void Update()
     {
-        if (!playerOnTrain) return;
+        if (playerOnTrain)
+        {
+            timeSinceLastContact += Time.deltaTime;
+            if (timeSinceLastContact > contactLostThreshold)
+                DetachPlayer();
+        }
 
-        timeSinceLastContact += Time.deltaTime;
-        if (timeSinceLastContact > contactLostThreshold)
-            DetachPlayer();
+        UpdateMotorAudio();
     }
 
     void DetachPlayer()
     {
         playerOnTrain = false;
         playerRb = null;
+        waitTimer = 0f;
+        departureAlarmPlayed = false;
     }
 
-    //  FixedUpdate : mouvement + transport du joueur
-    
+    void UpdateMotorAudio()
+    {
+        if (motorSource == null) return;
+
+        bool moving = state == TrainState.MovingRight || state == TrainState.MovingLeft;
+        float targetVolume = moving ? motorMaxVolume : motorIdleVolume;
+        float targetPitch = moving ? motorMaxPitch : motorIdlePitch;
+
+        motorSource.volume = Mathf.MoveTowards(motorSource.volume, targetVolume, motorSmoothing * Time.unscaledDeltaTime);
+        motorSource.pitch = Mathf.MoveTowards(motorSource.pitch, targetPitch, motorSmoothing * Time.unscaledDeltaTime);
+
+        if (motorSource.volume <= 0.001f && targetVolume <= 0.001f)
+        {
+            if (motorSource.isPlaying) motorSource.Pause();
+        }
+        else if (!motorSource.isPlaying)
+        {
+            motorSource.UnPause();
+        }
+    }
+
     void FixedUpdate()
     {
-       
         if (state == TrainState.Bouncing)
         {
             TransportPlayer();
             return;
         }
 
-       
         if (state == TrainState.WaitingForPlayer)
         {
             TransportPlayer();
@@ -214,12 +278,13 @@ public class TrainPlatform : MonoBehaviour
                 emptyWaitTimer = 0f;
                 waitTimer += Time.fixedDeltaTime;
 
+                CheckDepartureAlarm(departDelay - waitTimer);
+
                 if (waitTimer >= departDelay)
                     Depart();
             }
             else
             {
-                
                 waitTimer = 0f;
 
                 if (maxWaitTime > 0f)
@@ -267,12 +332,10 @@ public class TrainPlatform : MonoBehaviour
             rb.position = new Vector2(newX, startPosition.y);
         }
 
-        
         TransportPlayer();
         SetMoveDir(newMoveDir);
     }
 
-    
     void TransportPlayer()
     {
         Vector2 currentPos = rb.position;
@@ -285,11 +348,12 @@ public class TrainPlatform : MonoBehaviour
         }
     }
 
-    
     void StartBounceAndPause(int arrivalDir)
     {
         state = TrainState.Bouncing;
         SetMoveDir(0);
+
+        PlayAlarm();
 
         if (animator != null)
         {
@@ -302,7 +366,6 @@ public class TrainPlatform : MonoBehaviour
 
     IEnumerator BounceThenPauseThenReverse(int arrivalDir)
     {
-        
         float baseX = rb.position.x;
         float elapsed = 0f;
 
@@ -323,26 +386,82 @@ public class TrainPlatform : MonoBehaviour
         rb.position = new Vector2(baseX, startPosition.y);
         TransportPlayer();
 
-        
         state = TrainState.Paused;
+        departureAlarmPlayed = false;
         float pauseElapsed = 0f;
 
         while (pauseElapsed < pauseDuration)
         {
             TransportPlayer();
+            CheckDepartureAlarm(pauseDuration - pauseElapsed);
             pauseElapsed += Time.fixedDeltaTime;
             yield return new WaitForFixedUpdate();
         }
 
-        
         EnterWaitOrMove(arrivalDir < 0);
 
         bounceCoroutine = null;
     }
 
-    
-    //  Animator helper
-    
+    void CheckDepartureAlarm(float timeRemaining)
+    {
+        if (departureAlarmPlayed) return;
+        if (timeRemaining > alarmLeadTime) return;
+
+        departureAlarmPlayed = true;
+        PlayAlarm();
+    }
+
+    void PlayAlarm()
+    {
+        PlayOneShot(alarmClips, alarmVolume, alarmPitchRange);
+    }
+
+    public void PlayOxiLogoSound()
+    {
+        PlayProximitySfx(oxiLogoClips);
+    }
+
+    public void PlayOxiTextSound()
+    {
+        PlayProximitySfx(oxiTextClips);
+    }
+
+    public void PlayLeftArrowSound()
+    {
+        PlayProximitySfx(leftArrowClips);
+    }
+
+    public void PlayRightArrowSound()
+    {
+        PlayProximitySfx(rightArrowClips);
+    }
+
+    void PlayProximitySfx(AudioClip[] clips)
+    {
+        float attenuation = proximity != null ? proximity.GetAttenuation() : 1f;
+        if (attenuation <= 0.001f) return;
+
+        PlayOneShot(clips, proximitySfxVolume * attenuation, proximityPitchRange);
+    }
+
+    void PlayOneShot(AudioClip[] clips, float volume, Vector2 pitchRange)
+    {
+        if (oneShotSource == null) return;
+        if (clips == null || clips.Length == 0) return;
+
+        AudioClip clip = clips[Random.Range(0, clips.Length)];
+
+        if (clips.Length > 1 && clip == lastOneShotClip)
+            clip = clips[(System.Array.IndexOf(clips, clip) + 1) % clips.Length];
+
+        if (clip == null) return;
+
+        lastOneShotClip = clip;
+        oneShotSource.pitch = Random.Range(pitchRange.x, pitchRange.y);
+        oneShotSource.PlayOneShot(clip, volume);
+    }
+
     void SetMoveDir(int dir)
     {
         if (dir == currentMoveDir) return;
@@ -350,9 +469,6 @@ public class TrainPlatform : MonoBehaviour
         if (animator != null) animator.SetInteger(MoveDirHash, dir);
     }
 
-    
-    //  Gizmos
-    
     void OnDrawGizmos()
     {
         Vector2 reference = Application.isPlaying ? startPosition : (Vector2)transform.position;

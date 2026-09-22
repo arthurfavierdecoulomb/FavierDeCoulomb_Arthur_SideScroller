@@ -403,6 +403,10 @@ MonoBehaviour:
   lockVolume: 0.8
   fireVolume: 0.9
   pitchRange: {x: 0.97, y: 1.03}
+  explosionClips:
+  - {fileID: 8300000, guid: 4fcc3293d275eac4290a526635adfa5a, type: 3}
+  explosionVolume: 1
+  explosionPitchRange: {x: 0.95, y: 1.05}
   muteWhilePaused: 1
 --- !u!114 &8793761098677207189
 MonoBehaviour:

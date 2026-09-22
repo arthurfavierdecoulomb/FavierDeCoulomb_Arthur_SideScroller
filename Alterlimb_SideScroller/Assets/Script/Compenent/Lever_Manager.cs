@@ -29,8 +29,8 @@ public class Lever : MonoBehaviour
     [Header("Liaison porte (laisser vide = faux levier)")]
     [SerializeField] Door connectedDoor;
 
-    [Header("Message si faux levier")]
-    [SerializeField] string brokenMessageId = "";
+    [Header("Dialogue si faux levier")]
+    [SerializeField] string brokenDialogueId = "";
 
     [Header("Audio")]
     [SerializeField] SfxEmitter sfx;
@@ -103,9 +103,9 @@ public class Lever : MonoBehaviour
     {
         isAnimating = true;
 
-        if (!string.IsNullOrEmpty(brokenMessageId) && TutorialManager.Instance != null)
+        if (!string.IsNullOrEmpty(brokenDialogueId) && OxiDialogueManager.Instance != null && !OxiDialogueManager.Instance.IsPlaying)
         {
-            TutorialManager.Instance.ShowMessageById(brokenMessageId);
+            OxiDialogueManager.Instance.PlaySequence(brokenDialogueId);
         }
 
         PlayPullSound();

@@ -56,6 +56,12 @@ public class DroneAudio : MonoBehaviour
     [SerializeField] float fireVolume = 0.9f;
     [SerializeField] Vector2 pitchRange = new Vector2(0.97f, 1.03f);
 
+    [Header("Explosion")]
+    [SerializeField] AudioClip[] explosionClips;
+    [Range(0f, 1f)]
+    [SerializeField] float explosionVolume = 1f;
+    [SerializeField] Vector2 explosionPitchRange = new Vector2(0.95f, 1.05f);
+
     [Header("Pause")]
     [SerializeField] bool muteWhilePaused = true;
 
@@ -151,9 +157,9 @@ public class DroneAudio : MonoBehaviour
 
         if (!muted)
         {
-            if (aiming && !wasAiming) PlayOneShot(aimClips, aimVolume);
-            if (locked && !wasLocked) PlayOneShot(lockClips, lockVolume);
-            if (firing && !wasFiring) PlayOneShot(fireClips, fireVolume);
+            if (aiming && !wasAiming) PlayOneShot(aimClips, aimVolume, pitchRange);
+            if (locked && !wasLocked) PlayOneShot(lockClips, lockVolume, pitchRange);
+            if (firing && !wasFiring) PlayOneShot(fireClips, fireVolume, pitchRange);
         }
 
         wasAiming = aiming;
@@ -238,7 +244,7 @@ public class DroneAudio : MonoBehaviour
         }
     }
 
-    void PlayOneShot(AudioClip[] clips, float volume)
+    void PlayOneShot(AudioClip[] clips, float volume, Vector2 clipPitchRange)
     {
         if (oneShotSource == null) return;
         if (clips == null || clips.Length == 0) return;
@@ -254,7 +260,14 @@ public class DroneAudio : MonoBehaviour
         if (clip == null) return;
 
         lastClip = clip;
-        oneShotSource.pitch = Random.Range(pitchRange.x, pitchRange.y);
+        oneShotSource.pitch = Random.Range(clipPitchRange.x, clipPitchRange.y);
         oneShotSource.PlayOneShot(clip, volume * attenuation);
+    }
+
+    public void PlayExplosionSound()
+    {
+        if (muteWhilePaused && Time.timeScale <= 0f) return;
+
+        PlayOneShot(explosionClips, explosionVolume, explosionPitchRange);
     }
 }
