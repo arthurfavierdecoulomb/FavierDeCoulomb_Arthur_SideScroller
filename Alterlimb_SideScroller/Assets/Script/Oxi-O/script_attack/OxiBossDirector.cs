@@ -102,13 +102,9 @@ public class OxiOBossDirector : MonoBehaviour
     [Header("Mort du joueur")]
     [SerializeField] private bool stopOnPlayerDeath = true;
     [SerializeField] private bool restartOnPlayerRespawn = true;
-    [SerializeField] private bool resetCoreProgressOnDeath = true;
-    [SerializeField] private bool restartWholeFightOnDeath = true;
-    [SerializeField] private string restartMusicId = "";
+    [SerializeField] private bool resetCoreProgressOnDeath = false;
+    [SerializeField] private bool restartWholeFightOnDeath = false;
     [SerializeField] private float restartDelayAfterRespawn = 1.5f;
-
-    [Header("Musique - mort du joueur")]
-    [SerializeField] private bool duckMusicOnDeath = true;
 
     [Header("Événements")]
     public UnityEvent onFightStart;
@@ -142,15 +138,24 @@ public class OxiOBossDirector : MonoBehaviour
             StartFight();
     }
 
+    private void OnDisable()
+    {
+        SpawnManager.OnPlayerRespawn -= HandlePlayerRespawn;
+        CharaController.OnPlayerDied -= HandlePlayerDied;
+
+        if (core != null)
+        {
+            core.OnCoreRemoved -= HandleCoreCut;
+            core.OnPhaseDepleted -= HandlePhaseDepleted;
+        }
+    }
+
     private void HandlePlayerDied()
     {
         if (!stopOnPlayerDeath || !fightEngaged || phaseComplete)
             return;
 
         StopFight();
-
-        if (duckMusicOnDeath && BossMusicSequencer.Instance != null)
-            BossMusicSequencer.Instance.MuffleMusic();
     }
 
     private void HandlePlayerRespawn()
@@ -159,9 +164,7 @@ public class OxiOBossDirector : MonoBehaviour
             return;
 
         StopFight();
-
-        if (duckMusicOnDeath && BossMusicSequencer.Instance != null)
-            BossMusicSequencer.Instance.UnmuffleMusic();
+        CleanUpAfterDeath();
 
         if (restartWholeFightOnDeath)
             ResetWholeFight();
@@ -171,29 +174,29 @@ public class OxiOBossDirector : MonoBehaviour
         StartCoroutine(RestartAfterRespawn());
     }
 
+    private void CleanUpAfterDeath()
+    {
+        if (cameraFocus != null)
+            cameraFocus.ReleaseFocusInstant();
+
+        if (screenUI != null)
+            screenUI.CancelEcoCountdown();
+    }
+
     private void ResetWholeFight()
     {
         failedWindows = 0;
-
-        if (cameraFocus != null)
-            cameraFocus.ReleaseFocusInstant();
 
         if (oxiAnimation != null)
             oxiAnimation.ResetToNormal();
 
         if (screenUI != null)
-        {
-            screenUI.CancelEcoCountdown();
             screenUI.ResetAllCores();
-        }
 
         SetPhase(1);
 
         if (core != null)
             core.ResetForRetry(true);
-
-        if (!string.IsNullOrEmpty(restartMusicId) && BossMusicSequencer.Instance != null)
-            BossMusicSequencer.Instance.ForcePlay(restartMusicId);
 
         Debug.Log("[OxiOBossDirector] Mort du joueur : retour phase 1, quatre noyaux rallumés.", this);
     }
@@ -265,6 +268,7 @@ public class OxiOBossDirector : MonoBehaviour
         StopAllCoroutines();
         InterruptAllAttacks();
         cinematicActive = false;
+        windowPressureActive = false;
 
         if (core != null)
         {
@@ -713,17 +717,5 @@ public class OxiOBossDirector : MonoBehaviour
         phaseComplete = true;
         windowPressureActive = false;
         cinematicActive = false;
-    }
-
-    private void OnDisable()
-    {
-        SpawnManager.OnPlayerRespawn -= HandlePlayerRespawn;
-        CharaController.OnPlayerDied -= HandlePlayerDied;
-
-        if (core != null)
-        {
-            core.OnCoreRemoved -= HandleCoreCut;
-            core.OnPhaseDepleted -= HandlePhaseDepleted;
-        }
     }
 }

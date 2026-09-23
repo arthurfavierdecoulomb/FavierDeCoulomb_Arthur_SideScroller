@@ -140,9 +140,6 @@ public class DeathAnimationManager : MonoBehaviour
         if (LevelMusicPlayer.Instance != null)
             LevelMusicPlayer.Instance.MuffleMusic();
 
-        if (BossMusicSequencer.Instance != null)
-            BossMusicSequencer.Instance.MuffleMusic();
-
         if (audioSource != null && deathSound != null)
             audioSource.PlayOneShot(deathSound, 0.8f);
 
@@ -187,9 +184,6 @@ public class DeathAnimationManager : MonoBehaviour
 
         if (LevelMusicPlayer.Instance != null)
             LevelMusicPlayer.Instance.UnmuffleMusic();
-
-        if (BossMusicSequencer.Instance != null)
-            BossMusicSequencer.Instance.UnmuffleMusic();
 
         if (player == null) FindPlayer();
 

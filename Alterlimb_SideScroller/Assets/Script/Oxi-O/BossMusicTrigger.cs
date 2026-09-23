@@ -4,21 +4,10 @@ using UnityEngine;
 [RequireComponent(typeof(Collider2D))]
 public class BossMusicTrigger : MonoBehaviour
 {
-    public enum PlayMode
-    {
-        Play,
-        Crossfade,
-        Queue
-    }
-
     [Header("Déclenchement")]
     [SerializeField] private string playerTag = "Player";
     [SerializeField] private bool triggerOnce = true;
     [SerializeField] private float delayBeforePlay = 0f;
-
-    [Header("Segment")]
-    [SerializeField] private string segmentId = "boss_decouverte";
-    [SerializeField] private PlayMode mode = PlayMode.Play;
 
     [Header("Musique du niveau")]
     [SerializeField] private bool fadeOutLevelMusic = true;
@@ -56,18 +45,13 @@ public class BossMusicTrigger : MonoBehaviour
         if (delayBeforePlay > 0f)
             yield return new WaitForSeconds(delayBeforePlay);
 
-        if (BossMusicSequencer.Instance == null)
+        if (OxiOMusicDirector.Instance == null)
         {
-            Debug.LogWarning($"[BossMusicTrigger] '{name}' : aucun BossMusicSequencer dans la scène.", this);
+            Debug.LogError($"[BossMusicTrigger] '{name}' : aucun OxiOMusicDirector dans la scène, la musique du boss ne démarrera pas.", this);
             yield break;
         }
 
-        if (mode == PlayMode.Crossfade)
-            BossMusicSequencer.Instance.PlayImmediate(segmentId);
-        else if (mode == PlayMode.Queue)
-            BossMusicSequencer.Instance.QueueSegment(segmentId);
-        else
-            BossMusicSequencer.Instance.Play(segmentId);
+        OxiOMusicDirector.Instance.EnterBossRoom();
     }
 
     private void OnDrawGizmos()

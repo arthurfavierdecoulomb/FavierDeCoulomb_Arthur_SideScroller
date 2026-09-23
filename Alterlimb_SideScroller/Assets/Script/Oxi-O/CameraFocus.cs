@@ -8,7 +8,7 @@ public class CameraFocus : MonoBehaviour
     [System.Serializable]
     public class FocusPoint
     {
-        public string id = "oxio";
+        public string id = "focus_oxi";
         public Transform anchor;
         public Vector2 offset;
         public float zoomFactor = 1f;

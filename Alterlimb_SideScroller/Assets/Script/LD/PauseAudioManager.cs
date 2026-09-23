@@ -9,8 +9,7 @@ public class PauseAudioManager : MonoBehaviour
 
     [Header("Musique du boss")]
     [SerializeField] private BossMusicSequencer bossMusic;
-    [SerializeField] private bool useSequencerMuffle = true;
-    [SerializeField] private bool restoreMusicOnResume = true;
+    [SerializeField] private bool duckBossMusic = true;
 
     [Header("Autres musiques à ralentir")]
     [SerializeField] private List<AudioSource> pitchDownSources = new List<AudioSource>();
@@ -39,7 +38,6 @@ public class PauseAudioManager : MonoBehaviour
     private readonly Dictionary<AudioSource, float> baseVolume = new Dictionary<AudioSource, float>();
 
     private Coroutine blendRoutine;
-    private bool musicMuffledByPause;
 
     private void Awake()
     {
@@ -50,9 +48,6 @@ public class PauseAudioManager : MonoBehaviour
         }
 
         Instance = this;
-
-        if (bossMusic == null)
-            bossMusic = BossMusicSequencer.Instance;
     }
 
     private void OnDestroy()
@@ -100,16 +95,20 @@ public class PauseAudioManager : MonoBehaviour
         ApplyResume();
     }
 
-    private void ApplyPause()
+    private BossMusicSequencer ResolveBossMusic()
     {
         if (bossMusic == null)
             bossMusic = BossMusicSequencer.Instance;
 
-        if (useSequencerMuffle && bossMusic != null && !bossMusic.IsMuffled)
-        {
-            bossMusic.MuffleMusic(pausedVolumeFactor, pausedPitch, blendDuration);
-            musicMuffledByPause = true;
-        }
+        return bossMusic;
+    }
+
+    private void ApplyPause()
+    {
+        BossMusicSequencer music = ResolveBossMusic();
+
+        if (duckBossMusic && music != null)
+            music.SetPauseDuck(true);
 
         SuspendSources();
 
@@ -124,10 +123,10 @@ public class PauseAudioManager : MonoBehaviour
 
     private void ApplyResume()
     {
-        if (musicMuffledByPause && restoreMusicOnResume && bossMusic != null)
-            bossMusic.UnmuffleMusic();
+        BossMusicSequencer music = ResolveBossMusic();
 
-        musicMuffledByPause = false;
+        if (duckBossMusic && music != null)
+            music.SetPauseDuck(false);
 
         ResumeSources();
 

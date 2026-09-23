@@ -1,6 +1,7 @@
-using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.Audio;
 
 public class BossMusicSequencer : MonoBehaviour
 {
@@ -15,62 +16,69 @@ public class BossMusicSequencer : MonoBehaviour
         public bool autoChainToNext;
     }
 
+    [System.Serializable]
+    public class DuckSettings
+    {
+        [Range(0f, 1f)] public float volumeFactor = 0.25f;
+        [Range(0.1f, 1f)] public float pitch = 0.55f;
+        public float inDuration = 0.9f;
+        public float outDuration = 0.6f;
+    }
+
     [Header("Segments")]
-    [SerializeField] List<MusicSegment> segments = new List<MusicSegment>();
+    [SerializeField] private List<MusicSegment> segments = new List<MusicSegment>();
 
-    [Header("Lecture")]
-    [SerializeField] bool playOnStart = true;
-    [SerializeField] string firstSegmentId = "1";
+    [Header("Sortie")]
+    [SerializeField] private AudioMixerGroup outputGroup;
     [Range(0f, 1f)]
-    [SerializeField] float volume = 0.8f;
-    [SerializeField] float scheduleAheadTime = 1f;
-    [SerializeField] float startDelay = 0.1f;
+    [SerializeField] private float volume = 0.8f;
 
-    [Header("Anti-doublon")]
-    [SerializeField] bool ignoreIfSameSegmentAlreadyPlaying = true;
+    [Header("Enchaînement")]
+    [SerializeField] private float scheduleAheadTime = 1f;
+    [SerializeField] private float startDelay = 0.1f;
+    [SerializeField] private float crossfadeDuration = 0.6f;
 
-    [Header("Transition immédiate")]
-    [SerializeField] float crossfadeDuration = 0.6f;
+    [Header("Sourdine à la mort")]
+    [SerializeField] private DuckSettings deathDuck = new DuckSettings { volumeFactor = 0.25f, pitch = 0.55f, inDuration = 0.9f, outDuration = 0.6f };
 
-    [Header("Sourdine")]
-    [Range(0f, 1f)]
-    [SerializeField] float muffledFactor = 0.25f;
-    [SerializeField] float muffleDuration = 0.4f;
-    [SerializeField] float unmuffleDuration = 0.6f;
+    [Header("Sourdine en pause")]
+    [SerializeField] private DuckSettings pauseDuck = new DuckSettings { volumeFactor = 0.5f, pitch = 0.6f, inDuration = 0.35f, outDuration = 0.35f };
 
-    [Header("Ralentissement")]
-    [SerializeField] bool pitchDownOnMuffle = true;
-    [Range(0.1f, 1f)]
-    [SerializeField] float muffledPitch = 0.55f;
-    [SerializeField] float pitchDownDuration = 0.9f;
-    [SerializeField] float pitchUpDuration = 0.5f;
-    [SerializeField] bool suspendSchedulingWhileMuffled = true;
+    [Header("Diagnostic")]
+    [SerializeField] private bool logDiagnostics = true;
 
     public event System.Action<string> OnSegmentStarted;
 
-    public string CurrentSegmentId => currentIndex >= 0 && currentIndex < segments.Count ? segments[currentIndex].id : "";
+    public string CurrentSegmentId => IdAt(currentIndex);
+    public string QueuedSegmentId => pendingSource >= 0 && pendingIndex != currentIndex ? IdAt(pendingIndex) : IdAt(queuedIndex);
     public bool IsPlaying => isPlaying;
-    public bool IsMuffled => muffleFactor < 0.999f;
+    public bool IsDucked => deathActive || pauseActive || deathWeight > 0f || pauseWeight > 0f;
 
-    AudioSource[] sources = new AudioSource[2];
-    int sourceIndex;
-    int currentIndex = -1;
-    int queuedIndex = -1;
-    double nextEventTime;
-    bool isPlaying;
-    bool schedulingSuspended;
+    private readonly AudioSource[] sources = new AudioSource[2];
+    private readonly float[] sourceGains = { 1f, 1f };
 
-    int pendingSourceIndex = -1;
-    double pendingStartTime = -1d;
+    private int activeSource;
+    private int currentIndex = -1;
+    private int queuedIndex = -1;
+    private bool isPlaying;
+    private bool stopAtEnd;
+    private double currentEndTime;
 
-    Coroutine fadeRoutine;
-    Coroutine muffleRoutine;
-    Coroutine pitchRoutine;
+    private int pendingSource = -1;
+    private int pendingIndex = -1;
+    private double pendingStartTime;
 
-    float muffleFactor = 1f;
-    float pitchFactor = 1f;
+    private bool deathActive;
+    private bool pauseActive;
+    private float deathWeight;
+    private float pauseWeight;
+    private bool schedulingSuspended;
+    private float masterFade = 1f;
 
-    void Awake()
+    private Coroutine crossfadeRoutine;
+    private Coroutine fadeOutRoutine;
+
+    private void Awake()
     {
         if (Instance != null && Instance != this)
         {
@@ -85,57 +93,130 @@ public class BossMusicSequencer : MonoBehaviour
             sources[i] = gameObject.AddComponent<AudioSource>();
             sources[i].playOnAwake = false;
             sources[i].loop = false;
-            sources[i].volume = CurrentVolume();
-            sources[i].pitch = CurrentPitch();
+            sources[i].spatialBlend = 0f;
+            sources[i].outputAudioMixerGroup = outputGroup;
+        }
+
+        ApplyAudio();
+        LogSetup();
+    }
+
+    private void OnDestroy()
+    {
+        if (Instance == this)
+            Instance = null;
+    }
+
+    private void LogSetup()
+    {
+        if (outputGroup == null)
+            Debug.LogError($"[BossMusicSequencer] '{name}' : Output Group vide. Assigne le groupe Music du MainMixer, sinon le réglage de volume musique du joueur n'aura aucun effet.", this);
+
+        HashSet<string> seen = new HashSet<string>();
+
+        foreach (MusicSegment segment in segments)
+        {
+            if (segment == null)
+                continue;
+
+            if (string.IsNullOrEmpty(segment.id))
+                Debug.LogError($"[BossMusicSequencer] '{name}' : un segment n'a pas d'id.", this);
+            else if (!seen.Add(segment.id))
+                Debug.LogError($"[BossMusicSequencer] '{name}' : l'id '{segment.id}' existe en double.", this);
+
+            if (segment.clip == null)
+                Debug.LogError($"[BossMusicSequencer] '{name}' : le segment '{segment.id}' n'a pas de clip.", this);
         }
     }
 
-    void Start()
+    private void Update()
     {
-        if (playOnStart)
-            Play(firstSegmentId);
+        UpdateDucks();
+        ApplyAudio();
+        CommitPendingIfStarted();
+
+        if (!isPlaying)
+            return;
+
+        if (stopAtEnd)
+        {
+            if (!sources[activeSource].isPlaying)
+                FinishPlayback();
+
+            return;
+        }
+
+        if (schedulingSuspended)
+        {
+            KeepAliveWhileDucked();
+            return;
+        }
+
+        if (crossfadeRoutine != null || pendingSource >= 0)
+            return;
+
+        if (AudioSettings.dspTime > currentEndTime - scheduleAheadTime)
+            ScheduleNext();
     }
 
-    void Update()
+    public bool HasSegment(string id)
     {
-        if (!isPlaying || schedulingSuspended) return;
+        for (int i = 0; i < segments.Count; i++)
+            if (segments[i] != null && segments[i].id == id)
+                return true;
 
-        if (AudioSettings.dspTime > nextEventTime - scheduleAheadTime)
-            ScheduleNext();
+        return false;
     }
 
     public void Play(string id)
     {
         int index = IndexOf(id);
-        if (index < 0) return;
 
-        if (ignoreIfSameSegmentAlreadyPlaying && isPlaying && currentIndex == index)
+        if (index < 0 || (isPlaying && index == currentIndex))
             return;
 
-        StopImmediate();
+        StopFadeOut();
+        StopEverything();
+        StartOn(0, index, AudioSettings.dspTime + startDelay, true);
+    }
 
-        currentIndex = index;
-        sourceIndex = 0;
+    public void PlayImmediate(string id)
+    {
+        int index = IndexOf(id);
+
+        if (index < 0 || (isPlaying && index == currentIndex))
+            return;
+
+        StopFadeOut();
+        CancelPending();
+        StopCrossfade();
+
         queuedIndex = -1;
-        nextEventTime = AudioSettings.dspTime + startDelay;
 
-        sources[0].clip = segments[index].clip;
-        sources[0].volume = CurrentVolume();
-        sources[0].pitch = CurrentPitch();
-        sources[0].PlayScheduled(nextEventTime);
+        int from = activeSource;
+        int to = 1 - activeSource;
 
-        nextEventTime += ClipDuration(segments[index].clip);
+        PrepareSource(to, index);
+        sourceGains[to] = 0f;
+        ApplyAudio();
+        sources[to].Play();
+
+        activeSource = to;
+        currentIndex = index;
+        currentEndTime = AudioSettings.dspTime + ClipDuration(segments[index].clip);
         isPlaying = true;
+        stopAtEnd = false;
 
-        OnSegmentStarted?.Invoke(segments[index].id);
+        Announce();
+
+        crossfadeRoutine = StartCoroutine(CrossfadeRoutine(from, to));
     }
 
     public void QueueSegment(string id)
     {
         int index = IndexOf(id);
-        if (index < 0) return;
 
-        if (isPlaying && currentIndex == index && queuedIndex < 0)
+        if (index < 0)
             return;
 
         if (!isPlaying)
@@ -144,53 +225,21 @@ public class BossMusicSequencer : MonoBehaviour
             return;
         }
 
-        queuedIndex = index;
-    }
-
-    public void PlayImmediate(string id)
-    {
-        int index = IndexOf(id);
-        if (index < 0) return;
-
-        if (ignoreIfSameSegmentAlreadyPlaying && isPlaying && currentIndex == index)
+        if (index == queuedIndex || (pendingSource >= 0 && index == pendingIndex))
             return;
 
-        StartCoroutine(CrossfadeRoutine(index));
-    }
+        if (index == currentIndex && queuedIndex < 0 && pendingSource < 0 && !stopAtEnd)
+            return;
 
-    public void ForcePlay(string id)
-    {
-        int index = IndexOf(id);
-        if (index < 0) return;
-
-        StopImmediate();
-
-        currentIndex = index;
-        sourceIndex = 0;
-        queuedIndex = -1;
-        nextEventTime = AudioSettings.dspTime + startDelay;
-
-        sources[0].clip = segments[index].clip;
-        sources[0].volume = CurrentVolume();
-        sources[0].pitch = CurrentPitch();
-        sources[0].PlayScheduled(nextEventTime);
-
-        nextEventTime += ClipDuration(segments[index].clip);
-        isPlaying = true;
-
-        OnSegmentStarted?.Invoke(segments[index].id);
-    }
-
-    public void AdvanceToNext()
-    {
-        if (currentIndex < 0 || currentIndex + 1 >= segments.Count) return;
-        QueueSegment(segments[currentIndex + 1].id);
+        CancelPending();
+        queuedIndex = index;
+        stopAtEnd = false;
     }
 
     public void FadeOutAndStop(float duration)
     {
-        if (fadeRoutine != null) StopCoroutine(fadeRoutine);
-        fadeRoutine = StartCoroutine(FadeOutRoutine(duration));
+        StopFadeOut();
+        fadeOutRoutine = StartCoroutine(FadeOutRoutine(Mathf.Max(0.01f, duration)));
     }
 
     public void SetVolume(float value)
@@ -199,278 +248,320 @@ public class BossMusicSequencer : MonoBehaviour
         ApplyAudio();
     }
 
-    public void MuffleMusic()
+    public void SetDeathDuck(bool active)
     {
-        if (muffleRoutine != null) StopCoroutine(muffleRoutine);
-        muffleRoutine = StartCoroutine(MuffleRoutine(muffledFactor, muffleDuration));
-
-        if (!pitchDownOnMuffle)
+        if (deathActive == active)
             return;
 
-        if (suspendSchedulingWhileMuffled)
-        {
-            schedulingSuspended = true;
-            CancelPendingSchedule();
-        }
-
-        if (pitchRoutine != null) StopCoroutine(pitchRoutine);
-        pitchRoutine = StartCoroutine(PitchRoutine(muffledPitch, pitchDownDuration, false));
+        deathActive = active;
+        OnDuckChanged(active, "mort");
     }
 
-    public void MuffleMusic(float volumeFactor, float pitch, float duration)
+    public void SetPauseDuck(bool active)
     {
-        if (muffleRoutine != null) StopCoroutine(muffleRoutine);
-        muffleRoutine = StartCoroutine(MuffleRoutine(Mathf.Clamp01(volumeFactor), Mathf.Max(0.01f, duration)));
-
-        if (suspendSchedulingWhileMuffled)
-        {
-            schedulingSuspended = true;
-            CancelPendingSchedule();
-        }
-
-        if (pitchRoutine != null) StopCoroutine(pitchRoutine);
-        pitchRoutine = StartCoroutine(PitchRoutine(Mathf.Clamp(pitch, 0.05f, 3f), Mathf.Max(0.01f, duration), false));
-    }
-
-    public void UnmuffleMusic()
-    {
-        if (muffleRoutine != null) StopCoroutine(muffleRoutine);
-        muffleRoutine = StartCoroutine(MuffleRoutine(1f, unmuffleDuration));
-
-        if (!pitchDownOnMuffle)
+        if (pauseActive == active)
             return;
 
-        if (pitchRoutine != null) StopCoroutine(pitchRoutine);
-        pitchRoutine = StartCoroutine(PitchRoutine(1f, pitchUpDuration, true));
+        pauseActive = active;
+        OnDuckChanged(active, "pause");
     }
 
-    public void SetPitchImmediate(float value)
+    private void OnDuckChanged(bool active, string reason)
     {
-        if (pitchRoutine != null) StopCoroutine(pitchRoutine);
-
-        pitchFactor = Mathf.Clamp(value, 0.05f, 3f);
-        ApplyAudio();
-
-        if (Mathf.Approximately(pitchFactor, 1f))
-        {
-            ResyncSchedule();
-            schedulingSuspended = false;
-        }
-        else if (suspendSchedulingWhileMuffled)
+        if (active && !schedulingSuspended)
         {
             schedulingSuspended = true;
-            CancelPendingSchedule();
+            CancelPending();
         }
+
+        Log($"sourdine '{reason}' {(active ? "activée" : "relâchée")}.");
     }
 
-    IEnumerator MuffleRoutine(float target, float duration)
+    private void UpdateDucks()
     {
-        float start = muffleFactor;
-        float elapsed = 0f;
+        deathWeight = StepWeight(deathWeight, deathActive, deathDuck);
+        pauseWeight = StepWeight(pauseWeight, pauseActive, pauseDuck);
 
-        while (elapsed < duration)
-        {
-            elapsed += Time.unscaledDeltaTime;
-            muffleFactor = Mathf.Lerp(start, target, Mathf.Clamp01(elapsed / duration));
-            ApplyAudio();
-            yield return null;
-        }
-
-        muffleFactor = target;
-        ApplyAudio();
-        muffleRoutine = null;
+        if (schedulingSuspended && !deathActive && !pauseActive && deathWeight <= 0f && pauseWeight <= 0f)
+            ResumeScheduling();
     }
 
-    IEnumerator PitchRoutine(float target, float duration, bool resyncAtEnd)
+    private float StepWeight(float weight, bool active, DuckSettings settings)
     {
-        float start = pitchFactor;
-        float elapsed = 0f;
+        float target = active ? 1f : 0f;
+        float duration = active ? settings.inDuration : settings.outDuration;
+        float step = duration <= 0f ? 1f : Time.unscaledDeltaTime / duration;
 
-        while (elapsed < duration)
-        {
-            elapsed += Time.unscaledDeltaTime;
-            pitchFactor = Mathf.Lerp(start, target, Mathf.Clamp01(elapsed / duration));
-            ApplyAudio();
-            yield return null;
-        }
-
-        pitchFactor = target;
-        ApplyAudio();
-
-        if (resyncAtEnd)
-        {
-            ResyncSchedule();
-            schedulingSuspended = false;
-        }
-
-        pitchRoutine = null;
+        return Mathf.MoveTowards(weight, target, step);
     }
 
-    void ResyncSchedule()
+    private void ResumeScheduling()
     {
-        AudioSource source = sources[sourceIndex];
+        schedulingSuspended = false;
 
-        if (source == null || source.clip == null || !source.isPlaying)
+        AudioSource source = sources[activeSource];
+
+        if (!isPlaying || source.clip == null || !source.isPlaying)
             return;
 
-        double remaining = source.clip.length - source.time;
-        nextEventTime = AudioSettings.dspTime + System.Math.Max(0.05d, remaining);
+        double remaining = (double)(source.clip.samples - source.timeSamples) / source.clip.frequency;
+        currentEndTime = AudioSettings.dspTime + System.Math.Max(0.05d, remaining);
     }
 
-    void CancelPendingSchedule()
+    private void KeepAliveWhileDucked()
     {
-        if (pendingSourceIndex < 0) return;
+        if (sources[activeSource].isPlaying)
+            return;
 
-        if (AudioSettings.dspTime < pendingStartTime)
+        int next = ConsumeNextIndex();
+
+        if (next < 0)
         {
-            sources[pendingSourceIndex].Stop();
-            sourceIndex = 1 - sourceIndex;
+            FinishPlayback();
+            return;
         }
 
-        pendingSourceIndex = -1;
-        pendingStartTime = -1d;
+        StartOn(activeSource, next, AudioSettings.dspTime, next != currentIndex);
     }
 
-    float CurrentVolume() => volume * muffleFactor;
-    float CurrentPitch() => pitchFactor;
-
-    void ApplyAudio()
+    private void ApplyAudio()
     {
+        float duckVolume = Mathf.Lerp(1f, deathDuck.volumeFactor, deathWeight) * Mathf.Lerp(1f, pauseDuck.volumeFactor, pauseWeight);
+        float duckPitch = Mathf.Lerp(1f, deathDuck.pitch, deathWeight) * Mathf.Lerp(1f, pauseDuck.pitch, pauseWeight);
+        float baseVolume = volume * duckVolume * masterFade;
+
         for (int i = 0; i < sources.Length; i++)
         {
-            if (sources[i] == null) continue;
+            if (sources[i] == null)
+                continue;
 
-            sources[i].volume = CurrentVolume();
-            sources[i].pitch = CurrentPitch();
+            sources[i].volume = baseVolume * sourceGains[i];
+            sources[i].pitch = duckPitch;
         }
     }
 
-    void ScheduleNext()
+    private int ConsumeNextIndex()
     {
-        int next;
-
         if (queuedIndex >= 0)
         {
-            next = queuedIndex;
+            int queued = queuedIndex;
             queuedIndex = -1;
+            return queued;
         }
-        else if (segments[currentIndex].loop)
+
+        if (currentIndex < 0 || currentIndex >= segments.Count)
+            return -1;
+
+        MusicSegment current = segments[currentIndex];
+
+        if (current.loop)
+            return currentIndex;
+
+        if (current.autoChainToNext && currentIndex + 1 < segments.Count)
+            return currentIndex + 1;
+
+        return -1;
+    }
+
+    private void ScheduleNext()
+    {
+        int next = ConsumeNextIndex();
+
+        if (next < 0)
         {
-            next = currentIndex;
-        }
-        else if (segments[currentIndex].autoChainToNext && currentIndex + 1 < segments.Count)
-        {
-            next = currentIndex + 1;
-        }
-        else
-        {
-            isPlaying = false;
+            stopAtEnd = true;
             return;
         }
 
-        sourceIndex = 1 - sourceIndex;
-        AudioSource source = sources[sourceIndex];
-        source.clip = segments[next].clip;
-        source.volume = CurrentVolume();
-        source.pitch = CurrentPitch();
-        source.PlayScheduled(nextEventTime);
+        int target = 1 - activeSource;
 
-        pendingSourceIndex = sourceIndex;
-        pendingStartTime = nextEventTime;
+        PrepareSource(target, next);
+        sources[target].PlayScheduled(currentEndTime);
 
-        nextEventTime += ClipDuration(segments[next].clip);
-
-        bool changed = next != currentIndex;
-        currentIndex = next;
-
-        if (changed)
-            OnSegmentStarted?.Invoke(segments[next].id);
+        pendingSource = target;
+        pendingIndex = next;
+        pendingStartTime = currentEndTime;
     }
 
-    IEnumerator CrossfadeRoutine(int index)
+    private void CommitPendingIfStarted()
     {
-        CancelPendingSchedule();
+        if (pendingSource < 0 || AudioSettings.dspTime < pendingStartTime)
+            return;
 
-        AudioSource oldSource = sources[sourceIndex];
+        bool changed = pendingIndex != currentIndex;
 
-        sourceIndex = 1 - sourceIndex;
-        AudioSource newSource = sources[sourceIndex];
+        activeSource = pendingSource;
+        currentIndex = pendingIndex;
+        currentEndTime = pendingStartTime + ClipDuration(segments[currentIndex].clip);
 
-        newSource.clip = segments[index].clip;
-        newSource.volume = 0f;
-        newSource.pitch = CurrentPitch();
-        newSource.Play();
+        pendingSource = -1;
+        pendingIndex = -1;
 
+        if (changed)
+            Announce();
+    }
+
+    private void CancelPending()
+    {
+        CommitPendingIfStarted();
+
+        if (pendingSource < 0)
+            return;
+
+        sources[pendingSource].Stop();
+
+        if (pendingIndex != currentIndex && queuedIndex < 0)
+            queuedIndex = pendingIndex;
+
+        pendingSource = -1;
+        pendingIndex = -1;
+    }
+
+    private void StartOn(int sourceSlot, int index, double startTime, bool announce)
+    {
+        PrepareSource(sourceSlot, index);
+        sources[sourceSlot].PlayScheduled(startTime);
+
+        activeSource = sourceSlot;
         currentIndex = index;
-        queuedIndex = -1;
-        nextEventTime = AudioSettings.dspTime + ClipDuration(segments[index].clip);
+        currentEndTime = startTime + ClipDuration(segments[index].clip);
         isPlaying = true;
+        stopAtEnd = false;
 
-        OnSegmentStarted?.Invoke(segments[index].id);
+        if (announce)
+            Announce();
+    }
 
-        float elapsed = 0f;
+    private void PrepareSource(int sourceSlot, int index)
+    {
+        sources[sourceSlot].clip = segments[index].clip;
+        sourceGains[sourceSlot] = 1f;
+        ApplyAudio();
+    }
+
+    private IEnumerator CrossfadeRoutine(int from, int to)
+    {
         float duration = Mathf.Max(0.01f, crossfadeDuration);
+        float elapsed = 0f;
 
         while (elapsed < duration)
         {
             elapsed += Time.unscaledDeltaTime;
             float t = Mathf.Clamp01(elapsed / duration);
-            newSource.volume = CurrentVolume() * t;
-            oldSource.volume = CurrentVolume() * (1f - t);
+
+            sourceGains[to] = t;
+            sourceGains[from] = 1f - t;
+
             yield return null;
         }
 
-        newSource.volume = CurrentVolume();
-        oldSource.Stop();
-        oldSource.volume = CurrentVolume();
+        sources[from].Stop();
+        sourceGains[from] = 1f;
+        sourceGains[to] = 1f;
+
+        crossfadeRoutine = null;
     }
 
-    IEnumerator FadeOutRoutine(float duration)
+    private void StopCrossfade()
+    {
+        if (crossfadeRoutine == null)
+            return;
+
+        StopCoroutine(crossfadeRoutine);
+        crossfadeRoutine = null;
+
+        int other = 1 - activeSource;
+
+        sources[other].Stop();
+        sourceGains[other] = 1f;
+        sourceGains[activeSource] = 1f;
+    }
+
+    private IEnumerator FadeOutRoutine(float duration)
     {
         float elapsed = 0f;
-        float startFactor = muffleFactor;
 
         while (elapsed < duration)
         {
             elapsed += Time.unscaledDeltaTime;
-            muffleFactor = startFactor * (1f - Mathf.Clamp01(elapsed / duration));
-            ApplyAudio();
+            masterFade = 1f - Mathf.Clamp01(elapsed / duration);
             yield return null;
         }
 
-        StopImmediate();
+        fadeOutRoutine = null;
+        StopEverything();
+        masterFade = 1f;
 
-        muffleFactor = 1f;
-        pitchFactor = 1f;
-        schedulingSuspended = false;
-        ApplyAudio();
-
-        fadeRoutine = null;
+        Log("fondu de sortie terminé, musique arrêtée.");
     }
 
-    void StopImmediate()
+    private void StopFadeOut()
     {
-        isPlaying = false;
-        queuedIndex = -1;
-        pendingSourceIndex = -1;
-        pendingStartTime = -1d;
+        if (fadeOutRoutine == null)
+            return;
+
+        StopCoroutine(fadeOutRoutine);
+        fadeOutRoutine = null;
+        masterFade = 1f;
+    }
+
+    private void FinishPlayback()
+    {
+        Log($"'{CurrentSegmentId}' terminé, plus rien à enchaîner.");
+        StopEverything();
+    }
+
+    private void StopEverything()
+    {
+        StopCrossfade();
 
         for (int i = 0; i < sources.Length; i++)
+        {
             sources[i].Stop();
+            sourceGains[i] = 1f;
+        }
+
+        pendingSource = -1;
+        pendingIndex = -1;
+        queuedIndex = -1;
+        currentIndex = -1;
+        isPlaying = false;
+        stopAtEnd = false;
     }
 
-    int IndexOf(string id)
+    private void Announce()
+    {
+        string id = CurrentSegmentId;
+        Log($"segment '{id}' lancé.");
+        OnSegmentStarted?.Invoke(id);
+    }
+
+    private int IndexOf(string id)
     {
         for (int i = 0; i < segments.Count; i++)
-            if (segments[i].id == id) return i;
+            if (segments[i] != null && segments[i].id == id)
+                return i;
 
-        Debug.LogWarning($"[BossMusicSequencer] Aucun segment avec l'id '{id}'.");
+        Debug.LogWarning($"[BossMusicSequencer] '{name}' : aucun segment avec l'id '{id}'.", this);
         return -1;
     }
 
-    double ClipDuration(AudioClip clip)
+    private string IdAt(int index)
     {
-        if (clip == null) return 0d;
+        return index >= 0 && index < segments.Count && segments[index] != null ? segments[index].id : "";
+    }
+
+    private double ClipDuration(AudioClip clip)
+    {
+        if (clip == null)
+            return 0d;
+
         return (double)clip.samples / clip.frequency;
+    }
+
+    private void Log(string message)
+    {
+        if (logDiagnostics)
+            Debug.Log($"[BossMusicSequencer] {message}", this);
     }
 }

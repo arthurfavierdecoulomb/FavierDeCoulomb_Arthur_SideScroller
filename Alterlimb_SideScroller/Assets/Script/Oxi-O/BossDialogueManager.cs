@@ -132,6 +132,7 @@ public class BossDialogueManager : MonoBehaviour
 
     public bool IsPlaying => isPlaying;
     public event System.Action<string> OnSequenceFinished;
+    public event System.Action<string, int> OnLineStarted;
 
     RectTransform panelRect;
     CanvasGroup canvasGroup;
@@ -301,9 +302,12 @@ public class BossDialogueManager : MonoBehaviour
 
         yield return StartCoroutine(SlideInRoutine());
 
-        foreach (DialogueLine line in sequence.lines)
+        for (int lineIndex = 0; lineIndex < sequence.lines.Count; lineIndex++)
         {
+            DialogueLine line = sequence.lines[lineIndex];
+
             line.onLineStart?.Invoke();
+            OnLineStarted?.Invoke(sequence.id, lineIndex);
             ApplySpeaker(line);
 
             HideContinueHint();

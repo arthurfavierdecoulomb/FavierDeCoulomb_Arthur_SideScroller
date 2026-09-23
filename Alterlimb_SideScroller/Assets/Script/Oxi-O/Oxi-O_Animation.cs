@@ -34,6 +34,7 @@ public class OxiO_Animation : MonoBehaviour
     [SerializeField] float blinkDelayMin = 2.5f;
     [SerializeField] float blinkDelayMax = 6f;
 
+    public event System.Action OnTransformationStarted;
     public event System.Action OnTransformationComplete;
     public event System.Action OnSlicedComplete;
 
@@ -273,6 +274,8 @@ public class OxiO_Animation : MonoBehaviour
     IEnumerator TransformationRoutine()
     {
         isTransforming = true;
+        OnTransformationStarted?.Invoke();
+
         isTalking = false;
         isBlinking = false;
         isEconomyMode = false;
