@@ -50,7 +50,7 @@ public class BossDialogueTrigger : MonoBehaviour
         if (cameraFollow == null)
             Debug.LogWarning("[BossDialogueTrigger] Aucun CameraFollow trouvé : la caméra risque d'être reprise pendant le dialogue.");
         else
-            cameraFollow.Suspend();
+            cameraFollow.Suspend(this);
 
         yield return StartCoroutine(MoveCamera(cameraTarget != null ? cameraTarget.position : originalPosition,
                                                targetOrthographicSize,
@@ -59,7 +59,7 @@ public class BossDialogueTrigger : MonoBehaviour
         if (BossDialogueManager.Instance == null)
         {
             Debug.LogWarning("[BossDialogueTrigger] Aucun BossDialogueManager dans la scène.");
-            if (cameraFollow != null) cameraFollow.Resume();
+            if (cameraFollow != null) cameraFollow.Resume(this);
             yield break;
         }
 
@@ -78,7 +78,7 @@ public class BossDialogueTrigger : MonoBehaviour
         if (resumeFollowAfterDialogue && cameraFollow != null)
         {
             cameraFollow.ResetZoom();
-            cameraFollow.Resume();
+            cameraFollow.Resume(this);
         }
     }
 

@@ -44,6 +44,7 @@ public class OxiOCore : MonoBehaviour
     [SerializeField] private bool playSlicedOnEveryCut = true;
     [SerializeField] private bool explosionFromAnimationEvent = true;
     [SerializeField] private float explosionFallbackDelay = 2.5f;
+    [SerializeField] private float finalExplosionFallbackDelay = 6f;
 
     [Header("Feedback")]
     [SerializeField] private GameObject lockedVisual;
@@ -102,10 +103,17 @@ public class OxiOCore : MonoBehaviour
     private bool explosionDone;
     private float lastDiagnosticTime;
     private int cutsDoneThisPhase;
+    private bool isFinalPhase;
 
     public int CutsDoneThisPhase => cutsDoneThisPhase;
     public int CutsRemainingThisPhase => Mathf.Max(0, cutsPerPhase - cutsDoneThisPhase);
     public bool PhaseDepleted => cutsDoneThisPhase >= cutsPerPhase;
+    public bool IsFinalPhase => isFinalPhase;
+
+    public void SetFinalPhase(bool value)
+    {
+        isFinalPhase = value;
+    }
 
     private void Awake()
     {
@@ -451,17 +459,23 @@ public class OxiOCore : MonoBehaviour
             ShowVisual(removedVisual);
 
         bool playSliced = animationDriver != null && (playSlicedOnEveryCut || depleted);
+        bool finalBlow = depleted && isFinalPhase;
 
         if (playSliced)
         {
-            animationDriver.PlaySliced(slicedPhaseIndex);
+            if (finalBlow)
+                animationDriver.PlayFinalBlow();
+            else
+                animationDriver.PlaySliced(slicedPhaseIndex);
 
             if (explosionFromAnimationEvent)
             {
-                if (logDiagnostics)
-                    Debug.Log($"[OxiOCore] '{name}' : explosion en attente d'un Animation Event, secours dans {explosionFallbackDelay}s.", this);
+                float delay = finalBlow ? finalExplosionFallbackDelay : explosionFallbackDelay;
 
-                StartCoroutine(ExplosionFallbackRoutine());
+                if (logDiagnostics)
+                    Debug.Log($"[OxiOCore] '{name}' : explosion en attente d'un Animation Event, secours dans {delay}s.", this);
+
+                StartCoroutine(ExplosionFallbackRoutine(delay));
             }
             else
             {
@@ -500,6 +514,9 @@ public class OxiOCore : MonoBehaviour
 
         PlayExplosionParticles();
         PlayExplosionSound();
+
+        if (animationDriver != null)
+            animationDriver.HandleCoreExplosion();
 
         if (CameraShake.Instance != null)
             CameraShake.Instance.Shake(explosionShakeDuration, explosionShakeMagnitude);
@@ -598,9 +615,9 @@ public class OxiOCore : MonoBehaviour
         return null;
     }
 
-    private IEnumerator ExplosionFallbackRoutine()
+    private IEnumerator ExplosionFallbackRoutine(float delay)
     {
-        yield return new WaitForSeconds(explosionFallbackDelay);
+        yield return new WaitForSeconds(delay);
 
         if (!explosionDone)
         {

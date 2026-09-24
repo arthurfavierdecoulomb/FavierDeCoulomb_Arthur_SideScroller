@@ -32,6 +32,15 @@ public class OxiBodyMover : MonoBehaviour
     [Range(0.05f, 0.95f)]
     [SerializeField] private float riseBounceDamping = 0.55f;
 
+    [Header("Chute finale")]
+    [SerializeField] private float fallDepth = 15f;
+    [SerializeField] private float fallDuration = 1.2f;
+    [SerializeField] private float fallTiltAngle = 6f;
+    [SerializeField] private bool shakeOnLanding = true;
+    [SerializeField] private float landingShakeDuration = 0.6f;
+    [SerializeField] private float landingShakeMagnitude = 0.7f;
+    [SerializeField] private bool hideAfterFall = false;
+
     [Header("Assombrissement quand il descend")]
     [SerializeField] private bool tintWhenLowered = true;
     [SerializeField] private Color loweredTint = new Color(0.55f, 0.55f, 0.65f, 1f);
@@ -56,12 +65,16 @@ public class OxiBodyMover : MonoBehaviour
     public UnityEvent onDescendEnd;
     public UnityEvent onRiseStart;
     public UnityEvent onRiseEnd;
+    public UnityEvent onFallStart;
+    public UnityEvent onFallEnd;
 
     [Header("Diagnostic")]
     [SerializeField] private bool logDiagnostics = true;
 
     public bool IsMoving { get; private set; }
     public bool IsLowered { get; private set; }
+    public bool IsFalling { get; private set; }
+    public bool HasFallen { get; private set; }
     public int CurrentLevel { get; private set; } = -1;
 
     private Vector3 restPosition;
@@ -123,18 +136,21 @@ public class OxiBodyMover : MonoBehaviour
             if (level != null && level.depth <= 0f)
                 Debug.LogWarning($"[OxiOBodyMotion] '{name}' : le palier '{level.label}' a une profondeur de {level.depth}. Une valeur positive fait descendre.", this);
 
+        if (fallDepth <= 0f)
+            Debug.LogWarning($"[OxiOBodyMotion] '{name}' : Fall Depth vaut {fallDepth}. Une valeur positive fait tomber Oxi-O.", this);
+
         if (body == transform && transform.childCount == 0)
             Debug.LogWarning($"[OxiOBodyMotion] '{name}' : le champ Body est vide et cet objet n'a pas d'enfants. Assigne le parent qui contient Oxi-O ET ses tuyaux.", this);
 
         if (tintWhenLowered && tintedRenderers.Count == 0)
             Debug.LogWarning($"[OxiOBodyMotion] '{name}' : aucun SpriteRenderer trouvé sous Body, l'assombrissement ne se verra pas.", this);
-        else if (tintWhenLowered && logDiagnostics)
+        else if (tintWhenLowered)
             Debug.Log($"[OxiOBodyMotion] '{name}' : {tintedRenderers.Count} SpriteRenderer(s) seront assombris pendant la descente.", this);
     }
 
     private void LateUpdate()
     {
-        if (!swayWhenLowered)
+        if (!swayWhenLowered || IsFalling || HasFallen)
             return;
 
         float target = IsLowered && !IsMoving ? 1f : 0f;
@@ -181,7 +197,7 @@ public class OxiBodyMover : MonoBehaviour
 
     public void DescendTo(int levelIndex)
     {
-        if (levels.Count == 0)
+        if (levels.Count == 0 || IsFalling || HasFallen)
             return;
 
         int index = Mathf.Clamp(levelIndex, 0, levels.Count - 1);
@@ -207,6 +223,9 @@ public class OxiBodyMover : MonoBehaviour
 
     public void RiseToRest()
     {
+        if (IsFalling || HasFallen)
+            return;
+
         if (!IsLowered && !IsMoving)
             return;
 
@@ -214,6 +233,17 @@ public class OxiBodyMover : MonoBehaviour
             StopCoroutine(motionRoutine);
 
         motionRoutine = StartCoroutine(RiseRoutine());
+    }
+
+    public void FallAway()
+    {
+        if (IsFalling || HasFallen)
+            return;
+
+        if (motionRoutine != null)
+            StopCoroutine(motionRoutine);
+
+        motionRoutine = StartCoroutine(FallRoutine());
     }
 
     public void SnapToRest()
@@ -227,13 +257,83 @@ public class OxiBodyMover : MonoBehaviour
         swayWeight = 0f;
         IsMoving = false;
         IsLowered = false;
+        IsFalling = false;
+        HasFallen = false;
         CurrentLevel = -1;
 
         anchorPosition = restPosition;
         body.position = restPosition;
         body.rotation = restRotation;
 
+        SetRenderersVisible(true);
         ApplyTint(0f);
+    }
+
+    private Vector3 FallTarget()
+    {
+        return restPosition + Vector3.down * fallDepth;
+    }
+
+    private IEnumerator FallRoutine()
+    {
+        IsFalling = true;
+        IsMoving = true;
+        IsLowered = false;
+        swayWeight = 0f;
+        onFallStart?.Invoke();
+
+        if (logDiagnostics)
+            Debug.Log($"[OxiOBodyMotion] Oxi-O tombe de {fallDepth} unités en {fallDuration}s.", this);
+
+        Vector3 start = body.position;
+        Vector3 target = new Vector3(start.x, FallTarget().y, start.z);
+        Quaternion startRotation = body.rotation;
+        Quaternion endRotation = restRotation * Quaternion.Euler(0f, 0f, fallTiltAngle);
+
+        float duration = Mathf.Max(0.05f, fallDuration);
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            float t = Mathf.Clamp01(elapsed / duration);
+            float gravity = t * t;
+
+            body.position = Vector3.LerpUnclamped(start, target, gravity);
+            body.rotation = Quaternion.Slerp(startRotation, endRotation, t);
+
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        body.position = target;
+        body.rotation = endRotation;
+        anchorPosition = target;
+
+        IsFalling = false;
+        IsMoving = false;
+        HasFallen = true;
+        motionRoutine = null;
+
+        if (shakeOnLanding && CameraShake.Instance != null)
+            CameraShake.Instance.Shake(landingShakeDuration, landingShakeMagnitude);
+
+        if (hideAfterFall)
+            SetRenderersVisible(false);
+
+        if (logDiagnostics)
+            Debug.Log("[OxiOBodyMotion] Oxi-O a touché le sol.", this);
+
+        onFallEnd?.Invoke();
+    }
+
+    private void SetRenderersVisible(bool visible)
+    {
+        if (body == null)
+            return;
+
+        foreach (SpriteRenderer renderer in body.GetComponentsInChildren<SpriteRenderer>(true))
+            if (renderer != null)
+                renderer.enabled = visible;
     }
 
     private IEnumerator DescendRoutine(int index)
@@ -360,5 +460,12 @@ public class OxiBodyMover : MonoBehaviour
             Gizmos.DrawLine(origin, point);
             Gizmos.DrawWireCube(point, new Vector3(2f, 0.3f, 0f));
         }
+
+        Vector3 landing = origin + Vector3.down * fallDepth;
+
+        Gizmos.color = new Color(1f, 0.15f, 0.15f, 0.95f);
+        Gizmos.DrawLine(origin, landing);
+        Gizmos.DrawWireCube(landing, new Vector3(6f, 0.5f, 0f));
+        Gizmos.DrawWireSphere(landing, 0.6f);
     }
 }

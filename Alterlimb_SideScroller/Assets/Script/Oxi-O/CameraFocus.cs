@@ -18,14 +18,12 @@ public class CameraFocus : MonoBehaviour
 
     [Header("Caméra")]
     [SerializeField] private Camera targetCamera;
-    [SerializeField] private MonoBehaviour followScript;
+    [SerializeField] private CameraFollow cameraFollow;
 
     [Header("Points de focus")]
     [SerializeField] private List<FocusPoint> focusPoints = new List<FocusPoint>();
 
     [Header("Retour au joueur")]
-    [SerializeField] private Transform player;
-    [SerializeField] private string playerTag = "Player";
     [SerializeField] private float returnBlendDuration = 0.5f;
 
     [Header("Diagnostic")]
@@ -58,33 +56,10 @@ public class CameraFocus : MonoBehaviour
         camTransform = targetCamera.transform;
         defaultOrthographicSize = targetCamera.orthographicSize;
 
-        if (followScript == null)
-            AutoResolveFollowScript();
+        if (cameraFollow == null)
+            cameraFollow = targetCamera.GetComponent<CameraFollow>();
 
         LogSetup();
-    }
-
-    private void AutoResolveFollowScript()
-    {
-        MonoBehaviour[] components = targetCamera.GetComponents<MonoBehaviour>();
-
-        foreach (MonoBehaviour component in components)
-        {
-            if (component == null || component == this)
-                continue;
-
-            string typeName = component.GetType().Name;
-
-            if (typeName.Contains("Follow") || typeName.Contains("Suivi"))
-            {
-                followScript = component;
-
-                if (logDiagnostics)
-                    Debug.Log($"[CameraFocus] Script de suivi détecté automatiquement : {typeName}.", this);
-
-                return;
-            }
-        }
     }
 
     private void LogSetup()
@@ -92,8 +67,8 @@ public class CameraFocus : MonoBehaviour
         if (!logDiagnostics)
             return;
 
-        if (followScript == null)
-            Debug.LogError($"[CameraFocus] '{name}' : aucun script de suivi trouvé sur la caméra. Assigne-le à la main, sinon le focus luttera contre lui.", this);
+        if (cameraFollow == null)
+            Debug.LogError($"[CameraFocus] '{name}' : aucun CameraFollow trouvé sur la caméra. Le focus ne pourra pas rendre la caméra à Azu.", this);
 
         if (focusPoints.Count == 0)
             Debug.LogWarning($"[CameraFocus] '{name}' : aucun point de focus configuré.", this);
@@ -159,17 +134,11 @@ public class CameraFocus : MonoBehaviour
         CurrentFocusId = point.id;
         activePoint = point;
 
-        if (followScript != null)
-            followScript.enabled = false;
+        if (cameraFollow != null)
+            cameraFollow.Suspend(this);
 
-        if (logDiagnostics && targetCamera.orthographic)
-        {
-            string target = HasSizeChange(point)
-                ? TargetSize(point).ToString("0.##")
-                : "inchangé";
-
-            Debug.Log($"[CameraFocus] Focus '{point.id}' : Orthographic Size de jeu {defaultOrthographicSize:0.##}, cible {target}. Mets Zoom Factor à 2 pour voir deux fois plus large.", this);
-        }
+        if (logDiagnostics)
+            Debug.Log($"[CameraFocus] Focus sur '{point.id}'.", this);
 
         blendRoutine = StartCoroutine(BlendToPointRoutine(point));
     }
@@ -182,11 +151,16 @@ public class CameraFocus : MonoBehaviour
         if (blendRoutine != null)
             StopCoroutine(blendRoutine);
 
+        if (logDiagnostics)
+            Debug.Log($"[CameraFocus] Retour sur Azu depuis '{CurrentFocusId}'.", this);
+
         blendRoutine = StartCoroutine(ReturnRoutine());
     }
 
     public void ReleaseFocusInstant()
     {
+        bool wasFocused = IsFocused;
+
         if (blendRoutine != null)
         {
             StopCoroutine(blendRoutine);
@@ -198,11 +172,17 @@ public class CameraFocus : MonoBehaviour
         CurrentFocusId = null;
         activePoint = null;
 
+        if (!wasFocused)
+            return;
+
         if (targetCamera.orthographic)
             targetCamera.orthographicSize = defaultOrthographicSize;
 
-        if (followScript != null)
-            followScript.enabled = true;
+        if (cameraFollow != null)
+        {
+            cameraFollow.SnapToTarget();
+            cameraFollow.Resume(this);
+        }
     }
 
     private IEnumerator BlendToPointRoutine(FocusPoint point)
@@ -245,8 +225,6 @@ public class CameraFocus : MonoBehaviour
     {
         holdPosition = false;
 
-        Transform target = ResolvePlayer();
-
         Vector3 startPosition = camTransform.position;
         float startSize = targetCamera.orthographic ? targetCamera.orthographicSize : 0f;
         bool changeSize = targetCamera.orthographic;
@@ -261,14 +239,15 @@ public class CameraFocus : MonoBehaviour
             float t = Mathf.Clamp01(elapsed / duration);
             float eased = t * t * (3f - 2f * t);
 
-            if (target != null)
-                camTransform.position = Vector3.Lerp(startPosition, PlayerPosition(target), eased);
+            camTransform.position = Vector3.Lerp(startPosition, ReturnTarget(), eased);
 
             if (changeSize)
                 targetCamera.orthographicSize = Mathf.Lerp(startSize, defaultOrthographicSize, eased);
 
             yield return null;
         }
+
+        camTransform.position = ReturnTarget();
 
         if (changeSize)
             targetCamera.orthographicSize = defaultOrthographicSize;
@@ -278,8 +257,17 @@ public class CameraFocus : MonoBehaviour
         activePoint = null;
         blendRoutine = null;
 
-        if (followScript != null)
-            followScript.enabled = true;
+        if (cameraFollow != null)
+            cameraFollow.Resume(this);
+    }
+
+    private Vector3 ReturnTarget()
+    {
+        if (cameraFollow == null)
+            return camTransform.position;
+
+        Vector3 desired = cameraFollow.DesiredPosition();
+        return new Vector3(desired.x, desired.y, camTransform.position.z);
     }
 
     private Vector3 AnchorPosition(FocusPoint point)
@@ -290,24 +278,6 @@ public class CameraFocus : MonoBehaviour
             anchor.x + point.offset.x,
             anchor.y + point.offset.y,
             camTransform.position.z);
-    }
-
-    private Vector3 PlayerPosition(Transform target)
-    {
-        return new Vector3(target.position.x, target.position.y, camTransform.position.z);
-    }
-
-    private Transform ResolvePlayer()
-    {
-        if (player != null)
-            return player;
-
-        GameObject found = GameObject.FindGameObjectWithTag(playerTag);
-
-        if (found != null)
-            player = found.transform;
-
-        return player;
     }
 
     private FocusPoint FindPoint(string id)

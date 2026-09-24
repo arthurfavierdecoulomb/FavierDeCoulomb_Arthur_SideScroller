@@ -1,5 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 public class OxiOMusicDirector : MonoBehaviour
@@ -43,9 +42,6 @@ public class OxiOMusicDirector : MonoBehaviour
 
     [Header("Structure du combat")]
     [SerializeField] private int phaseCount = 2;
-
-    [Header("Victoire")]
-    [SerializeField] private float victoryDelay = 0f;
 
     [Header("Mort du joueur")]
     [SerializeField] private bool duckOnDeath = true;
@@ -101,6 +97,7 @@ public class OxiOMusicDirector : MonoBehaviour
         {
             oxiAnimation.OnTransformationStarted += HandleTransformationStarted;
             oxiAnimation.OnTransformationComplete += HandleTransformationComplete;
+            oxiAnimation.OnFinalFall += HandleFinalFall;
         }
 
         if (dialogue != null)
@@ -122,6 +119,7 @@ public class OxiOMusicDirector : MonoBehaviour
         {
             oxiAnimation.OnTransformationStarted -= HandleTransformationStarted;
             oxiAnimation.OnTransformationComplete -= HandleTransformationComplete;
+            oxiAnimation.OnFinalFall -= HandleFinalFall;
         }
 
         if (dialogue != null)
@@ -215,7 +213,7 @@ public class OxiOMusicDirector : MonoBehaviour
 
         if (remaining == 0)
         {
-            StartCoroutine(VictoryRoutine());
+            Log("dernier noyau coupé : la musique de victoire attend la chute d'Oxi-O.");
             return;
         }
 
@@ -228,12 +226,9 @@ public class OxiOMusicDirector : MonoBehaviour
         Request(SegmentFor(remaining), Move.Crossfade, $"noyau coupé, {remaining} en vie");
     }
 
-    private IEnumerator VictoryRoutine()
+    private void HandleFinalFall()
     {
-        if (victoryDelay > 0f)
-            yield return new WaitForSeconds(victoryDelay);
-
-        Request(SegmentFor(0), Move.Crossfade, "dernier noyau coupé, victoire");
+        Request(SegmentFor(0), Move.Crossfade, "chute d'Oxi-O, victoire");
     }
 
     private void HandleTransformationStarted()

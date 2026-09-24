@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
+using UnityEngine;
 
 [RequireComponent(typeof(Camera))]
 public class CameraFollow : MonoBehaviour
@@ -28,9 +29,14 @@ public class CameraFollow : MonoBehaviour
     [Header("Zoom")]
     [SerializeField] float zoomSpeed = 3f;
 
-    public bool IsSuspended => suspended;
+    [Header("Diagnostic")]
+    [SerializeField] bool logHolders = false;
+
+    public bool IsSuspended => holders.Count > 0;
     public float DefaultZoom => defaultZoom;
     public Transform Target => target;
+
+    readonly HashSet<Object> holders = new HashSet<Object>();
 
     float currentLookAhead;
     float targetLookAhead;
@@ -39,7 +45,6 @@ public class CameraFollow : MonoBehaviour
     Camera cam;
     float defaultZoom;
     float targetZoom;
-    bool suspended;
 
     void Awake()
     {
@@ -50,7 +55,7 @@ public class CameraFollow : MonoBehaviour
 
     void LateUpdate()
     {
-        if (suspended) return;
+        if (IsSuspended) return;
         if (target == null) return;
 
         Vector3 targetPos = target.position + offset;
@@ -77,13 +82,7 @@ public class CameraFollow : MonoBehaviour
             offset.z
         );
 
-        if (useBounds)
-        {
-            smoothed.x = Mathf.Clamp(smoothed.x, minX, maxX);
-            smoothed.y = Mathf.Clamp(smoothed.y, minY, maxY);
-        }
-
-        transform.position = smoothed;
+        transform.position = ClampToBounds(smoothed);
 
         cam.orthographicSize = Mathf.Lerp(cam.orthographicSize, targetZoom,
                                            zoomSpeed * Time.deltaTime);
@@ -91,12 +90,40 @@ public class CameraFollow : MonoBehaviour
 
     public void Suspend()
     {
-        suspended = true;
+        Suspend(this);
     }
 
     public void Resume()
     {
-        suspended = false;
+        Resume(this);
+    }
+
+    public void Suspend(Object holder)
+    {
+        if (holder == null)
+            holder = this;
+
+        if (!holders.Add(holder))
+            return;
+
+        if (logHolders)
+            Debug.Log($"[CameraFollow] Suivi suspendu par '{holder.name}' ({holders.Count} en cours).", this);
+    }
+
+    public void Resume(Object holder)
+    {
+        if (holder == null)
+            holder = this;
+
+        if (!holders.Remove(holder))
+            return;
+
+        if (logHolders)
+            Debug.Log($"[CameraFollow] '{holder.name}' rend la caméra ({holders.Count} restant).", this);
+
+        if (holders.Count > 0)
+            return;
+
         currentLookAhead = 0f;
         targetLookAhead = 0f;
 
@@ -104,20 +131,22 @@ public class CameraFollow : MonoBehaviour
             lastTargetX = target.position.x;
     }
 
+    public Vector3 DesiredPosition()
+    {
+        if (target == null)
+            return transform.position;
+
+        Vector3 desired = target.position + offset;
+        desired.z = offset.z;
+
+        return ClampToBounds(desired);
+    }
+
     public void SnapToTarget()
     {
         if (target == null) return;
 
-        Vector3 snapped = target.position + offset;
-        snapped.z = offset.z;
-
-        if (useBounds)
-        {
-            snapped.x = Mathf.Clamp(snapped.x, minX, maxX);
-            snapped.y = Mathf.Clamp(snapped.y, minY, maxY);
-        }
-
-        transform.position = snapped;
+        transform.position = DesiredPosition();
     }
 
     public void SetTarget(Transform newTarget)
@@ -134,5 +163,16 @@ public class CameraFollow : MonoBehaviour
     public void ResetZoom()
     {
         targetZoom = defaultZoom;
+    }
+
+    Vector3 ClampToBounds(Vector3 position)
+    {
+        if (!useBounds)
+            return position;
+
+        position.x = Mathf.Clamp(position.x, minX, maxX);
+        position.y = Mathf.Clamp(position.y, minY, maxY);
+
+        return position;
     }
 }

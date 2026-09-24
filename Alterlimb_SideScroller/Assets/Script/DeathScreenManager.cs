@@ -103,6 +103,50 @@ public class DeathAnimationManager : MonoBehaviour
         RestoreTimeScale();
     }
 
+    CameraFollow Follow
+    {
+        get
+        {
+            if (cameraFollowScript is CameraFollow assigned)
+                return assigned;
+
+            return targetCamera != null ? targetCamera.GetComponent<CameraFollow>() : null;
+        }
+    }
+
+    void SuspendFollow()
+    {
+        CameraFollow follow = Follow;
+
+        if (follow != null)
+            follow.Suspend(this);
+        else if (cameraFollowScript != null)
+            cameraFollowScript.enabled = false;
+    }
+
+    void ResumeFollow()
+    {
+        CameraFollow follow = Follow;
+
+        if (follow != null)
+            follow.Resume(this);
+        else if (cameraFollowScript != null)
+            cameraFollowScript.enabled = true;
+    }
+
+    Vector3 FollowTargetPosition(float z)
+    {
+        CameraFollow follow = Follow;
+
+        if (follow != null && follow.Target != null)
+        {
+            Vector3 desired = follow.DesiredPosition();
+            return new Vector3(desired.x, desired.y, z);
+        }
+
+        return new Vector3(player.position.x, player.position.y, z);
+    }
+
     void FindPlayer()
     {
         GameObject go = GameObject.FindGameObjectWithTag(playerTag);
@@ -156,7 +200,7 @@ public class DeathAnimationManager : MonoBehaviour
         if (textRect != null)
             textRect.anchoredPosition = textCenterPosition + new Vector2(0f, textStartOffsetY);
 
-        if (cameraFollowScript != null) cameraFollowScript.enabled = false;
+        SuspendFollow();
 
         if (useCameraShake)
             yield return StartCoroutine(ShakeCameraRoutine());
@@ -207,7 +251,7 @@ public class DeathAnimationManager : MonoBehaviour
 
         RestoreTimeScale();
 
-        if (cameraFollowScript != null) cameraFollowScript.enabled = true;
+        ResumeFollow();
 
         HideEverything();
         if (gameUICanvas != null) gameUICanvas.SetActive(true);
@@ -287,12 +331,12 @@ public class DeathAnimationManager : MonoBehaviour
         {
             elapsed += DeltaTime;
             float t = cameraReturnCurve.Evaluate(Mathf.Clamp01(elapsed / duration));
-            Vector3 target = new Vector3(player.position.x, player.position.y, startPos.z);
+            Vector3 target = FollowTargetPosition(startPos.z);
             cam.position = Vector3.LerpUnclamped(startPos, target, t);
             yield return null;
         }
 
-        cam.position = new Vector3(player.position.x, player.position.y, startPos.z);
+        cam.position = FollowTargetPosition(startPos.z);
     }
 
     IEnumerator TextEnterRoutine()

@@ -168,6 +168,18 @@ public class LaserBeam : MonoBehaviour
         _controlledRoutine = StartCoroutine(PowerUpRoutine(flickers < 0 ? blinkCount : flickers));
     }
 
+    public void PowerDownWithFlicker(int flickers = -1)
+    {
+        if (!_beamActive)
+        {
+            TurnOff();
+            return;
+        }
+
+        StopControlledRoutine();
+        _controlledRoutine = StartCoroutine(PowerDownRoutine(flickers < 0 ? blinkCount : flickers));
+    }
+
     public void FlickerWhileOn(int flickers = -1)
     {
         if (!_beamActive)
@@ -213,6 +225,24 @@ public class LaserBeam : MonoBehaviour
         _isUnstable = false;
 
         SetBeamActive(true);
+        _controlledRoutine = null;
+    }
+
+    private IEnumerator PowerDownRoutine(int flickers)
+    {
+        _isUnstable = true;
+
+        for (int i = 0; i < flickers; i++)
+        {
+            SetBeamActive(false);
+            yield return new WaitForSeconds(blinkInterval);
+            SetBeamActive(true);
+            yield return new WaitForSeconds(blinkInterval);
+        }
+
+        _isUnstable = false;
+
+        SetBeamActive(false);
         _controlledRoutine = null;
     }
 

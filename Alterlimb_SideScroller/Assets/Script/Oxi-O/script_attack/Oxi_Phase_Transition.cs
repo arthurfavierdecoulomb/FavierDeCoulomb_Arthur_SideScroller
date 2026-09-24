@@ -5,13 +5,6 @@ using UnityEngine.Events;
 
 public class OxiOPhaseTransition : MonoBehaviour
 {
-    public enum MusicMode
-    {
-        Play,
-        Crossfade,
-        Queue
-    }
-
     public enum ScreenReturn
     {
         AvantTransformation,
@@ -32,12 +25,6 @@ public class OxiOPhaseTransition : MonoBehaviour
         public bool playTransformation = true;
         public float delayBeforeTransformation = 0.4f;
         public float delayAfterTransformation = 0.6f;
-
-        [Header("Musique")]
-        public string transformationMusicId = "boss_transformation";
-        public MusicMode transformationMusicMode = MusicMode.Crossfade;
-        public string phaseMusicId = "boss_euphorie";
-        public MusicMode phaseMusicMode = MusicMode.Queue;
 
         [Header("Voix")]
         public AudioClip transformationVoice;
@@ -70,11 +57,11 @@ public class OxiOPhaseTransition : MonoBehaviour
     [SerializeField] private CameraFocus cameraFocus;
     [SerializeField] private string dialogueFocusId = "dialogue_interlude";
     [SerializeField] private string transformationFocusId = "dialogue_interlude";
+    [SerializeField] private string finaleFocusId = "focus_oxi";
 
     [Header("Branchement")]
     [SerializeField] private bool autoSubscribe = true;
 
-    [Header("Rythme")]
     [Header("Rythme")]
     [SerializeField] private float delayAfterLastCut = 1.2f;
     [SerializeField] private bool waitForSlicedAnimation = true;
@@ -86,9 +73,8 @@ public class OxiOPhaseTransition : MonoBehaviour
     [SerializeField] private bool hideScreenDuringDialogue = true;
     [SerializeField] private float screenReturnDelay = 0.8f;
 
-    [Header("Disparition finale")]
-    [SerializeField] private GameObject oxiRoot;
-    [SerializeField] private float vanishDelay = 0.3f;
+    [Header("Fin du combat")]
+    [SerializeField] private float fallCueTimeout = 10f;
 
     [Header("Sécurité")]
     [SerializeField] private float dialogueTimeout = 120f;
@@ -128,14 +114,14 @@ public class OxiOPhaseTransition : MonoBehaviour
         if (steps.Count == 0)
             Debug.LogError($"[OxiOPhaseTransition] '{name}' : la liste Steps est vide. Ajoute au moins une entrée (From Phase 1 -> Next Phase 2).", this);
 
-        if (oxiAnimation == null && waitForSlicedAnimation)
-            Debug.LogWarning($"[OxiOPhaseTransition] '{name}' : Oxi Animation non assigné, l'attente de l'animation sliced sera ignorée.", this);
+        if (oxiAnimation == null)
+            Debug.LogError($"[OxiOPhaseTransition] '{name}' : Oxi Animation non assigné, la transformation et la chute finale ne pourront pas être suivies.", this);
 
         if (cameraFocus == null)
-            Debug.LogWarning($"[OxiOPhaseTransition] '{name}' : Camera Focus non assigné, la caméra restera sur Azu pendant le dialogue et la transformation.", this);
+            Debug.LogWarning($"[OxiOPhaseTransition] '{name}' : Camera Focus non assigné, la caméra restera sur Azu pendant les transitions.", this);
 
-        if (screenUI == null && hideScreenDuringDialogue)
-            Debug.LogWarning($"[OxiOPhaseTransition] '{name}' : Screen UI non assigné, l'écran restera visible pendant le dialogue.", this);
+        if (screenUI == null)
+            Debug.LogWarning($"[OxiOPhaseTransition] '{name}' : Screen UI non assigné, l'écran suspendu ne bougera pas pendant les transitions.", this);
 
         bool hasFinalStep = false;
 
@@ -151,8 +137,8 @@ public class OxiOPhaseTransition : MonoBehaviour
                 Debug.LogWarning($"[OxiOPhaseTransition] '{name}' : l'étape '{step.label}' repart en phase {step.nextPhase} depuis la phase {step.fromPhase}. Boucle possible.", this);
         }
 
-        if (hasFinalStep && oxiRoot == null)
-            Debug.LogWarning($"[OxiOPhaseTransition] '{name}' : Oxi Root non assigné, Oxi-O ne disparaîtra pas à la fin du combat.", this);
+        if (hasFinalStep && bodyMotion == null)
+            Debug.LogError($"[OxiOPhaseTransition] '{name}' : Body Motion non assigné, Oxi-O ne tombera pas à la fin du combat.", this);
     }
 
     private void OnEnable()
@@ -213,11 +199,79 @@ public class OxiOPhaseTransition : MonoBehaviour
     {
         IsRunning = true;
 
-        if (logDiagnostics)
-            Debug.Log($"[OxiOPhaseTransition] Transition '{step.label}' : phase {step.fromPhase} terminée.", this);
+        Log($"Transition '{step.label}' : phase {step.fromPhase} terminée.");
 
         step.onTransitionStart?.Invoke();
 
+        if (step.isFinalPhase)
+            yield return FinaleRoutine();
+        else
+            yield return PhaseChangeRoutine(step);
+
+        step.onTransitionEnd?.Invoke();
+
+        IsRunning = false;
+        routine = null;
+    }
+
+    private IEnumerator FinaleRoutine()
+    {
+        director.StopFightKeepContainment();
+
+        if (screenUI != null)
+            screenUI.CancelEcoCountdown();
+
+        if (cameraFocus != null)
+            cameraFocus.FocusOn(finaleFocusId);
+
+        yield return WaitForFallCue();
+
+        if (bodyMotion != null)
+            bodyMotion.FallAway();
+
+        if (cameraFocus != null)
+            cameraFocus.ReleaseFocus();
+
+        if (screenUI != null)
+            screenUI.Hide();
+
+        director.ConcludeFight();
+
+        Log("Oxi-O tombe : caméra rendue à Azu, lasers coupés, fin du combat.");
+    }
+
+    private IEnumerator WaitForFallCue()
+    {
+        if (oxiAnimation == null)
+            yield break;
+
+        if (oxiAnimation.HasFallen)
+            yield break;
+
+        bool fell = false;
+        System.Action handler = () => fell = true;
+
+        oxiAnimation.OnFinalFall += handler;
+
+        float elapsed = 0f;
+
+        while (!fell && elapsed < fallCueTimeout)
+        {
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        oxiAnimation.OnFinalFall -= handler;
+
+        if (fell)
+            yield break;
+
+        Debug.LogWarning($"[OxiOPhaseTransition] '{name}' : l'Animation Event 'OxiFall' n'a jamais été reçu après {fallCueTimeout}s. Chute déclenchée par sécurité. Vérifie l'event dans l'animation du dernier coup.", this);
+        oxiAnimation.TriggerFinalFall();
+    }
+
+    private IEnumerator PhaseChangeRoutine(PhaseStep step)
+    {
         director.StopFight();
 
         if (bodyMotion != null)
@@ -232,47 +286,15 @@ public class OxiOPhaseTransition : MonoBehaviour
         if (delayAfterLastCut > 0f)
             yield return new WaitForSeconds(delayAfterLastCut);
 
-        if (waitForSlicedAnimation && oxiAnimation != null)
-        {
-            float elapsed = 0f;
+        yield return WaitForSlicedAnimation();
 
-            while (oxiAnimation.IsSlicing && elapsed < slicedTimeout)
-            {
-                elapsed += Time.deltaTime;
-                yield return null;
-            }
-
-            if (elapsed >= slicedTimeout && logDiagnostics)
-                Debug.LogWarning($"[OxiOPhaseTransition] '{name}' : l'animation sliced n'est jamais sortie de son état après {slicedTimeout}s. Vérifie qu'elle n'est pas en loop.", this);
-        }
-
-        if (step.isFinalPhase)
-        {
-            yield return VanishOxiO();
-
-            if (screenUI != null)
-                screenUI.Hide();
-        }
-        else if (hideScreenDuringDialogue && screenUI != null)
-        {
+        if (hideScreenDuringDialogue && screenUI != null)
             screenUI.Hide();
-        }
 
         if (delayBeforeDialogue > 0f)
             yield return new WaitForSeconds(delayBeforeDialogue);
 
         yield return PlayDialogue(step.dialogueSequenceId);
-
-        if (step.isFinalPhase)
-        {
-            if (cameraFocus != null)
-                cameraFocus.ReleaseFocus();
-
-            step.onTransitionEnd?.Invoke();
-            IsRunning = false;
-            routine = null;
-            yield break;
-        }
 
         if (step.screenReturn == ScreenReturn.AvantTransformation)
             yield return ReturnScreen();
@@ -292,32 +314,24 @@ public class OxiOPhaseTransition : MonoBehaviour
 
         director.StartFight();
 
-        step.onTransitionEnd?.Invoke();
-
-        if (logDiagnostics)
-            Debug.Log($"[OxiOPhaseTransition] Phase {step.nextPhase} lancée.", this);
-
-        IsRunning = false;
-        routine = null;
+        Log($"Phase {step.nextPhase} lancée.");
     }
 
-    private IEnumerator VanishOxiO()
+    private IEnumerator WaitForSlicedAnimation()
     {
-        if (oxiRoot == null)
-        {
-            if (logDiagnostics)
-                Debug.LogWarning($"[OxiOPhaseTransition] '{name}' : Oxi Root non assigné, impossible de le faire disparaître.", this);
-
+        if (!waitForSlicedAnimation || oxiAnimation == null)
             yield break;
+
+        float elapsed = 0f;
+
+        while (oxiAnimation.IsSlicing && elapsed < slicedTimeout)
+        {
+            elapsed += Time.deltaTime;
+            yield return null;
         }
 
-        if (vanishDelay > 0f)
-            yield return new WaitForSeconds(vanishDelay);
-
-        oxiRoot.SetActive(false);
-
-        if (logDiagnostics)
-            Debug.Log($"[OxiOPhaseTransition] '{oxiRoot.name}' désactivé, Oxi-O a disparu.", this);
+        if (elapsed >= slicedTimeout && logDiagnostics)
+            Debug.LogWarning($"[OxiOPhaseTransition] '{name}' : l'animation sliced n'est jamais sortie de son état après {slicedTimeout}s. Vérifie qu'elle n'est pas en loop.", this);
     }
 
     private IEnumerator ReturnScreen()
@@ -336,19 +350,17 @@ public class OxiOPhaseTransition : MonoBehaviour
         if (step.delayBeforeTransformation > 0f)
             yield return new WaitForSeconds(step.delayBeforeTransformation);
 
-        if (cameraFocus != null && step.playTransformation)
-            cameraFocus.FocusOn(transformationFocusId);
+        if (!step.playTransformation)
+            yield break;
 
-        PlayMusic(step.transformationMusicId, step.transformationMusicMode);
-
-        if (!step.playTransformation || oxiAnimation == null)
+        if (oxiAnimation == null)
         {
-            if (step.playTransformation && oxiAnimation == null)
-                Debug.LogWarning($"[OxiOPhaseTransition] '{name}' : Oxi Animation non assigné, la transformation est sautée.", this);
-
-            PlayMusic(step.phaseMusicId, step.phaseMusicMode);
+            Debug.LogWarning($"[OxiOPhaseTransition] '{name}' : Oxi Animation non assigné, la transformation est sautée.", this);
             yield break;
         }
+
+        if (cameraFocus != null)
+            cameraFocus.FocusOn(transformationFocusId);
 
         step.onTransformationStart?.Invoke();
 
@@ -371,9 +383,7 @@ public class OxiOPhaseTransition : MonoBehaviour
         oxiAnimation.OnTransformationComplete -= handler;
 
         if (!done)
-            Debug.LogWarning($"[OxiOPhaseTransition] '{name}' : la transformation ne s'est jamais terminée après {transformationTimeout}s. Vérifie que l'état '{"Oxi_euphorie_transformation"}' n'est pas en loop.", this);
-
-        PlayMusic(step.phaseMusicId, step.phaseMusicMode);
+            Debug.LogWarning($"[OxiOPhaseTransition] '{name}' : la transformation ne s'est jamais terminée après {transformationTimeout}s. Vérifie que son état n'est pas en loop.", this);
 
         if (step.delayAfterTransformation > 0f)
             yield return new WaitForSeconds(step.delayAfterTransformation);
@@ -402,27 +412,6 @@ public class OxiOPhaseTransition : MonoBehaviour
 
         if (voiceSource != null && step.transformationVoice != null)
             voiceSource.PlayOneShot(step.transformationVoice);
-    }
-
-    private void PlayMusic(string id, MusicMode mode)
-    {
-        if (string.IsNullOrEmpty(id))
-            return;
-
-        if (BossMusicSequencer.Instance == null)
-        {
-            if (logDiagnostics)
-                Debug.LogWarning($"[OxiOPhaseTransition] '{name}' : aucun BossMusicSequencer dans la scène, le segment '{id}' est ignoré.", this);
-
-            return;
-        }
-
-        if (mode == MusicMode.Crossfade)
-            BossMusicSequencer.Instance.PlayImmediate(id);
-        else if (mode == MusicMode.Queue)
-            BossMusicSequencer.Instance.QueueSegment(id);
-        else
-            BossMusicSequencer.Instance.Play(id);
     }
 
     private IEnumerator PlayDialogue(string sequenceId)
@@ -476,5 +465,11 @@ public class OxiOPhaseTransition : MonoBehaviour
 
         IsRunning = false;
         waitedSequenceId = null;
+    }
+
+    private void Log(string message)
+    {
+        if (logDiagnostics)
+            Debug.Log($"[OxiOPhaseTransition] {message}", this);
     }
 }

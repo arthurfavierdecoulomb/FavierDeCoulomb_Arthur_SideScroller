@@ -26,6 +26,10 @@ public class OxiO_Animation : MonoBehaviour
     [SerializeField] string ventErrorBoostState = "Tuyaux_vent_erreur_puis_boost";
     [SerializeField] string ventBoostState = "Tuyaux_vent_boost";
 
+    [Header("Dernier coup")]
+    [SerializeField] string finalBlowState = "oxi_falling";
+    [SerializeField] string ventShutdownState = "Tuyaux_vent_shutdown";
+
     [Header("Durée de la transformation")]
     [SerializeField] float transformationDuration = 0f;
 
@@ -37,12 +41,15 @@ public class OxiO_Animation : MonoBehaviour
     public event System.Action OnTransformationStarted;
     public event System.Action OnTransformationComplete;
     public event System.Action OnSlicedComplete;
+    public event System.Action OnFinalFall;
 
     public bool IsEuphoric => isEuphoric;
     public bool IsTalking => isTalking;
     public bool IsEconomyMode => isEconomyMode;
     public bool IsSlicing => isSlicing;
     public bool IsBusyWithCombatAnimation => isEconomyMode || isSlicing;
+    public bool IsFinalBlow => isFinalBlow;
+    public bool HasFallen => hasFallen;
 
     int idleHash;
     int idleBlinkHash;
@@ -56,6 +63,8 @@ public class OxiO_Animation : MonoBehaviour
     int ventIdleHash;
     int ventErrorBoostHash;
     int ventBoostHash;
+    int finalBlowHash;
+    int ventShutdownHash;
 
     bool isTalking;
     bool isEuphoric;
@@ -63,6 +72,9 @@ public class OxiO_Animation : MonoBehaviour
     bool isTransforming;
     bool isEconomyMode;
     bool isSlicing;
+    bool isFinalBlow;
+    bool hasFallen;
+    bool ventShutDown;
 
     Coroutine blinkRoutine;
 
@@ -86,6 +98,8 @@ public class OxiO_Animation : MonoBehaviour
         ventIdleHash = Animator.StringToHash(ventIdleState);
         ventErrorBoostHash = Animator.StringToHash(ventErrorBoostState);
         ventBoostHash = Animator.StringToHash(ventBoostState);
+        finalBlowHash = Animator.StringToHash(finalBlowState);
+        ventShutdownHash = Animator.StringToHash(ventShutdownState);
 
         ValidateStates();
     }
@@ -109,6 +123,8 @@ public class OxiO_Animation : MonoBehaviour
         CheckState(ventAnimator, ventIdleHash, ventIdleState);
         CheckState(ventAnimator, ventErrorBoostHash, ventErrorBoostState);
         CheckState(ventAnimator, ventBoostHash, ventBoostState);
+        CheckState(oxiAnimator, finalBlowHash, finalBlowState);
+        CheckState(ventAnimator, ventShutdownHash, ventShutdownState);
     }
 
     void CheckState(Animator animator, int hash, string stateName)
@@ -141,7 +157,7 @@ public class OxiO_Animation : MonoBehaviour
 
     public void StartTalking()
     {
-        if (isTransforming) return;
+        if (isTransforming || isFinalBlow) return;
         if (isEconomyMode || isSlicing) return;
         if (isTalking) return;
 
@@ -160,13 +176,13 @@ public class OxiO_Animation : MonoBehaviour
 
         if (isEuphoric) return;
 
-        if (!isBlinking && !isTransforming && !isEconomyMode && !isSlicing)
+        if (!isBlinking && !isTransforming && !isEconomyMode && !isSlicing && !isFinalBlow)
             PlayPreservingCycle(idleHash);
     }
 
     public void EnterEconomyMode()
     {
-        if (isSlicing || oxiAnimator == null) return;
+        if (isSlicing || isFinalBlow || oxiAnimator == null) return;
 
         isEconomyMode = true;
         isTalking = false;
@@ -181,13 +197,13 @@ public class OxiO_Animation : MonoBehaviour
 
         isEconomyMode = false;
 
-        if (!isSlicing && !isTransforming && oxiAnimator != null)
+        if (!isSlicing && !isTransforming && !isFinalBlow && oxiAnimator != null)
             oxiAnimator.Play(RestHash(), 0, 0f);
     }
 
     public void PlaySliced(int phaseIndex)
     {
-        if (isSlicing || oxiAnimator == null) return;
+        if (isSlicing || isFinalBlow || oxiAnimator == null) return;
 
         StartCoroutine(SlicedRoutine(phaseIndex));
     }
@@ -205,7 +221,7 @@ public class OxiO_Animation : MonoBehaviour
         yield return null;
         yield return WaitForStateEnd(oxiAnimator);
 
-        if (returnToIdleAfterSliced && !isTransforming)
+        if (returnToIdleAfterSliced && !isTransforming && !isFinalBlow)
             oxiAnimator.Play(RestHash(), 0, 0f);
 
         isSlicing = false;
@@ -251,6 +267,9 @@ public class OxiO_Animation : MonoBehaviour
         isSlicing = false;
         isTalking = false;
         isBlinking = false;
+        isFinalBlow = false;
+        hasFallen = false;
+        ventShutDown = false;
 
         if (oxiAnimator != null)
         {
@@ -263,6 +282,55 @@ public class OxiO_Animation : MonoBehaviour
 
         if (autoBlink)
             blinkRoutine = StartCoroutine(AutoBlinkRoutine());
+    }
+
+    public void PlayFinalBlow()
+    {
+        if (oxiAnimator == null || isFinalBlow) return;
+
+        if (blinkRoutine != null)
+        {
+            StopCoroutine(blinkRoutine);
+            blinkRoutine = null;
+        }
+
+        isFinalBlow = true;
+        isSlicing = false;
+        isEconomyMode = false;
+        isTalking = false;
+        isBlinking = false;
+
+        oxiAnimator.speed = 1f;
+        oxiAnimator.Play(finalBlowHash, 0, 0f);
+
+        Debug.Log($"[OxiOAnimation] Dernier coup : '{finalBlowState}' lancé.", this);
+    }
+
+    public void HandleCoreExplosion()
+    {
+        if (isFinalBlow)
+            ShutDownVents();
+    }
+
+    public void TriggerFinalFall()
+    {
+        if (hasFallen) return;
+
+        hasFallen = true;
+        ShutDownVents();
+
+        Debug.Log("[OxiOAnimation] Chute d'Oxi-O déclenchée.", this);
+        OnFinalFall?.Invoke();
+    }
+
+    void ShutDownVents()
+    {
+        if (ventShutDown || ventAnimator == null) return;
+
+        ventShutDown = true;
+        ventAnimator.Play(ventShutdownHash, 0, 0f);
+
+        Debug.Log($"[OxiOAnimation] Ventilateurs : '{ventShutdownState}' lancé.", this);
     }
 
     public void TransformToEuphoria()
@@ -322,7 +390,7 @@ public class OxiO_Animation : MonoBehaviour
             yield return new WaitForSeconds(Random.Range(blinkDelayMin, blinkDelayMax));
 
             if (isEuphoric || isTransforming || isBlinking) continue;
-            if (isEconomyMode || isSlicing) continue;
+            if (isEconomyMode || isSlicing || isFinalBlow) continue;
 
             yield return StartCoroutine(BlinkRoutine());
         }
@@ -334,7 +402,7 @@ public class OxiO_Animation : MonoBehaviour
 
         yield return WaitForCycleStart();
 
-        if (isEuphoric || isTransforming || isEconomyMode || isSlicing)
+        if (isEuphoric || isTransforming || isEconomyMode || isSlicing || isFinalBlow)
         {
             isBlinking = false;
             yield break;
@@ -345,7 +413,7 @@ public class OxiO_Animation : MonoBehaviour
         yield return null;
         yield return WaitForStateEnd(oxiAnimator);
 
-        if (!isEuphoric && !isTransforming && !isEconomyMode && !isSlicing)
+        if (!isEuphoric && !isTransforming && !isEconomyMode && !isSlicing && !isFinalBlow)
             oxiAnimator.Play(isTalking ? talkHash : idleHash, 0, 0f);
 
         isBlinking = false;

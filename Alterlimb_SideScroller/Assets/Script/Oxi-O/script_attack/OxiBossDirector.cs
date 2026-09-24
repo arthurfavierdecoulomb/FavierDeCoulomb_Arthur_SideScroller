@@ -106,6 +106,9 @@ public class OxiOBossDirector : MonoBehaviour
     [SerializeField] private bool restartWholeFightOnDeath = false;
     [SerializeField] private float restartDelayAfterRespawn = 1.5f;
 
+    [Header("Fin de combat")]
+    [SerializeField] private int finalPhase = 2;
+
     [Header("Événements")]
     public UnityEvent onFightStart;
     public UnityEvent onOverheatStart;
@@ -155,7 +158,7 @@ public class OxiOBossDirector : MonoBehaviour
         if (!stopOnPlayerDeath || !fightEngaged || phaseComplete)
             return;
 
-        StopFight();
+        StopFightKeepContainment();
     }
 
     private void HandlePlayerRespawn()
@@ -163,7 +166,7 @@ public class OxiOBossDirector : MonoBehaviour
         if (!restartOnPlayerRespawn || !fightEngaged || phaseComplete)
             return;
 
-        StopFight();
+        StopFightKeepContainment();
         CleanUpAfterDeath();
 
         if (restartWholeFightOnDeath)
@@ -223,6 +226,9 @@ public class OxiOBossDirector : MonoBehaviour
         if (core != null && core.CutsRemainingThisPhase == 0)
             core.BeginPhase(currentPhase, cutsPerPhase);
 
+        if (core != null)
+            core.SetFinalPhase(currentPhase >= finalPhase);
+
         if (abilityManager == null)
             abilityManager = FindAnyObjectByType<AbilityManager>();
 
@@ -250,7 +256,9 @@ public class OxiOBossDirector : MonoBehaviour
                 continue;
 
             laser.SetIntensityMultiplierInstant(laserIntensityNormal);
-            laser.PowerUpWithFlicker();
+
+            if (!laser.IsActive)
+                laser.PowerUpWithFlicker();
         }
 
         onFightStart?.Invoke();
@@ -258,6 +266,16 @@ public class OxiOBossDirector : MonoBehaviour
     }
 
     public void StopFight()
+    {
+        StopFightInternal(true);
+    }
+
+    public void StopFightKeepContainment()
+    {
+        StopFightInternal(false);
+    }
+
+    private void StopFightInternal(bool turnOffLasers)
     {
         if (fightRoutine != null)
         {
@@ -285,7 +303,31 @@ public class OxiOBossDirector : MonoBehaviour
 
         foreach (LaserBeam laser in containmentLasers)
             if (laser != null)
+                laser.SetIntensityMultiplier(laserIntensityNormal);
+
+        if (!turnOffLasers)
+            return;
+
+        foreach (LaserBeam laser in containmentLasers)
+            if (laser != null)
                 laser.TurnOff();
+    }
+
+    public void ConcludeFight()
+    {
+        fightEngaged = false;
+
+        foreach (LaserBeam laser in containmentLasers)
+            if (laser != null)
+                laser.PowerDownWithFlicker();
+
+        if (abilityManager == null)
+            abilityManager = FindAnyObjectByType<AbilityManager>();
+
+        if (abilityManager != null)
+            abilityManager.SetCombatLock(false);
+
+        Debug.Log("[OxiOBossDirector] Combat terminé : lasers coupés, capacités rendues à Azu.", this);
     }
 
     public void SetPhase(int phase)
@@ -294,7 +336,10 @@ public class OxiOBossDirector : MonoBehaviour
         currentDelayBetweenAttacks = delayBetweenAttacks * PhaseDelayMultiplier();
 
         if (core != null)
+        {
             core.BeginPhase(currentPhase, cutsPerPhase);
+            core.SetFinalPhase(currentPhase >= finalPhase);
+        }
     }
 
     private float PhaseDelayMultiplier()
