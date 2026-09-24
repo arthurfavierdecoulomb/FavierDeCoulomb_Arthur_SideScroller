@@ -97,9 +97,6 @@ public class OxiOScreenUI : MonoBehaviour
     [SerializeField] private float flickerIntervalMin = 0.025f;
     [SerializeField] private float flickerIntervalMax = 0.11f;
 
-    [Header("Dialogue")]
-    [SerializeField] private bool autoHideDuringDialogue = true;
-
     [Header("Événements")]
     public UnityEvent onIntroFinished;
     public UnityEvent onCoreDestroyed;
@@ -118,7 +115,6 @@ public class OxiOScreenUI : MonoBehaviour
     private CoreState[] states;
     private Coroutine currentRoutine;
     private Coroutine ecoRoutine;
-    private bool hiddenByDialogue;
     private SfxEmitter sfx;
 
     private void Awake()
@@ -164,8 +160,6 @@ public class OxiOScreenUI : MonoBehaviour
 
     private void LateUpdate()
     {
-        HandleDialogueVisibility();
-
         if (!swayActive || !idleSway)
             return;
 
@@ -174,30 +168,6 @@ public class OxiOScreenUI : MonoBehaviour
         float offset = Mathf.Sin(swayTime) * swayAmplitude;
         panelRect.anchoredPosition = basePosition + Vector2.up * offset;
         panelRect.localRotation = Quaternion.Euler(0f, 0f, Mathf.Cos(swayTime) * swayTilt);
-    }
-
-    private void HandleDialogueVisibility()
-    {
-        if (!autoHideDuringDialogue || !CombatStarted || IsAnimating)
-            return;
-
-        if (BossDialogueManager.Instance == null)
-            return;
-
-        bool dialoguePlaying = BossDialogueManager.Instance.IsPlaying;
-
-        if (dialoguePlaying && IsVisible)
-        {
-            hiddenByDialogue = true;
-            Hide();
-            return;
-        }
-
-        if (!dialoguePlaying && hiddenByDialogue && !IsVisible)
-        {
-            hiddenByDialogue = false;
-            Show();
-        }
     }
 
     public void PlayIntro()

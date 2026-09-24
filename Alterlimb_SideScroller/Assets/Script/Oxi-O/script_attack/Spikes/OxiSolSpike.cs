@@ -25,6 +25,7 @@ public class OxiSolSpike : MonoBehaviour
     [SerializeField] private float playerRunSpeed = 7f;
     [Range(0.4f, 1f)]
     [SerializeField] private float reachSafetyFactor = 0.75f;
+    [SerializeField] private bool markEveryUnusedSegmentSafe = true;
 
     [Header("Balayage")]
     [SerializeField] private float sweepDelayBetweenSegments = 0.12f;
@@ -132,6 +133,10 @@ public class OxiSolSpike : MonoBehaviour
 
         for (int i = 0; i < taken; i++)
             striking.Add(segments[candidates[i]]);
+
+        if (markEveryUnusedSegmentSafe)
+            for (int i = taken; i < candidates.Count; i++)
+                segments[candidates[i]].ShowSafe(applied);
 
         yield return StrikeTogether(striking, applied);
 

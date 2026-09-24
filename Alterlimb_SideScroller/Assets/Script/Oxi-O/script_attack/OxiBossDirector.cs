@@ -66,6 +66,7 @@ public class OxiOBossDirector : MonoBehaviour
     [SerializeField] private AbilityManager abilityManager;
     [SerializeField] private float overheatDuration = 8f;
     [SerializeField] private bool extendWindowWhileCutting = true;
+    [SerializeField] private OxiSlap failSlap;
 
     [Header("Écran suspendu")]
     [SerializeField] private OxiOScreenUI screenUI;
@@ -285,6 +286,9 @@ public class OxiOBossDirector : MonoBehaviour
 
         StopAllCoroutines();
         InterruptAllAttacks();
+
+        if (failSlap != null)
+            failSlap.Cancel();
         cinematicActive = false;
         windowPressureActive = false;
 
@@ -575,6 +579,9 @@ public class OxiOBossDirector : MonoBehaviour
         foreach (LaserBeam laser in containmentLasers)
             if (laser != null)
                 laser.SetIntensityMultiplier(laserIntensityNormal);
+
+        if (!cutThisWindow && !phaseComplete && failSlap != null)
+            yield return failSlap.Perform();
     }
 
     private IEnumerator WindowPressureRoutine()

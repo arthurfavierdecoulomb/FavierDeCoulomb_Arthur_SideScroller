@@ -32,6 +32,12 @@ public class OxiOAnimationRelay : MonoBehaviour
             core.TriggerCoreExplosion();
     }
 
+    public void SlapImpact()
+    {
+        if (animationDriver != null)
+            animationDriver.NotifySlapImpact();
+    }
+
     public void OxiFall()
     {
         if (animationDriver != null)

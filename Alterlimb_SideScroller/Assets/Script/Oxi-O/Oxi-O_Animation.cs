@@ -30,6 +30,12 @@ public class OxiO_Animation : MonoBehaviour
     [SerializeField] string finalBlowState = "oxi_falling";
     [SerializeField] string ventShutdownState = "Tuyaux_vent_shutdown";
 
+    [Header("Coup de main")]
+    [SerializeField] string slapLeftState = "oxi_coup_gauche";
+    [SerializeField] string slapRightState = "oxi_coup_droite";
+    [SerializeField] string slapLeftEuphoriaState = "oxi_coup_gauche_euphorie";
+    [SerializeField] string slapRightEuphoriaState = "oxi_coup_droit_euphorie";
+
     [Header("Durée de la transformation")]
     [SerializeField] float transformationDuration = 0f;
 
@@ -42,6 +48,7 @@ public class OxiO_Animation : MonoBehaviour
     public event System.Action OnTransformationComplete;
     public event System.Action OnSlicedComplete;
     public event System.Action OnFinalFall;
+    public event System.Action OnSlapImpact;
 
     public bool IsEuphoric => isEuphoric;
     public bool IsTalking => isTalking;
@@ -50,6 +57,7 @@ public class OxiO_Animation : MonoBehaviour
     public bool IsBusyWithCombatAnimation => isEconomyMode || isSlicing;
     public bool IsFinalBlow => isFinalBlow;
     public bool HasFallen => hasFallen;
+    public bool IsSlapping => isSlapping;
 
     int idleHash;
     int idleBlinkHash;
@@ -65,6 +73,10 @@ public class OxiO_Animation : MonoBehaviour
     int ventBoostHash;
     int finalBlowHash;
     int ventShutdownHash;
+    int slapLeftHash;
+    int slapRightHash;
+    int slapLeftEuphoriaHash;
+    int slapRightEuphoriaHash;
 
     bool isTalking;
     bool isEuphoric;
@@ -75,6 +87,7 @@ public class OxiO_Animation : MonoBehaviour
     bool isFinalBlow;
     bool hasFallen;
     bool ventShutDown;
+    bool isSlapping;
 
     Coroutine blinkRoutine;
 
@@ -100,6 +113,10 @@ public class OxiO_Animation : MonoBehaviour
         ventBoostHash = Animator.StringToHash(ventBoostState);
         finalBlowHash = Animator.StringToHash(finalBlowState);
         ventShutdownHash = Animator.StringToHash(ventShutdownState);
+        slapLeftHash = Animator.StringToHash(slapLeftState);
+        slapRightHash = Animator.StringToHash(slapRightState);
+        slapLeftEuphoriaHash = Animator.StringToHash(slapLeftEuphoriaState);
+        slapRightEuphoriaHash = Animator.StringToHash(slapRightEuphoriaState);
 
         ValidateStates();
     }
@@ -125,6 +142,18 @@ public class OxiO_Animation : MonoBehaviour
         CheckState(ventAnimator, ventBoostHash, ventBoostState);
         CheckState(oxiAnimator, finalBlowHash, finalBlowState);
         CheckState(ventAnimator, ventShutdownHash, ventShutdownState);
+
+        if (!string.IsNullOrEmpty(slapLeftState))
+            CheckState(oxiAnimator, slapLeftHash, slapLeftState);
+
+        if (!string.IsNullOrEmpty(slapRightState))
+            CheckState(oxiAnimator, slapRightHash, slapRightState);
+
+        if (!string.IsNullOrEmpty(slapLeftEuphoriaState))
+            CheckState(oxiAnimator, slapLeftEuphoriaHash, slapLeftEuphoriaState);
+
+        if (!string.IsNullOrEmpty(slapRightEuphoriaState))
+            CheckState(oxiAnimator, slapRightEuphoriaHash, slapRightEuphoriaState);
     }
 
     void CheckState(Animator animator, int hash, string stateName)
@@ -282,6 +311,57 @@ public class OxiO_Animation : MonoBehaviour
 
         if (autoBlink)
             blinkRoutine = StartCoroutine(AutoBlinkRoutine());
+    }
+
+    public void PlaySlap(bool leftHand)
+    {
+        if (oxiAnimator == null || isSlicing || isFinalBlow || isTransforming) return;
+
+        string euphoriaState = leftHand ? slapLeftEuphoriaState : slapRightEuphoriaState;
+        bool useEuphoria = isEuphoric && !string.IsNullOrEmpty(euphoriaState);
+
+        string state = useEuphoria ? euphoriaState : (leftHand ? slapLeftState : slapRightState);
+
+        if (string.IsNullOrEmpty(state))
+        {
+            Debug.LogWarning($"[OxiOAnimation] Aucun état de coup de main {(leftHand ? "gauche" : "droite")} renseigné, l'animation est sautée.", this);
+            return;
+        }
+
+        int hash = useEuphoria
+            ? (leftHand ? slapLeftEuphoriaHash : slapRightEuphoriaHash)
+            : (leftHand ? slapLeftHash : slapRightHash);
+
+        Debug.Log($"[OxiOAnimation] Coup de main : '{state}'.", this);
+
+        StartCoroutine(SlapRoutine(hash));
+    }
+
+    IEnumerator SlapRoutine(int stateHash)
+    {
+        isSlapping = true;
+        isSlicing = true;
+        isEconomyMode = false;
+        isTalking = false;
+        isBlinking = false;
+
+        oxiAnimator.Play(stateHash, 0, 0f);
+
+        yield return null;
+        yield return WaitForStateEnd(oxiAnimator);
+
+        if (!isTransforming && !isFinalBlow)
+            oxiAnimator.Play(RestHash(), 0, 0f);
+
+        isSlicing = false;
+        isSlapping = false;
+    }
+
+    public void NotifySlapImpact()
+    {
+        if (!isSlapping) return;
+
+        OnSlapImpact?.Invoke();
     }
 
     public void PlayFinalBlow()
