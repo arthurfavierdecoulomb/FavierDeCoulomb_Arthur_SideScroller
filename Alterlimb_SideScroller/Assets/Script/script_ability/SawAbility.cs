@@ -8,9 +8,17 @@ public class SawAbility : MonoBehaviour
     [SerializeField] float attackCooldown = 0.4f;
     [SerializeField] LayerMask enemyLayer;
 
+    public static event System.Action<Vector2, float> OnStrike;
+
     float cooldownCounter;
     AbilityEnergySystem energySystem;
     PlayerAnimator playerAnimator;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    static void ResetStatics()
+    {
+        OnStrike = null;
+    }
 
     void Awake()
     {
@@ -45,6 +53,8 @@ public class SawAbility : MonoBehaviour
             if (drone != null)
                 drone.TakeDamage(finalDamage);
         }
+
+        OnStrike?.Invoke(transform.position, attackRange);
     }
 
     void OnDrawGizmosSelected()

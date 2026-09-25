@@ -48,6 +48,7 @@ public class BossMusicSequencer : MonoBehaviour
     [SerializeField] private bool logDiagnostics = true;
 
     public event System.Action<string> OnSegmentStarted;
+    public event System.Action<string> OnSegmentFinished;
 
     public string CurrentSegmentId => IdAt(currentIndex);
     public string QueuedSegmentId => pendingSource >= 0 && pendingIndex != currentIndex ? IdAt(pendingIndex) : IdAt(queuedIndex);
@@ -507,8 +508,12 @@ public class BossMusicSequencer : MonoBehaviour
 
     private void FinishPlayback()
     {
-        Log($"'{CurrentSegmentId}' terminé, plus rien à enchaîner.");
+        string finished = CurrentSegmentId;
+
+        Log($"'{finished}' terminé, plus rien à enchaîner.");
         StopEverything();
+
+        OnSegmentFinished?.Invoke(finished);
     }
 
     private void StopEverything()

@@ -26,6 +26,7 @@ public class OxiOMusicDirector : MonoBehaviour
     [SerializeField] private OxiOCore core;
     [SerializeField] private OxiO_Animation oxiAnimation;
     [SerializeField] private BossDialogueManager dialogue;
+    [SerializeField] private OxiOEnding ending;
 
     [Header("Segments")]
     [SerializeField] private string bossRoomSegmentId = "boss_decouverte";
@@ -39,6 +40,12 @@ public class OxiOMusicDirector : MonoBehaviour
         new DialogueCue { sequenceId = "boss_intro", lineIndex = 5, segmentId = "oxi_vérité" },
         new DialogueCue { sequenceId = "dialogue_interlude", lineIndex = 0, segmentId = "dialogue_interlude" }
     };
+
+    [Header("Fin du jeu")]
+    [SerializeField] private string containmentOpenedSegmentId = "fin_1";
+    [SerializeField] private string elevatorSegmentId = "fin_2";
+    [SerializeField] private string breakSegmentId = "fin_3";
+    [SerializeField] private string endMenuSegmentId = "fin_4";
 
     [Header("Structure du combat")]
     [SerializeField] private int phaseCount = 2;
@@ -72,6 +79,9 @@ public class OxiOMusicDirector : MonoBehaviour
 
         if (dialogue == null)
             dialogue = FindAnyObjectByType<BossDialogueManager>();
+
+        if (ending == null)
+            ending = FindAnyObjectByType<OxiOEnding>();
     }
 
     private void Start()
@@ -103,6 +113,13 @@ public class OxiOMusicDirector : MonoBehaviour
         if (dialogue != null)
             dialogue.OnLineStarted += HandleLineStarted;
 
+        if (ending != null)
+        {
+            ending.OnContainmentOpened += HandleContainmentOpened;
+            ending.OnElevatorStarted += HandleElevatorStarted;
+            ending.OnMonologueFinished += HandleMonologueFinished;
+        }
+
         CharaController.OnPlayerDied += HandlePlayerDied;
         SpawnManager.OnPlayerRespawn += HandlePlayerRespawn;
     }
@@ -124,6 +141,13 @@ public class OxiOMusicDirector : MonoBehaviour
 
         if (dialogue != null)
             dialogue.OnLineStarted -= HandleLineStarted;
+
+        if (ending != null)
+        {
+            ending.OnContainmentOpened -= HandleContainmentOpened;
+            ending.OnElevatorStarted -= HandleElevatorStarted;
+            ending.OnMonologueFinished -= HandleMonologueFinished;
+        }
 
         CharaController.OnPlayerDied -= HandlePlayerDied;
         SpawnManager.OnPlayerRespawn -= HandlePlayerRespawn;
@@ -154,6 +178,14 @@ public class OxiOMusicDirector : MonoBehaviour
 
         for (int i = 0; i < segmentIdByRemainingCores.Length; i++)
             CheckSegment(segmentIdByRemainingCores[i], $"Segment Id By Remaining Cores [{i}]");
+
+        if (ending != null)
+        {
+            CheckSegment(containmentOpenedSegmentId, "Containment Opened Segment Id");
+            CheckSegment(elevatorSegmentId, "Elevator Segment Id");
+            CheckSegment(breakSegmentId, "Break Segment Id");
+            CheckSegment(endMenuSegmentId, "End Menu Segment Id");
+        }
 
         for (int i = 0; i < dialogueCues.Count; i++)
         {
@@ -224,6 +256,22 @@ public class OxiOMusicDirector : MonoBehaviour
         }
 
         Request(SegmentFor(remaining), Move.Crossfade, $"noyau coupé, {remaining} en vie");
+    }
+
+    private void HandleContainmentOpened()
+    {
+        Request(containmentOpenedSegmentId, Move.Crossfade, "lasers ouverts");
+    }
+
+    private void HandleElevatorStarted()
+    {
+        Request(elevatorSegmentId, Move.Crossfade, "l'ascenseur monte");
+    }
+
+    private void HandleMonologueFinished()
+    {
+        Request(breakSegmentId, Move.Crossfade, "fin du monologue, contretemps");
+        Request(endMenuSegmentId, Move.Queue, "menu de fin après le contretemps");
     }
 
     private void HandleFinalFall()

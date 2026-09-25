@@ -237,7 +237,7 @@ public class OxiOPhaseTransition : MonoBehaviour
 
         director.ConcludeFight();
 
-        Log("Oxi-O tombe : caméra rendue à Azu, lasers coupés, fin du combat.");
+        Log("Oxi-O tombe : caméra rendue à Azu, fin du combat.");
     }
 
     private IEnumerator WaitForFallCue()

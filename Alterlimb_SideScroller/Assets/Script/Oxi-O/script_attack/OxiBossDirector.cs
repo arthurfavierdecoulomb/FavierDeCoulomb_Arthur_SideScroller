@@ -66,7 +66,7 @@ public class OxiOBossDirector : MonoBehaviour
     [SerializeField] private AbilityManager abilityManager;
     [SerializeField] private float overheatDuration = 8f;
     [SerializeField] private bool extendWindowWhileCutting = true;
-    [SerializeField] private OxiSlap failSlap;
+    [SerializeField] private OxiOSlap failSlap;
 
     [Header("Écran suspendu")]
     [SerializeField] private OxiOScreenUI screenUI;
@@ -321,17 +321,22 @@ public class OxiOBossDirector : MonoBehaviour
     {
         fightEngaged = false;
 
-        foreach (LaserBeam laser in containmentLasers)
-            if (laser != null)
-                laser.PowerDownWithFlicker();
-
         if (abilityManager == null)
             abilityManager = FindAnyObjectByType<AbilityManager>();
 
         if (abilityManager != null)
             abilityManager.SetCombatLock(false);
 
-        Debug.Log("[OxiOBossDirector] Combat terminé : lasers coupés, capacités rendues à Azu.", this);
+        Debug.Log("[OxiOBossDirector] Combat terminé : capacités rendues à Azu, les lasers attendent la fin de la musique.", this);
+    }
+
+    public void OpenContainment()
+    {
+        foreach (LaserBeam laser in containmentLasers)
+            if (laser != null)
+                laser.PowerDownWithFlicker();
+
+        Debug.Log("[OxiOBossDirector] Confinement levé : les lasers s'éteignent.", this);
     }
 
     public void SetPhase(int phase)

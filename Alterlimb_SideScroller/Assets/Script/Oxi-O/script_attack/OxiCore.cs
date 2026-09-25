@@ -8,7 +8,8 @@ public class OxiOCore : MonoBehaviour
     public enum CutDetection
     {
         SawCollider,
-        PlayerProximity
+        PlayerProximity,
+        SawStrikes
     }
 
     [Header("Détection de la scie")]
@@ -17,6 +18,10 @@ public class OxiOCore : MonoBehaviour
     [SerializeField] private float cutRadius = 2f;
     [SerializeField] private bool requireSawEquipped = true;
     [SerializeField] private float contactGraceTime = 0.12f;
+
+    [Header("Coups de scie")]
+    [SerializeField] private int strikesToCut = 6;
+    [SerializeField] private float strikeContactTime = 0.35f;
 
     [Header("Découpe")]
     [SerializeField] private float sawDuration = 2.5f;
@@ -100,7 +105,7 @@ public class OxiOCore : MonoBehaviour
     private float progress;
     private float lastContactTime = -999f;
     private bool wasCutting;
-    private bool explosionDone;
+    private bool explosionPending;
     private float lastDiagnosticTime;
     private int cutsDoneThisPhase;
     private bool isFinalPhase;
@@ -145,6 +150,44 @@ public class OxiOCore : MonoBehaviour
 
         if (explosionClip == null)
             Debug.LogWarning($"[OxiOCore] '{name}' : aucun Explosion Clip assigné, l'explosion sera silencieuse.", this);
+    }
+
+    private void OnEnable()
+    {
+        SawAbility.OnStrike += HandleSawStrike;
+    }
+
+    private void OnDisable()
+    {
+        SawAbility.OnStrike -= HandleSawStrike;
+    }
+
+    private void HandleSawStrike(Vector2 origin, float range)
+    {
+        if (cutDetection != CutDetection.SawStrikes)
+            return;
+
+        if (!IsVulnerable || IsRemoved)
+            return;
+
+        float distance = Vector2.Distance(origin, transform.position);
+
+        if (distance > cutRadius)
+        {
+            if (logDiagnostics)
+                Debug.Log($"[OxiOCore] '{name}' : coup de scie dans le vide, Azu est à {distance:F2} unités (Cut Radius = {cutRadius}).", this);
+
+            return;
+        }
+
+        lastContactTime = Time.time + Mathf.Max(0f, strikeContactTime - contactGraceTime);
+        SetProgress(progress + sawDuration / Mathf.Max(1, strikesToCut));
+
+        if (logDiagnostics)
+            Debug.Log($"[OxiOCore] '{name}' : coup de scie, découpe à {NormalizedProgress * 100f:0}%.", this);
+
+        if (NormalizedProgress >= 0.999f)
+            RemoveCore();
     }
 
     private bool ExplosionIsPrefabAsset()
@@ -288,7 +331,7 @@ public class OxiOCore : MonoBehaviour
         IsVulnerable = false;
         IsRemoved = false;
         wasCutting = false;
-        explosionDone = false;
+        explosionPending = false;
         lastContactTime = -999f;
 
         SetProgress(0f);
@@ -447,7 +490,7 @@ public class OxiOCore : MonoBehaviour
     private void RemoveCore()
     {
         cutsDoneThisPhase++;
-        explosionDone = false;
+        explosionPending = true;
 
         bool depleted = PhaseDepleted;
         IsRemoved = depleted;
@@ -502,15 +545,13 @@ public class OxiOCore : MonoBehaviour
 
     public void TriggerCoreExplosion()
     {
-        if (explosionDone)
+        if (!explosionPending)
         {
-            if (logDiagnostics)
-                Debug.LogWarning($"[OxiOCore] '{name}' : explosion déjà jouée pour cette découpe, appel ignoré.", this);
-
+            Debug.LogWarning($"[OxiOCore] '{name}' : CoreExplosion reçu alors qu'aucun noyau ne vient d'être coupé, explosion ignorée. Un Animation Event 'CoreExplosion' traîne sûrement dans une autre animation (coup de main ?).", this);
             return;
         }
 
-        explosionDone = true;
+        explosionPending = false;
 
         PlayExplosionParticles();
         PlayExplosionSound();
@@ -619,7 +660,7 @@ public class OxiOCore : MonoBehaviour
     {
         yield return new WaitForSeconds(delay);
 
-        if (!explosionDone)
+        if (explosionPending)
         {
             Debug.LogWarning($"[OxiOCore] '{name}' : aucun Animation Event reçu, explosion déclenchée par sécurité.", this);
             TriggerCoreExplosion();
@@ -696,7 +737,7 @@ public class OxiOCore : MonoBehaviour
 
     private void OnDrawGizmosSelected()
     {
-        if (cutDetection != CutDetection.PlayerProximity)
+        if (cutDetection == CutDetection.SawCollider)
             return;
 
         Gizmos.color = new Color(1f, 0.6f, 0.1f, 0.6f);
