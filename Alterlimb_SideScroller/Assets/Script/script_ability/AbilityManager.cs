@@ -11,6 +11,7 @@ public class AbilityManager : MonoBehaviour
     public event Action<ArmAbility> OnArmUnlocked;
     public event Action<LegAbility> OnLegChanged;
     public event Action<LegAbility> OnLegUnlocked;
+    public event Action OnArmSwitchDenied;
 
     List<ArmAbility> unlockedArms = new List<ArmAbility> { ArmAbility.Hand };
     List<LegAbility> unlockedLegs = new List<LegAbility> { LegAbility.NormalJump };
@@ -45,11 +46,18 @@ public class AbilityManager : MonoBehaviour
 
     void Update()
     {
-        if (!combatLocked && Input.GetKeyDown(KeyCode.Q) && unlockedArms.Count > 1)
+        if (Input.GetKeyDown(KeyCode.Q))
         {
-            armIndex = (armIndex + 1) % unlockedArms.Count;
-            ApplyArmAbility();
-            OnArmChanged?.Invoke(CurrentArm);
+            if (combatLocked)
+            {
+                OnArmSwitchDenied?.Invoke();
+            }
+            else if (unlockedArms.Count > 1)
+            {
+                armIndex = (armIndex + 1) % unlockedArms.Count;
+                ApplyArmAbility();
+                OnArmChanged?.Invoke(CurrentArm);
+            }
         }
 
         if (Input.GetKeyDown(KeyCode.E) && unlockedLegs.Count > 1)

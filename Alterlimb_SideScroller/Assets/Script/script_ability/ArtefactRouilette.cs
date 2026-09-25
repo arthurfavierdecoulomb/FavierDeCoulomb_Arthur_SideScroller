@@ -47,6 +47,17 @@ public class ArtefactRoulette : MonoBehaviour
     [SerializeField] Color selectedTint = Color.white;
     [SerializeField] Color unselectedTint = new Color(0.7f, 0.7f, 0.7f, 1f);
 
+    [Header("Piratage par Oxi-O")]
+    [SerializeField] Color hackedTint = new Color(1f, 0.85f, 0.1f, 1f);
+    [SerializeField] float hackedDuration = 1.1f;
+    [SerializeField] float hackedAngleJitter = 18f;
+    [SerializeField] Vector2 hackedFlickerInterval = new Vector2(0.03f, 0.09f);
+    [SerializeField, Range(0f, 1f)] float hackedGlitchChance = 0.65f;
+    [SerializeField] Image[] hackedExtraImages;
+    [SerializeField] AudioClip[] hackedClips;
+    [Range(0f, 1f)]
+    [SerializeField] float hackedVolume = 0.8f;
+
     [Header("Animation pickup (centre écran)")]
     [SerializeField] CanvasGroup pickupBounceCanvasGroup;
     [SerializeField] Image pickupIcon;
@@ -75,12 +86,15 @@ public class ArtefactRoulette : MonoBehaviour
     [Range(0f, 1f)]
     [SerializeField] float pickupAppearVolume = 0.8f;
 
+    public float HackedTotalDuration => slideInDuration + hackedDuration + slideOutDuration;
+
     Coroutine showRoutine;
     Coroutine pickupRoutine;
     Vector2 rouletteShownPos;
     Vector2 pickupHomePos;
     AudioSource sfxSource;
     AudioClip lastSfxClip;
+    Color[] hackedExtraBaseColors;
 
     void Awake()
     {
@@ -105,6 +119,22 @@ public class ArtefactRoulette : MonoBehaviour
         {
             Debug.LogError("ArtefactRoulette : rouletteRoot non assigné.", this);
         }
+
+        CacheHackedExtraColors();
+    }
+
+    void CacheHackedExtraColors()
+    {
+        if (hackedExtraImages == null)
+        {
+            hackedExtraBaseColors = new Color[0];
+            return;
+        }
+
+        hackedExtraBaseColors = new Color[hackedExtraImages.Length];
+
+        for (int i = 0; i < hackedExtraImages.Length; i++)
+            hackedExtraBaseColors[i] = hackedExtraImages[i] != null ? hackedExtraImages[i].color : Color.white;
     }
 
     void OnEnable()
@@ -183,6 +213,86 @@ public class ArtefactRoulette : MonoBehaviour
 
         if (pickupRoutine != null) StopCoroutine(pickupRoutine);
         pickupRoutine = StartCoroutine(PickupBounceRoutine(unlockedArm));
+    }
+
+    public void PlayHacked()
+    {
+        if (abilityManager == null) return;
+
+        if (showRoutine != null) StopCoroutine(showRoutine);
+        showRoutine = StartCoroutine(HackedRoutine());
+    }
+
+    IEnumerator HackedRoutine()
+    {
+        yield return SlideRoulette(true);
+
+        PlaySfx(hackedClips, hackedVolume, 1f);
+
+        float baseAngle = GetTargetAngleFor(abilityManager.CurrentArm);
+        float elapsed = 0f;
+        float nextGlitch = 0f;
+
+        while (elapsed < hackedDuration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+
+            if (elapsed >= nextGlitch)
+            {
+                nextGlitch = elapsed + Random.Range(hackedFlickerInterval.x, hackedFlickerInterval.y);
+
+                bool glitch = Random.value < hackedGlitchChance;
+
+                if (backgroundRolebar != null)
+                {
+                    float jitter = glitch ? Random.Range(-hackedAngleJitter, hackedAngleJitter) : 0f;
+                    backgroundRolebar.localEulerAngles = new Vector3(0f, 0f, baseAngle + jitter);
+                }
+
+                ApplyHackedTint(glitch);
+            }
+
+            yield return null;
+        }
+
+        if (backgroundRolebar != null)
+            backgroundRolebar.localEulerAngles = new Vector3(0f, 0f, baseAngle);
+
+        ApplyHackedTint(false);
+
+        yield return SlideRoulette(false);
+    }
+
+    void ApplyHackedTint(bool hacked)
+    {
+        if (hacked)
+        {
+            TintIcon(handIcon);
+            TintIcon(sawIcon);
+            TintIcon(grappleIcon);
+        }
+        else
+        {
+            RefreshIconStates();
+        }
+
+        if (hackedExtraImages == null) return;
+
+        for (int i = 0; i < hackedExtraImages.Length; i++)
+        {
+            if (hackedExtraImages[i] == null) continue;
+
+            hackedExtraImages[i].color = hacked ? hackedTint : hackedExtraBaseColors[i];
+        }
+    }
+
+    void TintIcon(Image icon)
+    {
+        if (icon == null) return;
+
+        Color c = hackedTint;
+        c.a = icon.color.a;
+        icon.color = c;
     }
 
     void RefreshIconStates()

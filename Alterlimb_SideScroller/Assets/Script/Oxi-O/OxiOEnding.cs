@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Audio;
 using UnityEngine.SceneManagement;
 
 public class OxiOEnding : MonoBehaviour
@@ -79,6 +80,37 @@ public class OxiOEnding : MonoBehaviour
     [SerializeField] private string menuSegmentId = "fin_4";
     [SerializeField] private float menuFallbackDelay = 20f;
 
+    [Header("Statistiques")]
+    [SerializeField] private RectTransform statsPanel;
+    [SerializeField] private CanvasGroup statsGroup;
+    [SerializeField] private TMP_Text timerLabel;
+    [SerializeField] private TMP_Text deathLabel;
+    [SerializeField] private HudTimerFormat timerFormat = HudTimerFormat.HoursMinutesSeconds;
+    [SerializeField, Range(1, 6)] private int deathDigits = 4;
+    [SerializeField] private float delayBeforeStats = 0.35f;
+    [SerializeField] private float timerCountDuration = 1.4f;
+    [SerializeField] private float deathCountDuration = 0.9f;
+    [SerializeField] private float delayBetweenCounters = 0.2f;
+
+    [Header("Boutons")]
+    [SerializeField] private float buttonsSlideDistance = 60f;
+
+    [Header("Sons")]
+    [SerializeField] private AudioMixerGroup sfxOutput;
+    [SerializeField] private AudioClip logoBoomClip;
+    [SerializeField] private AudioClip statsBoomClip;
+    [SerializeField] private AudioClip[] timerTickClips;
+    [SerializeField] private AudioClip[] deathTickClips;
+    [SerializeField] private AudioClip buttonsClip;
+    [Range(0f, 1f)]
+    [SerializeField] private float boomVolume = 1f;
+    [Range(0f, 1f)]
+    [SerializeField] private float tickVolume = 0.6f;
+    [Range(0f, 1f)]
+    [SerializeField] private float buttonsVolume = 0.7f;
+    [SerializeField] private Vector2 tickPitchRange = new Vector2(0.9f, 1.35f);
+    [SerializeField] private float tickMinInterval = 0.035f;
+
     [Header("Boom du logo")]
     [SerializeField] private float logoStartScale = 1.6f;
     [SerializeField] private float logoPunchDuration = 0.45f;
@@ -100,6 +132,13 @@ public class OxiOEnding : MonoBehaviour
     private Stage stage = Stage.Fight;
     private Vector2 logoBasePosition;
     private Vector3 logoBaseScale = Vector3.one;
+    private Vector2 statsBasePosition;
+    private Vector3 statsBaseScale = Vector3.one;
+    private Vector2 buttonsBasePosition;
+    private RectTransform buttonsRect;
+    private AudioSource sfxSource;
+    private AudioSource tickSource;
+    private float lastTickTime = -999f;
 
     private void Awake()
     {
@@ -120,6 +159,23 @@ public class OxiOEnding : MonoBehaviour
             logoBasePosition = logo.anchoredPosition;
             logoBaseScale = logo.localScale;
         }
+
+        if (statsPanel != null)
+        {
+            statsBasePosition = statsPanel.anchoredPosition;
+            statsBaseScale = statsPanel.localScale;
+        }
+
+        if (buttonsGroup != null)
+        {
+            buttonsRect = buttonsGroup.GetComponent<RectTransform>();
+
+            if (buttonsRect != null)
+                buttonsBasePosition = buttonsRect.anchoredPosition;
+        }
+
+        sfxSource = CreateSource();
+        tickSource = CreateSource();
 
         HideEndingUI();
         LogSetup();
@@ -198,6 +254,15 @@ public class OxiOEnding : MonoBehaviour
         if (logo == null)
             Debug.LogWarning($"[OxiOEnding] '{name}' : Logo vide, pas d'effet boom.", this);
 
+        if (statsPanel == null || statsGroup == null)
+            Debug.LogWarning($"[OxiOEnding] '{name}' : Stats Panel ou Stats Group vide, le panneau des statistiques n'apparaîtra pas en boom.", this);
+
+        if (timerLabel == null || deathLabel == null)
+            Debug.LogError($"[OxiOEnding] '{name}' : Timer Label ou Death Label vide, le chrono et les morts ne s'afficheront pas.", this);
+
+        if (sfxOutput == null)
+            Debug.LogWarning($"[OxiOEnding] '{name}' : Sfx Output vide, les sons du menu de fin ne passeront pas par le mixer.", this);
+
         if (!string.IsNullOrEmpty(mainMenuScene) && !Application.CanStreamedLevelBeLoaded(mainMenuScene))
             Debug.LogError($"[OxiOEnding] '{name}' : la scène '{mainMenuScene}' n'est pas dans les Build Settings, le bouton Retour au menu ne marchera pas.", this);
     }
@@ -270,6 +335,9 @@ public class OxiOEnding : MonoBehaviour
         PauseLock.Lock(PauseLockReason);
 
         Log("Azu entre dans la zone de fin.");
+
+        if (GameStats.Instance != null)
+            GameStats.Instance.Freeze();
 
         FreezePlayer();
         HoldCamera();
@@ -398,33 +466,54 @@ public class OxiOEnding : MonoBehaviour
     {
         SetGroup(monologueGroup, 0f, false);
 
+        float finalTime = GameStats.Instance != null ? GameStats.Instance.ElapsedTime : 0f;
+        int finalDeaths = GameStats.Instance != null ? GameStats.Instance.DeathCount : 0;
+
+        SetGroup(statsGroup, 0f, false);
+        SetGroup(buttonsGroup, 0f, false);
+        WriteTimer(0f);
+        WriteDeaths(0);
+
         if (endMenuRoot != null)
             endMenuRoot.SetActive(true);
-
-        SetGroup(buttonsGroup, 0f, false);
 
         Cursor.visible = true;
         Cursor.lockState = CursorLockMode.None;
 
-        Log("menu de fin.");
+        Log($"menu de fin : {finalTime:0.0}s, {finalDeaths} mort(s).");
         OnEndMenuShown?.Invoke();
+
+        PlaySfx(logoBoomClip, boomVolume, 1f);
 
         if (flash != null)
             StartCoroutine(Fade(flash, 1f, 0f, flashDuration));
 
-        yield return LogoBoomRoutine();
+        yield return BoomRoutine(logo, logoBasePosition, logoBaseScale);
+
+        if (delayBeforeStats > 0f)
+            yield return new WaitForSeconds(delayBeforeStats);
+
+        SetGroup(statsGroup, 1f, false);
+        PlaySfx(statsBoomClip, boomVolume, 1f);
+
+        yield return BoomRoutine(statsPanel, statsBasePosition, statsBaseScale);
+
+        yield return CountTimerRoutine(finalTime);
+
+        if (delayBetweenCounters > 0f)
+            yield return new WaitForSeconds(delayBetweenCounters);
+
+        yield return CountDeathsRoutine(finalDeaths);
 
         if (buttonsDelay > 0f)
             yield return new WaitForSeconds(buttonsDelay);
 
-        yield return Fade(buttonsGroup, 0f, 1f, buttonsFadeDuration);
-
-        SetGroup(buttonsGroup, 1f, true);
+        yield return ButtonsRoutine();
     }
 
-    private IEnumerator LogoBoomRoutine()
+    private IEnumerator BoomRoutine(RectTransform target, Vector2 basePosition, Vector3 baseScale)
     {
-        if (logo == null)
+        if (target == null)
             yield break;
 
         float total = Mathf.Max(logoPunchDuration, logoShakeDuration);
@@ -436,17 +525,180 @@ public class OxiOEnding : MonoBehaviour
 
             float punchT = logoPunchDuration <= 0f ? 1f : Mathf.Clamp01(elapsed / logoPunchDuration);
             float scale = Mathf.LerpUnclamped(logoStartScale, 1f, EaseOutBack(punchT, logoPunchOvershoot));
-            logo.localScale = logoBaseScale * scale;
+            target.localScale = baseScale * scale;
 
             float shakeT = logoShakeDuration <= 0f ? 1f : Mathf.Clamp01(elapsed / logoShakeDuration);
             float strength = logoShakeMagnitude * (1f - shakeT) * (1f - shakeT);
-            logo.anchoredPosition = logoBasePosition + Random.insideUnitCircle * strength;
+            target.anchoredPosition = basePosition + Random.insideUnitCircle * strength;
 
             yield return null;
         }
 
-        logo.localScale = logoBaseScale;
-        logo.anchoredPosition = logoBasePosition;
+        target.localScale = baseScale;
+        target.anchoredPosition = basePosition;
+    }
+
+    private IEnumerator CountTimerRoutine(float finalTime)
+    {
+        int lastTick = -1;
+        float duration = Mathf.Max(0.01f, timerCountDuration);
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+
+            float progress = Mathf.Clamp01(elapsed / duration);
+            float value = finalTime * EaseOutCubic(progress);
+            int tick = TimerTick(value);
+
+            if (tick != lastTick)
+            {
+                lastTick = tick;
+                WriteTimer(value);
+                PlayTick(timerTickClips, progress);
+            }
+
+            yield return null;
+        }
+
+        WriteTimer(finalTime);
+    }
+
+    private IEnumerator CountDeathsRoutine(int finalDeaths)
+    {
+        int shown = -1;
+        float duration = Mathf.Max(0.01f, deathCountDuration);
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+
+            float progress = Mathf.Clamp01(elapsed / duration);
+            int value = Mathf.RoundToInt(finalDeaths * EaseOutCubic(progress));
+
+            if (value != shown)
+            {
+                shown = value;
+                WriteDeaths(value);
+
+                if (value > 0)
+                    PlayTick(deathTickClips, progress);
+            }
+
+            yield return null;
+        }
+
+        WriteDeaths(finalDeaths);
+    }
+
+    private IEnumerator ButtonsRoutine()
+    {
+        PlaySfx(buttonsClip, buttonsVolume, 1f);
+
+        Vector2 start = buttonsBasePosition + Vector2.down * buttonsSlideDistance;
+        float duration = Mathf.Max(0.01f, buttonsFadeDuration);
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+
+            float t = EaseOutCubic(Mathf.Clamp01(elapsed / duration));
+
+            if (buttonsRect != null)
+                buttonsRect.anchoredPosition = Vector2.LerpUnclamped(start, buttonsBasePosition, t);
+
+            if (buttonsGroup != null)
+                buttonsGroup.alpha = t;
+
+            yield return null;
+        }
+
+        if (buttonsRect != null)
+            buttonsRect.anchoredPosition = buttonsBasePosition;
+
+        SetGroup(buttonsGroup, 1f, true);
+    }
+
+    private int TimerTick(float time)
+    {
+        int centiTotal = Mathf.FloorToInt(Mathf.Max(time, 0f) * 100f);
+
+        return timerFormat == HudTimerFormat.MinutesSecondsCentiseconds ? centiTotal : centiTotal / 100;
+    }
+
+    private void WriteTimer(float time)
+    {
+        if (timerLabel == null)
+            return;
+
+        int centiTotal = Mathf.FloorToInt(Mathf.Max(time, 0f) * 100f);
+        int totalSeconds = centiTotal / 100;
+
+        if (timerFormat == HudTimerFormat.MinutesSecondsCentiseconds)
+            timerLabel.text = $"{totalSeconds / 60:00}:{totalSeconds % 60:00}:{centiTotal % 100:00}";
+        else
+            timerLabel.text = $"{totalSeconds / 3600:00}:{totalSeconds % 3600 / 60:00}:{totalSeconds % 60:00}";
+    }
+
+    private void WriteDeaths(int deaths)
+    {
+        if (deathLabel == null)
+            return;
+
+        deathLabel.text = Mathf.Max(deaths, 0).ToString(new string('0', Mathf.Max(1, deathDigits)));
+    }
+
+    private void PlayTick(AudioClip[] clips, float progress)
+    {
+        if (Time.unscaledTime - lastTickTime < tickMinInterval)
+            return;
+
+        lastTickTime = Time.unscaledTime;
+
+        float pitch = Mathf.Lerp(tickPitchRange.x, tickPitchRange.y, progress);
+        PlayOn(tickSource, RandomClip(clips), tickVolume, pitch);
+    }
+
+    private AudioClip RandomClip(AudioClip[] clips)
+    {
+        if (clips == null || clips.Length == 0)
+            return null;
+
+        return clips[Random.Range(0, clips.Length)];
+    }
+
+    private AudioSource CreateSource()
+    {
+        AudioSource source = gameObject.AddComponent<AudioSource>();
+        source.playOnAwake = false;
+        source.loop = false;
+        source.spatialBlend = 0f;
+        source.ignoreListenerPause = true;
+        source.outputAudioMixerGroup = sfxOutput;
+        return source;
+    }
+
+    private void PlaySfx(AudioClip clip, float volume, float pitch)
+    {
+        PlayOn(sfxSource, clip, volume, pitch);
+    }
+
+    private void PlayOn(AudioSource source, AudioClip clip, float volume, float pitch)
+    {
+        if (clip == null || source == null)
+            return;
+
+        source.pitch = pitch;
+        source.PlayOneShot(clip, volume);
+    }
+
+    private static float EaseOutCubic(float t)
+    {
+        float inverted = 1f - t;
+        return 1f - inverted * inverted * inverted;
     }
 
     public void ReturnToMainMenu()
@@ -477,6 +729,9 @@ public class OxiOEnding : MonoBehaviour
     {
         PauseLock.Unlock(PauseLockReason);
         Time.timeScale = 1f;
+
+        if (GameStats.Instance != null)
+            GameStats.Instance.Unfreeze();
     }
 
     private IEnumerator Fade(CanvasGroup group, float from, float to, float duration)
