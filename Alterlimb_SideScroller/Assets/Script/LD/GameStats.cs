@@ -8,11 +8,13 @@ public class GameStats : MonoBehaviour
     int deathCount;
     float levelStartTime;
     int levelStartDeaths;
+    bool frozen;
 
     public float ElapsedTime => elapsedTime;
     public int DeathCount => deathCount;
     public float LevelTime => elapsedTime - levelStartTime;
     public int LevelDeaths => deathCount - levelStartDeaths;
+    public bool IsFrozen => frozen;
 
     void Awake()
     {
@@ -26,12 +28,26 @@ public class GameStats : MonoBehaviour
 
     void Update()
     {
+        if (frozen) return;
+
         elapsedTime += Time.deltaTime;
     }
 
     public void AddDeath()
     {
+        if (frozen) return;
+
         deathCount++;
+    }
+
+    public void Freeze()
+    {
+        frozen = true;
+    }
+
+    public void Unfreeze()
+    {
+        frozen = false;
     }
 
     public void MarkLevelStart()
@@ -46,6 +62,7 @@ public class GameStats : MonoBehaviour
         deathCount = 0;
         levelStartTime = 0f;
         levelStartDeaths = 0;
+        frozen = false;
     }
 
     public string GetFormattedTime()

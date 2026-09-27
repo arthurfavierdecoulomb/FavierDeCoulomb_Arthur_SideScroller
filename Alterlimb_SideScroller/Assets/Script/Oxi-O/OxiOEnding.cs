@@ -66,11 +66,21 @@ public class OxiOEnding : MonoBehaviour
         "c'est toujours l'humain qui primera."
     };
     [SerializeField] private float delayBeforeMonologue = 1f;
-    [SerializeField] private float lineFadeIn = 0.8f;
-    [SerializeField] private float lineFadeOut = 0.6f;
-    [SerializeField] private float baseHold = 2f;
-    [SerializeField] private float holdPerCharacter = 0.045f;
+    [SerializeField] private float baseHold = 1.5f;
+    [SerializeField] private float holdPerCharacter = 0.02f;
     [SerializeField] private float pauseBetweenLines = 0.4f;
+
+    [Header("Machine à écrire")]
+    [SerializeField] private float characterDelay = 0.045f;
+    [SerializeField] private float punctuationPause = 0.25f;
+    [SerializeField] private string pausingCharacters = ".,;:!?…";
+    [SerializeField] private bool eraseBackwards = false;
+    [SerializeField] private float eraseCharacterDelay = 0.015f;
+    [SerializeField] private AudioClip[] typewriterClips;
+    [Range(0f, 1f)]
+    [SerializeField] private float typewriterVolume = 0.45f;
+    [SerializeField] private Vector2 typewriterPitchRange = new Vector2(0.94f, 1.06f);
+    [SerializeField] private float typewriterMinInterval = 0.03f;
 
     [Header("Menu de fin")]
     [SerializeField] private GameObject endMenuRoot;
@@ -139,6 +149,7 @@ public class OxiOEnding : MonoBehaviour
     private AudioSource sfxSource;
     private AudioSource tickSource;
     private float lastTickTime = -999f;
+    private float lastTypewriterTime = -999f;
 
     private void Awake()
     {
@@ -412,27 +423,85 @@ public class OxiOEnding : MonoBehaviour
 
     private IEnumerator MonologueRoutine()
     {
-        if (monologueText == null || monologueGroup == null)
+        if (monologueText == null)
             yield break;
+
+        monologueText.text = "";
+        monologueText.maxVisibleCharacters = 0;
+        SetGroup(monologueGroup, 1f, false);
 
         foreach (string line in monologueLines)
         {
-            monologueText.text = line;
-
-            yield return Fade(monologueGroup, 0f, 1f, lineFadeIn);
+            yield return TypeLineRoutine(line);
 
             float hold = baseHold + line.Length * holdPerCharacter;
 
             if (hold > 0f)
                 yield return new WaitForSeconds(hold);
 
-            yield return Fade(monologueGroup, 1f, 0f, lineFadeOut);
+            yield return EraseLineRoutine();
 
             if (pauseBetweenLines > 0f)
                 yield return new WaitForSeconds(pauseBetweenLines);
         }
 
         monologueText.text = "";
+        SetGroup(monologueGroup, 0f, false);
+    }
+
+    private IEnumerator TypeLineRoutine(string line)
+    {
+        monologueText.text = line;
+        monologueText.maxVisibleCharacters = 0;
+        monologueText.ForceMeshUpdate();
+
+        int total = monologueText.textInfo.characterCount;
+
+        for (int visible = 1; visible <= total; visible++)
+        {
+            monologueText.maxVisibleCharacters = visible;
+
+            char character = monologueText.textInfo.characterInfo[visible - 1].character;
+
+            if (!char.IsWhiteSpace(character))
+                PlayTypewriterClick();
+
+            float delay = characterDelay;
+
+            if (pausingCharacters.IndexOf(character) >= 0)
+                delay += punctuationPause;
+
+            if (delay > 0f)
+                yield return new WaitForSeconds(delay);
+        }
+    }
+
+    private IEnumerator EraseLineRoutine()
+    {
+        if (!eraseBackwards)
+        {
+            monologueText.maxVisibleCharacters = 0;
+            yield break;
+        }
+
+        for (int visible = monologueText.maxVisibleCharacters; visible >= 0; visible--)
+        {
+            monologueText.maxVisibleCharacters = visible;
+
+            if (eraseCharacterDelay > 0f)
+                yield return new WaitForSeconds(eraseCharacterDelay);
+        }
+    }
+
+    private void PlayTypewriterClick()
+    {
+        if (Time.unscaledTime - lastTypewriterTime < typewriterMinInterval)
+            return;
+
+        lastTypewriterTime = Time.unscaledTime;
+
+        float pitch = Random.Range(typewriterPitchRange.x, typewriterPitchRange.y);
+        PlayOn(tickSource, RandomClip(typewriterClips), typewriterVolume, pitch);
     }
 
     private IEnumerator MenuFallbackRoutine()
