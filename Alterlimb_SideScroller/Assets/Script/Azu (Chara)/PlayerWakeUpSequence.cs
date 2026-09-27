@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -24,10 +25,16 @@ public class PlayerWakeUpSequence : MonoBehaviour
     [SerializeField] float musicCutDuration = 0.1f;
     [SerializeField] float musicFadeInDuration = 1.5f;
 
+    [Header("Sécurité")]
+    [SerializeField] float wakeUpTimeout = 8f;
+
     ArmAbility savedArm;
     bool sequenceActive;
+    bool wakeUpReceived;
+    bool restrictedByTutorial;
     string pendingDialogueId;
     LevelData currentLevel;
+    Coroutine timeoutRoutine;
 
     void Awake()
     {
@@ -84,27 +91,52 @@ public class PlayerWakeUpSequence : MonoBehaviour
 
         bool tutorialEnabled = PlayerPrefs.GetInt("TutorialEnabled", 1) == 1;
         pendingDialogueId = tutorialEnabled ? entry.tutorialDialogueId : entry.noTutorialDialogueId;
+        restrictedByTutorial = tutorialEnabled && !string.IsNullOrEmpty(entry.tutorialDialogueId);
 
         sequenceActive = true;
+        wakeUpReceived = false;
         savedArm = abilityManager.CurrentArm;
 
         player.SetInvincible(true);
         player.SetControlLocked(true);
         abilityManager.SetCombatLock(true);
 
-        player.SetMoveEnabled(!tutorialEnabled);
-        player.SetJumpEnabled(!tutorialEnabled);
-        player.SetInteractEnabled(!tutorialEnabled);
+        player.SetMoveEnabled(!restrictedByTutorial);
+        player.SetJumpEnabled(!restrictedByTutorial);
+        player.SetInteractEnabled(!restrictedByTutorial);
 
         if (LevelMusicPlayer.Instance != null)
             LevelMusicPlayer.Instance.FadeOut(musicCutDuration);
 
         playerAnimator.TriggerWakeUp(entry.animatorTrigger);
+
+        if (timeoutRoutine != null) StopCoroutine(timeoutRoutine);
+        timeoutRoutine = StartCoroutine(WakeUpTimeoutRoutine());
+    }
+
+    IEnumerator WakeUpTimeoutRoutine()
+    {
+        yield return new WaitForSeconds(wakeUpTimeout);
+
+        timeoutRoutine = null;
+
+        if (!sequenceActive || wakeUpReceived) yield break;
+
+        Debug.LogWarning($"[PlayerWakeUpSequence] '{name}' : l'Animation Event 'WakeUpFinished' n'a pas été reçu après {wakeUpTimeout}s, réveil terminé par sécurité. Vérifie l'event à la fin de l'animation de réveil.", this);
+        WakeUpFinished();
     }
 
     public void WakeUpFinished()
     {
-        if (!sequenceActive) return;
+        if (!sequenceActive || wakeUpReceived) return;
+
+        wakeUpReceived = true;
+
+        if (timeoutRoutine != null)
+        {
+            StopCoroutine(timeoutRoutine);
+            timeoutRoutine = null;
+        }
 
         if (string.IsNullOrEmpty(pendingDialogueId) || OxiDialogueManager.Instance == null)
         {
@@ -134,6 +166,13 @@ public class PlayerWakeUpSequence : MonoBehaviour
 
         player.SetControlLocked(false);
         player.SetInvincible(false);
+
+        if (!restrictedByTutorial)
+        {
+            player.SetMoveEnabled(true);
+            player.SetJumpEnabled(true);
+            player.SetInteractEnabled(true);
+        }
     }
 
     public void StartLevelMusic()

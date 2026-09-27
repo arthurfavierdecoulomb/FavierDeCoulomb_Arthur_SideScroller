@@ -115,6 +115,7 @@ public class FuseGUI : MonoBehaviour
 
     void HandleFuseCollected()
     {
+        Debug.Log($"FuseGUI reçoit la collecte, visible={isVisible}");
         pickupQueue.Enqueue(1);
 
         if (!isPlayingPickup)
