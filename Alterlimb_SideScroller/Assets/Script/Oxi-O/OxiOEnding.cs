@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Audio;
-using UnityEngine.SceneManagement;
 
 public class OxiOEnding : MonoBehaviour
 {
@@ -47,6 +46,12 @@ public class OxiOEnding : MonoBehaviour
     [SerializeField] private CanvasGroup blackScreen;
     [SerializeField] private float delayBeforeFade = 2.5f;
     [SerializeField] private float fadeDuration = 1.5f;
+
+    [Header("Sons autour")]
+    [SerializeField] private bool silenceWorldSounds = true;
+    [SerializeField] private float worldSoundsFadeDuration = 1.5f;
+    [SerializeField] private float worldSoundsRecheckInterval = 0.25f;
+    [SerializeField] private List<AudioSource> keepAudible = new List<AudioSource>();
 
     [Header("Monologue")]
     [SerializeField] private TextMeshProUGUI monologueText;
@@ -357,6 +362,9 @@ public class OxiOEnding : MonoBehaviour
         if (delayBeforeFade > 0f)
             yield return new WaitForSeconds(delayBeforeFade);
 
+        if (silenceWorldSounds)
+            StartCoroutine(SilenceWorldRoutine());
+
         yield return Fade(blackScreen, 0f, 1f, fadeDuration);
 
         stage = Stage.Monologue;
@@ -407,6 +415,65 @@ public class OxiOEnding : MonoBehaviour
             controller.SetDashEnabled(false);
             controller.SetInvincible(true);
         }
+    }
+
+    private IEnumerator SilenceWorldRoutine()
+    {
+        List<AudioSource> targets = new List<AudioSource>();
+        List<float> startVolumes = new List<float>();
+
+        foreach (AudioSource source in FindObjectsByType<AudioSource>(FindObjectsInactive.Exclude))
+        {
+            if (ShouldStayAudible(source))
+                continue;
+
+            targets.Add(source);
+            startVolumes.Add(source.volume);
+        }
+
+        Log($"les sons autour s'éteignent ({targets.Count} source(s)).");
+
+        float duration = Mathf.Max(0.01f, worldSoundsFadeDuration);
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float remaining = 1f - Mathf.Clamp01(elapsed / duration);
+
+            for (int i = 0; i < targets.Count; i++)
+                if (targets[i] != null)
+                    targets[i].volume = startVolumes[i] * remaining;
+
+            yield return null;
+        }
+
+        foreach (AudioSource source in targets)
+            if (source != null)
+                source.mute = true;
+
+        while (true)
+        {
+            yield return new WaitForSecondsRealtime(Mathf.Max(0.05f, worldSoundsRecheckInterval));
+
+            foreach (AudioSource source in FindObjectsByType<AudioSource>(FindObjectsInactive.Exclude))
+                if (!source.mute && !ShouldStayAudible(source))
+                    source.mute = true;
+        }
+    }
+
+    private bool ShouldStayAudible(AudioSource source)
+    {
+        if (source == null)
+            return true;
+
+        if (source.gameObject == gameObject)
+            return true;
+
+        if (sequencer != null && source.gameObject == sequencer.gameObject)
+            return true;
+
+        return keepAudible.Contains(source);
     }
 
     private void HoldCamera()
@@ -774,13 +841,7 @@ public class OxiOEnding : MonoBehaviour
     {
         LeaveEnding();
 
-        if (string.IsNullOrEmpty(mainMenuScene) || !Application.CanStreamedLevelBeLoaded(mainMenuScene))
-        {
-            Debug.LogError($"[OxiOEnding] '{name}' : impossible de charger '{mainMenuScene}'. Vérifie le nom et ajoute la scène aux Build Settings.", this);
-            return;
-        }
-
-        SceneManager.LoadScene(mainMenuScene);
+        SceneLoader.Load(mainMenuScene);
     }
 
     public void QuitGame()

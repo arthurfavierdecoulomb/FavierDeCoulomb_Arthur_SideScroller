@@ -26,6 +26,8 @@ public class IntroCinematic : MonoBehaviour
 
     [Header("Machine à écrire")]
     [SerializeField] float typewriterDelay = 0.045f;
+    [SerializeField] float punctuationPause = 0.25f;
+    [SerializeField] string pausingCharacters = ".,;:!?…";
 
     [Header("Son de la machine à écrire")]
     [SerializeField] AudioMixerGroup sfxGroup;
@@ -54,6 +56,7 @@ public class IntroCinematic : MonoBehaviour
 
     [Header("Musique")]
     [SerializeField] AudioSource cinematicMusicSource;
+    [SerializeField] bool loopCinematicMusic = false;
     [SerializeField] AudioSource menuMusicSource;
     [SerializeField] float musicFadeOutDuration = 2.5f;
 
@@ -138,7 +141,7 @@ public class IntroCinematic : MonoBehaviour
 
         if (cinematicMusicSource != null && cinematicMusicSource.clip != null)
         {
-            cinematicMusicSource.loop = true;
+            cinematicMusicSource.loop = loopCinematicMusic;
             cinematicMusicSource.Play();
         }
 
@@ -237,8 +240,24 @@ public class IntroCinematic : MonoBehaviour
 
             previous = current;
 
-            yield return new WaitForSeconds(typewriterDelay);
+            float delay = typewriterDelay;
+
+            if (pausingCharacters.IndexOf(current) >= 0 && !IsFollowedByPunctuation(info, i))
+                delay += punctuationPause;
+
+            if (delay > 0f)
+                yield return new WaitForSeconds(delay);
         }
+    }
+
+    bool IsFollowedByPunctuation(TMP_TextInfo info, int index)
+    {
+        int next = index + 1;
+
+        if (next >= info.characterCount)
+            return false;
+
+        return pausingCharacters.IndexOf(info.characterInfo[next].character) >= 0;
     }
 
     bool ShouldClick(char current, char previous)
